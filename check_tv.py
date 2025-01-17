@@ -34,15 +34,12 @@ import json
 import threading
 import cv2
 import subprocess
-import pyautogui
-import pyperclip
 import getopt
 import re
 import shutil
 from selenium.webdriver.chrome.service import Service
 t = time.localtime()
 current_time = time.strftime("%H:%M:%S", t)
-pyautogui.FAILSAFE = False
 refresh = 15
 token_url = "https://id.twitch.tv/oauth2/token?client_id=" + config.client_id + "&client_secret=" \
                          + config.client_secret + "&grant_type=client_credentials"
@@ -518,7 +515,7 @@ def public_stream(live_id):
       return omg
 
 def api_load(url):
-        logging.basicConfig(filename="check_tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        logging.basicConfig(filename="tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
         logging.getLogger().addHandler(logging.StreamHandler())
         logging.info("create api keying ---edit_tv---")
         home_dir = os.path.expanduser("~")
