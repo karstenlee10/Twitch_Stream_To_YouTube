@@ -120,14 +120,10 @@ def bilibili_offline_check(driver, live_url, spare_link, important):
            logging.info("--END-------------live_api-----------------")
            logging.info("finish reloading start spare stream")
            logging.info("load spare stream")
-           logging.info("before:" + important)
            if important == "schedule":
                important = "schsheepedule"
-               logging.info("important changed to: schsheepedule")
            elif important == "schsheepedule":
                important = "schedule"
-               logging.info("important changed to: schedule")
-           logging.info("after:" + important)
            logging.info("--START-----------live_api-----------------")
            live_spare_url = checktitlelol("0", important, "True", "Null")
            logging.info("--END-------------live_api-----------------")
@@ -230,14 +226,10 @@ def offline_check(driver, live_url, spare_link, important):
            logging.info("--END-------------live_api-----------------")
            logging.info("finish reloading start spare stream")
            logging.info("load spare stream")
-           logging.info("before:" + important)
            if important == "schedule":
                important = "schsheepedule"
-               logging.info("important changed to: schsheepedule")
            elif important == "schsheepedule":
                important = "schedule"
-               logging.info("important changed to: schedule")
-           logging.info("after:" + important)
            logging.info("--START-----------live_api-----------------")
            live_spare_url = checktitlelol("0", important, "True", "Null")
            logging.info("--END-------------live_api-----------------")
@@ -408,8 +400,7 @@ def start_check(driver, live_url, haha):
                   logging.info("start relive_tv")
                   os.system("start relive_tv.py this")
                   inport = "schedule"
-            logging.info("fuckfuck: " + live_url)
-            logging.info("schheld:" + inport)
+            logging.info("your_live_url: " + live_url)
             logging.info("started relive_tv")
             logging.info("--START-----------(edit_tv)-----------------")
             try:
@@ -536,7 +527,6 @@ def api_load(url):
         os.system("start countdriver.exe")
         options = Options()
         chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")
-        print(chrome_user_data_dir)
         options.add_argument("user-data-dir=" + chrome_user_data_dir)
         options.add_argument("profile-directory=" + config.Chrome_Profile)
         driver = webdriver.Chrome(options=options)
