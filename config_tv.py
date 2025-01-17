@@ -1,0 +1,19 @@
+#bulid start at 22:17:29 2024-10-17
+Twitch = "True"
+BiliBili = "False"
+Chrome_Profile = "Profile 7"
+username = "not_anny"
+ytshort = "False" #not recommand
+unliststream = "False" #after stream will be public
+accountname = "Neuro Sama"
+bilibililiveuid = "Null"
+ffmpeg1 = "gYGshd88111.exe"
+ffmpeg = "gYGshd88.exe"
+apiexe = "gYGshd88_api.exe"
+rtmpkeyname1 = "1" + "testing" + "mult"
+rtmpkeyname = "testing"
+rtmp_key = "pqrk-838v-f5c2-qu0t-evqt"
+rtmp_key_1 = "xc22-jds8-32uk-x19j-9wyy"
+reliveid = "UCqdgkrDDPQVwHFkAvs1dffg"
+client_id = "8ylt7tu2qywqtnltnydz0jgl8gafxx"
+client_secret = "7dly5nvzgoo4qf6r7sqp1hkdikpbkg"
