@@ -12,7 +12,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import NoSuchElementException, ElementNotInteractableException
+from selenium.common.exceptions import NoSuchElementException, ElementNotInteractableException, SessionNotCreatedException
 from selenium.webdriver.chrome.options import Options
 import config_tv as config
 import psutil
@@ -33,7 +33,6 @@ from requests.exceptions import RequestException
 import json
 import threading
 import cv2
-import subprocess
 import getopt
 import re
 import shutil
@@ -262,7 +261,7 @@ def bilibili_load_check(driver):
 def load_check(driver):
     while True:
         try:
-            element = driver.find_element("xpath", "//div[@class='Layout-sc-1xcs6mc-0 liveIndicator--x8p4l']//p[@class='CoreText-sc-1txzju1-0 bfNjIO']")
+            element = driver.find_element("xpath", "//div[contains(@class, 'Layout-sc-1xcs6mc-0 liveIndicator--x8p4l')]//span[text()='LIVE']/ancestor::div")
             break
         except NoSuchElementException:
             time.sleep(5)
@@ -286,7 +285,7 @@ def selreload():
               return driver
         if config.Twitch == "True":
          try:
-            element = driver.find_element("xpath", "//div[@class='Layout-sc-1xcs6mc-0 liveIndicator--x8p4l']//p[@class='CoreText-sc-1txzju1-0 bfNjIO']")
+            element = driver.find_element("xpath", "//div[contains(@class, 'Layout-sc-1xcs6mc-0 liveIndicator--x8p4l')]//span[text()='LIVE']/ancestor::div")
             try:
                   driver.find_element("xpath", "//button[@data-a-target='content-classification-gate-overlay-start-watching-button']//div[text()='開始觀看']").click()
             except:
@@ -363,6 +362,8 @@ def selwebdriver_check(yt_link, infomation, driver):
       except Exception as e:
             logging.info(e)
             logging.info("the script failed shuting down")
+      #finally:
+            #pass
 
 def checkarg():
   try:
@@ -521,34 +522,33 @@ def api_load(url):
         home_dir = os.path.expanduser("~")
         logging.info("run with countdriver.exe and check")
         check_process_running()
-        os.system("taskkill /f /im chrome.exe")
         os.system("start countdriver.exe")
         options = Options()
         chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")
         options.add_argument("user-data-dir=" + chrome_user_data_dir)
         options.add_argument("profile-directory=" + config.Chrome_Profile)
-        driver = webdriver.Chrome(options=options)
-        driver.get(url)
+        notafrickdriver = webdriver.Chrome(options=options)
+        notafrickdriver.get(url)
         time.sleep(3)
         nameofaccount = "//div[contains(text(),'" + config.accountname + "')]"
-        button_element = driver.find_element("xpath", nameofaccount)
+        button_element = notafrickdriver.find_element("xpath", nameofaccount)
         button_element.click()
         time.sleep(3)
-        element = driver.find_element("xpath", "//div[@class='SxkrO']//button[@jsname='LgbsSe']")
+        element = notafrickdriver.find_element("xpath", "//div[@class='SxkrO']//button[@jsname='LgbsSe']")
         element.click()
         time.sleep(3)
-        button_element = driver.find_element("xpath", "//button[contains(@class, 'VfPpkd-LgbsSe') and contains(@jsname, 'LgbsSe')]//span[@class='VfPpkd-vQzf8d' and text()='繼續']")
+        button_element = notafrickdriver.find_element("xpath", "//button[contains(@class, 'VfPpkd-LgbsSe') and contains(@jsname, 'LgbsSe')]//span[@class='VfPpkd-vQzf8d' and text()='繼續']")
         button_element.click()
         time.sleep(3)
-        element = driver.find_element("xpath", "//input[@class='VfPpkd-muHVFf-bMcfAe' and @type='checkbox']")
+        element = notafrickdriver.find_element("xpath", "//input[@class='VfPpkd-muHVFf-bMcfAe' and @type='checkbox']")
         element.click()
         time.sleep(1)
-        button_element = driver.find_element("xpath", "//button[contains(@class, 'VfPpkd-LgbsSe') and contains(@jsname, 'LgbsSe')]//span[@class='VfPpkd-vQzf8d' and text()='繼續']")
+        button_element = notafrickdriver.find_element("xpath", "//button[contains(@class, 'VfPpkd-LgbsSe') and contains(@jsname, 'LgbsSe')]//span[@class='VfPpkd-vQzf8d' and text()='繼續']")
         button_element.click()
         os.system('TASKKILL /f /im countdriver.exe')
         logging.info("finish idk ---edit_tv---")
         time.sleep(5)
-        driver.quit()
+        notafrickdriver.quit()
 
 def confirm_logged_in(driver: webdriver) -> bool:
           """ Confirm that the user is logged in. The browser needs to be navigated to a YouTube page. """
@@ -708,6 +708,7 @@ def edit_rtmp_key(driver, what):
   except:
         logging.info("error again")
         driver.refresh()
+        time.sleep(15)
         countfuckingshit += 1
   if countfuckingshit == 3:
         logging.info("edit rtmp key fail shutdown script")
@@ -796,13 +797,16 @@ def checktitlelol(arg1, arg2, reload, url_omg):
               live_url = data_dict["id"]
               check_process_running()
               os.system("start countdriver.exe")
-              os.system("taskkill /f /im chrome.exe")
-              driver = "dsjkihgiouey"
               options = Options()
               chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")
               options.add_argument("user-data-dir=" + chrome_user_data_dir)
               options.add_argument("profile-directory=" + config.Chrome_Profile)
-              driver = webdriver.Chrome(options=options)
+              while True:
+                try:
+                  driver = webdriver.Chrome(options=options)
+                  break
+                except SessionNotCreatedException:
+                  abc = "abc"
               url_to_live = "https://studio.youtube.com/video/" + live_url + "/livestreaming"
               driver.get(url_to_live)
               time.sleep(5)
