@@ -521,6 +521,7 @@ def api_load(url):
         home_dir = os.path.expanduser("~")
         logging.info("run with countdriver.exe and check")
         check_process_running()
+        os.system("taskkill /f /im chrome.exe")
         os.system("start countdriver.exe")
         options = Options()
         chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")
@@ -795,6 +796,8 @@ def checktitlelol(arg1, arg2, reload, url_omg):
               live_url = data_dict["id"]
               check_process_running()
               os.system("start countdriver.exe")
+              os.system("taskkill /f /im chrome.exe")
+              driver = "dsjkihgiouey"
               options = Options()
               chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")
               options.add_argument("user-data-dir=" + chrome_user_data_dir)
