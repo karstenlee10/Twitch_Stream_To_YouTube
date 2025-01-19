@@ -595,7 +595,7 @@ def selwebdriver(live_url, timeisshit):
        except AttributeError:
             logging.info('the stream is not live please start at relive_tv.py first! try again')
             time.sleep(5)
-            selwebdriver(live_url)
+            selwebdriver(live_url, timeisshit)
       if config.BiliBili == "True":
             titletv = get_stream_linkandtitle()
       textnoemo = ''.join('' if unicodedata.category(c) == 'So' else c for c in titletv)
