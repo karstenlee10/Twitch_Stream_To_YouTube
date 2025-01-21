@@ -1,6 +1,6 @@
 PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING(channel description/video description) paste the github link
 
-AND IT WONT WORK WHEN THE BROWER(WINDOWS) AND THE GOOGLE ACCOUNT ARE NOT SET TO Chinese Traditional
+AND IT WONT WORK WHEN THE BROWER,WINDOWS AND THE GOOGLE ACCOUNT ARE NOT SET TO Chinese Traditional
 
 or you edit the element by yourself just change the language
 
