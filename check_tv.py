@@ -515,6 +515,40 @@ def public_stream(live_id):
       omg = public_stream(live_id)
       return omg
 
+def create_live_stream(title, description, kmself):
+    try:
+       service = get_service()
+       scheduled_start_time = datetime.datetime.utcnow().isoformat()
+       request = service.liveBroadcasts().insert(
+            part="snippet,status,contentDetails",
+            body={
+                "snippet": {
+                    "title": title,
+                    "description": description,
+                    "scheduledStartTime": scheduled_start_time,
+                },
+                "status": {
+                    "privacyStatus": kmself,
+                    "lifeCycleStatus": "ready",
+                    "recordingStatus": "notRecording",
+                    "selfDeclaredMadeForKids": False
+                },
+                "contentDetails": {
+                    "enableAutoStart": True,
+                    "enableAutoStop": True,
+                    "latencyPreference": "ultraLow"
+                }
+            }
+        )
+       response = request.execute()
+       return response['id']
+    except google.auth.exceptions.RefreshError as e:
+      logging.info(f"Error: {e}")
+      logging.info("error token bad reget token")
+      os.system("get_token.py")
+      fuckyou = create_live_stream(title, description, kmself)
+      return fuckyou
+
 def api_load(url):
         logging.basicConfig(filename="tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
         logging.getLogger().addHandler(logging.StreamHandler())
@@ -625,57 +659,6 @@ def selwebdriver(live_url, timeisshit):
               check_is_live_api(new_url, config.ffmpeg, "this")
       finally:
             logging.info('edit finished contiue the stream')
-
-def create_live_stream(title, description, kmself):
-    try:
-       service = get_service()
-       scheduled_start_time = datetime.datetime.utcnow().isoformat()
-       request = service.liveBroadcasts().insert(
-            part="snippet,status,contentDetails",
-            body={
-                "snippet": {
-                    "title": title,
-                    "description": description,
-                    "scheduledStartTime": scheduled_start_time,
-                },
-                "status": {
-                    "privacyStatus": kmself,
-                    "lifeCycleStatus": "ready",
-                    "recordingStatus": "notRecording",
-                    "selfDeclaredMadeForKids": False
-                },
-                "contentDetails": {
-                    "enableAutoStart": True,
-                    "enableAutoStop": True,
-                    "latencyPreference": "ultraLow"
-                }
-            }
-        )
-       response = request.execute()
-       return response['id']
-    except google.auth.exceptions.RefreshError as e:
-      logging.info(f"Error: {e}")
-      logging.info("error token bad reget token")
-      os.system("get_token.py")
-      time.sleep(60)
-      fuckyou = create_live_stream(title, description)
-      return fuckyou
-
-def get_scheduled_stream_info(stream_id):
-    creds = get_creds_saved()
-    service = build('youtube', 'v3', credentials=creds)
-
-    request = service.liveBroadcasts().list(
-        part='snippet,status',
-        id=stream_id
-    )
-
-    response = request.execute()
-
-    if 'items' in response and len(response['items']) > 0:
-        return response['items'][0]
-    else:
-        return None
 
 def edit_rtmp_key(driver, what):
  countfuckingshit = 0
@@ -788,13 +771,10 @@ def checktitlelol(arg1, arg2, reload, url_omg):
             if url_omg == "Null":
               logging.info('sending to api')
               if config.unliststream == "True":
-                strId = create_live_stream(filenametwitch, deik, "unlisted")
+                live_url = create_live_stream(filenametwitch, deik, "unlisted")
               if config.unliststream == "False":
-                strId = create_live_stream(filenametwitch, deik, "public")
+                live_url = create_live_stream(filenametwitch, deik, "public")
               logging.info('reading api json and check if driver loading')
-              json_data = json.dumps(get_scheduled_stream_info(strId), indent=4)
-              data_dict = json.loads(json_data)
-              live_url = data_dict["id"]
               check_process_running()
               os.system("start countdriver.exe")
               options = Options()
