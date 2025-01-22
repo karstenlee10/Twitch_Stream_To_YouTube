@@ -11,7 +11,7 @@ PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING(channel description or video descrip
 
 This script is not in a complete finish state
 
-<h2>🚀 Demo</h2>
+<h2>🚀 installation guide</h2>
 
 [https://www.youtube.com/watch?v=8YztEWL-ilU](https://www.youtube.com/watch?v=8YztEWL-ilU)
   
