@@ -1,15 +1,29 @@
-PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING(channel description/video description) paste the github link
+# How does the archive works?
+First, It will create a stream first and wait for the streamer starts.
+Second, When the streamer start streaming
 
-AND IT WONT WORK WHEN THE BROWER,WINDOWS AND THE GOOGLE ACCOUNT ARE NOT SET TO Chinese Traditional
 
-or you edit the element by yourself just change the language
+#Q&A
 
-replace 繼續(google), 開始觀看(twitch when adult alert), 位元率可變(youtube livestream studio)
+> Q1: Why would I needed me to creating youtube and twitch api?
+A1: The youtube api is for creating streams and edit title it is a more effective method than automated chrome.
+A2: Twitch api is use for getting the title from streamers maybe i will make a no need for that.
 
+>  Q2: Why is there no guide for bilibili streams?
+A: I think no one will use bilibili, maybe i will make another video for that.
+
+
+#You need to know before you use the script
+
+**PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING(channel description or video description) paste the github link**
+
+**WHATEVER LANGUAGE IS SUPPORTED USING THIS SCRIPT**
+
+#guide to installation
 [clean version guide]
 
-https://www.youtube.com/watch?v=8YztEWL-ilU
+> https://www.youtube.com/watch?v=8YztEWL-ilU
 
 [trash version guide]
 
-https://www.youtube.com/watch?v=cpXXMjBrglo
+> https://www.youtube.com/watch?v=cpXXMjBrglo
