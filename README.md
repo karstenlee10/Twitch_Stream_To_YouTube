@@ -30,7 +30,7 @@ Here're some of the project's best features:
 
 <p>2. Enjoy</p>
 
-<h2>🍰 Contribution Guidelines:</h2>
+<h2>🍰 Contribution:</h2>
 
 Make an issue when there a bug
 
