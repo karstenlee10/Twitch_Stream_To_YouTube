@@ -36,7 +36,7 @@ Make an issue when there a bug
 
 <h2>🤔💭 Q&A</h2>  
 
-> Q1: Why would I needed me to creating youtube and twitch api?
+> Q1: Why would I needed to creating youtube and twitch api?
 > 
 A1: The youtube api is for creating streams and edit title it is a more effective method than automated chrome.
 
