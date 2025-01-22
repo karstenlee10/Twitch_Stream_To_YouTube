@@ -7,6 +7,10 @@
 PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING(channel description or video description) paste the github link  
 [https://bit.ly/archivescript](https://bit.ly/archivescript)
 
+<h2>🚨 Warning:</h2>
+
+This script is not in a complete finish state
+
 <h2>🚀 Demo</h2>
 
 [https://www.youtube.com/watch?v=8YztEWL-ilU](https://www.youtube.com/watch?v=8YztEWL-ilU)
@@ -52,3 +56,11 @@ Technologies used in the project:
 *   YouTube data api v3
 *   Twitch api
 
+<h2>🔜 Future Update(not promising):</h2> 
+
+* Simplify the code
+* Make a mode that don't use any api
+* Make a gui for installation and automation
+* Make a mode the use independent webdriver.exe
+* Using a different browers
+* Add Kick/Add YouTube??(Needed support on streamlink)
