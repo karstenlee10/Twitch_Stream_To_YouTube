@@ -470,6 +470,7 @@ def get_service():
     return service
 
 def edit_live_stream(video_id, new_title, new_description):
+  while True:
     try:
        service = get_service()
        category_id = '24'
@@ -486,14 +487,15 @@ def edit_live_stream(video_id, new_title, new_description):
     )
        response = request.execute()
        return response['id']
+       break
     except google.auth.exceptions.RefreshError as e:
       logging.info(f"Error: {e}")
       logging.info("error edit token bad reget token")
       os.system("get_token.py")
-      fuckyou = edit_live_stream(video_id, new_title, new_description)
-      return fuckyou
+      time.sleep(5)
 
 def public_stream(live_id):
+  while True:
     try:
        service = get_service()
        scheduled_start_time = datetime.datetime.utcnow().isoformat()
@@ -508,14 +510,15 @@ def public_stream(live_id):
        )
        response = request.execute()
        return response['id']
+       break
     except google.auth.exceptions.RefreshError as e:
       logging.info(f"Error: {e}")
       logging.info("error token bad reget token")
       os.system("get_token.py")
-      omg = public_stream(live_id)
-      return omg
+      time.sleep(5)
 
 def create_live_stream(title, description, kmself):
+  while True:
     try:
        service = get_service()
        scheduled_start_time = datetime.datetime.utcnow().isoformat()
@@ -542,12 +545,12 @@ def create_live_stream(title, description, kmself):
         )
        response = request.execute()
        return response['id']
+       break
     except google.auth.exceptions.RefreshError as e:
       logging.info(f"Error: {e}")
       logging.info("error token bad reget token")
       os.system("get_token.py")
-      fuckyou = create_live_stream(title, description, kmself)
-      return fuckyou
+      time.sleep(5)
 
 def api_load(url):
         logging.basicConfig(filename="tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -571,13 +574,13 @@ def api_load(url):
         element = notafrickdriver.find_element("xpath", "//div[@class='SxkrO']//button[@jsname='LgbsSe']")
         element.click()
         time.sleep(3)
-        button_element = notafrickdriver.find_element("xpath", "//button[contains(@class, 'VfPpkd-LgbsSe') and contains(@jsname, 'LgbsSe')]//span[@class='VfPpkd-vQzf8d' and text()='繼續']")
+        button_element = notafrickdriver.find_element("xpath", "(//button[@class='VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-INsAgc VfPpkd-LgbsSe-OWXEXe-dgl2Hf Rj2Mlf OLiIxf PDpWxe P62QJc LQeN7 BqKGqe pIzcPc TrZEUc lw1w4b'])[2]")
         button_element.click()
         time.sleep(3)
         element = notafrickdriver.find_element("xpath", "//input[@class='VfPpkd-muHVFf-bMcfAe' and @type='checkbox']")
         element.click()
         time.sleep(1)
-        button_element = notafrickdriver.find_element("xpath", "//button[contains(@class, 'VfPpkd-LgbsSe') and contains(@jsname, 'LgbsSe')]//span[@class='VfPpkd-vQzf8d' and text()='繼續']")
+        button_element = notafrickdriver.find_element("xpath", "(//button[@class='VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-INsAgc VfPpkd-LgbsSe-OWXEXe-dgl2Hf Rj2Mlf OLiIxf PDpWxe P62QJc LQeN7 BqKGqe pIzcPc TrZEUc lw1w4b'])[2]")
         button_element.click()
         os.system('TASKKILL /f /im countdriver.exe')
         logging.info("finish idk ---edit_tv---")
@@ -667,22 +670,22 @@ def edit_rtmp_key(driver, what):
     driver.find_element(By.XPATH, "//tp-yt-iron-icon[@icon='yt-icons:arrow-drop-down']").click()
     time.sleep(3)
     if what == "schedule":
-        xpath = "//*[contains(text(),'" + config.rtmpkeyname1 + " (RTMP，位元率可變')]"
+        xpath = "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname1 + " (')]]"
         element2 = driver.find_element(By.XPATH, xpath)
         element2.click()
         time.sleep(7)
     if what == "schsheepedule":
-        xpath = "//*[contains(text(),'" + config.rtmpkeyname + " (RTMP，位元率可變')]"
+        xpath = "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname + " (')]]"
         element3 = driver.find_element(By.XPATH, xpath)
         element3.click()
         time.sleep(7)
-    driver.find_element(By.XPATH, "//button[.//div[@class='ytcp-button-shape-impl__button-text-content' and text()='編輯']]").click()
+    driver.find_element(By.XPATH, "//ytcp-button[@id='edit-button']").click()
     time.sleep(3)
-    driver.find_element(By.XPATH, "//li[.//span[text()='自訂']]").click()
+    driver.find_element(By.XPATH, "//li[@id='customization']").click()
     time.sleep(2)
     driver.find_element(By.XPATH, "//*[@id='chat-enabled-checkbox']").click()
     time.sleep(1)
-    driver.find_element(By.XPATH, "//ytcp-button-shape[.//div[@class='ytcp-button-shape-impl__button-text-content' and text()='儲存']]").click()
+    driver.find_element(By.XPATH, "//ytcp-button[@id='save-button']").click()
     time.sleep(10)
     logging.info("finsih")
     driver.quit()
@@ -860,4 +863,3 @@ if __name__ == "__main__":
     from google_auth_oauthlib.flow import InstalledAppFlow
     checkarg()
     exit()
-
