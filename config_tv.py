@@ -4,6 +4,7 @@ Chrome_Profile = "Your_profile_folder"
 username = "twitchusername"
 ytshort = "False" #not recommand
 unliststream = "False" #after stream will be public
+disablechat = "False"
 accountname = "YOUR_account_name_on_login_into_youtube_api"
 bilibililiveuid = "Null"
 ffmpeg1 = "ffmpeg111.exe"
