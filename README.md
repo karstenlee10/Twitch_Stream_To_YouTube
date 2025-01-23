@@ -7,6 +7,14 @@
 PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING(channel description or video description) paste the github link  
 [https://bit.ly/archivescript](https://bit.ly/archivescript)
 
+<h2>🛡️ License Example:</h2>
+
+[https://www.youtube.com/@FilianVODSArchive](https://www.youtube.com/@FilianVODSArchive)
+
+[https://www.youtube.com/@NeuroVerseUnofficalVODS](https://www.youtube.com/@NeuroVerseUnofficalVODS)
+
+[https://www.youtube.com/@CaseOhUnofficalVODS](https://www.youtube.com/@CaseOhUnofficalVODS)
+
 <h2>🚨 Warning:</h2>
 
 This script is not in a complete finish state
