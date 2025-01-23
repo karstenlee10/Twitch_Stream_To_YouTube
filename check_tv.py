@@ -52,98 +52,18 @@ SCOPES = [
 home_dir = os.path.expanduser("~")
 arguments = sys.argv
 desired_url = "https://www.twitch.tv/" + config.username
-bilibili_desired_url = "https://live.bilibili.com/" + config.bilibililiveuid
-
-def bilibili_offline_check(driver, live_url, spare_link, important):
-      refresh_count = 0
-      countdownhours = 0
-      numberpart = 0
-      fewtimes = 0
-      while True:
-         try:
-             current_url = driver.current_url
-             if current_url == bilibili_desired_url:
-                ok = "ok"
-             else:
-                    kkkys = "the url has change:" + current_url + " killing process and public stream"
-                    logging.info(kkkys)
-                    driver.quit()
-                    if config.unliststream == "True":
-                       logging.info("public back the stream")
-                       logging.info("--START-------------(edit_tv)---------------")
-                       public_stream(live_url)
-                       logging.info("--END-------------(edit_tv)-----------------")
-                    os.system("taskkill /f /im " + config.apiexe)
-                    os.system("start check_tv.py " + spare_link + " " + important)
-                    break
-             try:
-               driver.find_element("xpath", "//div[@class='web-player-ending-panel']")
-               fewtimes += 1
-               driver.refresh()
-               time.sleep(7)
-               if fewtimes == 6:
-                 logging.info("Element found success. offine reload program and public stream")
-                 driver.quit()
-                 if config.unliststream == "True":
-                   logging.info("public back the stream")
-                   logging.info("--START-------------(edit_tv)---------------")
-                   public_stream(live_url)
-                   logging.info("--END-------------(edit_tv)-----------------")
-                 os.system("taskkill /f /im " + config.apiexe)
-                 os.system("start check_tv.py " + spare_link + " " + important)
-                 break
-             except NoSuchElementException:
-                 time.sleep(5)
-         except:
-            logging.info("sus offine i dnot know why the driver shutdown restart driver")
-            try:
-               driver.quit()
-            except:
-               abc = "abc"
-            driveromg = selreload()
-            bilibili_offline_check(driveromg, live_url, spare_link, important)
-         refresh_count += 1
-         countdownhours += 1
-         if refresh_count == 60:
-            driver.refresh()
-            time.sleep(7)
-            refresh_count = 0
-         if countdownhours == 7871:
-           logging.info("omg is almost 12hours reload stream and kill apiexe")
-           os.system("taskkill /f /im " + config.apiexe)
-           logging.info("--START-----------live_api-----------------")
-           checktitlelol(numberpart, important, "Null", spare_link)
-           logging.info("--END-------------live_api-----------------")
-           logging.info("finish reloading start spare stream")
-           logging.info("load spare stream")
-           if important == "schedule":
-               important = "schsheepedule"
-           elif important == "schsheepedule":
-               important = "schedule"
-           logging.info("--START-----------live_api-----------------")
-           live_spare_url = checktitlelol("0", important, "True", "Null")
-           logging.info("--END-------------live_api-----------------")
-           os.system("start " + config.apiexe)
-           if config.unliststream == "True":
-             logging.info("public back the stream")
-             logging.info("--START-------------(edit_tv)---------------")
-             public_stream(live_url)
-             logging.info("--END-------------(edit_tv)-----------------")
-           logging.info("load offline_check again")
-           live_url = spare_link
-           spare_link = live_spare_url
-           logging.info(important)
-           countdownhours = 0
+bilibili_desired_url = "https://live.bilibili.com/" + config.username
 
 def offline_check(driver, live_url, spare_link, important):
       refresh_count = 0
       countdownhours = 0
       numberpart = 0
       fewtimes = 0
-      try:
-        driver.find_element("xpath", "//button[@data-a-target='content-classification-gate-overlay-start-watching-button']//div[text()='開始觀看']").click()
-        time.sleep(5)
-      except:
+      if config.Twitch == "True":
+        try:
+          driver.find_element("xpath", "//button[@data-a-target='content-classification-gate-overlay-start-watching-button']//div[text()='開始觀看']").click()
+          time.sleep(5)
+        except:
           try:
             actions = ActionChains(driver)
             actions.send_keys('k').perform()
@@ -155,10 +75,15 @@ def offline_check(driver, live_url, spare_link, important):
       while True:
          try:
              current_url = driver.current_url
-             if current_url == desired_url:
-                ok = "ok"
+             if config.Twitch == "True":
+               if current_url == desired_url:
+                 ok = "ok"
+             if config.BiliBili == "True":
+                 if current_url == bilibili_desired_url:
+                       ok = "ok"
              else:
                 if '?referrer=raid' in current_url:
+                  if config.Twitch == "True":
                     kkkys = "the url has been raid:" + current_url + " killing process"
                     logging.info(kkkys)
                     driver.quit()
@@ -182,13 +107,33 @@ def offline_check(driver, live_url, spare_link, important):
                     os.system("taskkill /f /im " + config.apiexe)
                     os.system("start check_tv.py " + spare_link + " " + important)
                     break
-             element = driver.find_element("xpath", "//div[@class='Layout-sc-1xcs6mc-0 liveIndicator--x8p4l']//span[text()='LIVE']/ancestor::div")
-             time.sleep(5)
+             if config.BiliBili == "True":
+               driver.find_element("xpath", "//div[@class='web-player-ending-panel']")
+               fewtimes += 1
+               driver.refresh()
+               time.sleep(7)
+               if fewtimes == 6:
+                 logging.info("Element found success. offine reload program and public stream")
+                 driver.quit()
+                 if config.unliststream == "True":
+                   logging.info("public back the stream")
+                   logging.info("--START-------------(edit_tv)---------------")
+                   public_stream(live_url)
+                   logging.info("--END-------------(edit_tv)-----------------")
+                 os.system("taskkill /f /im " + config.apiexe)
+                 os.system("start check_tv.py " + spare_link + " " + important)
+                 break
+             if config.Twitch == "True":
+               element = driver.find_element("xpath", "//div[@class='Layout-sc-1xcs6mc-0 liveIndicator--x8p4l']//span[text()='LIVE']/ancestor::div")
+               time.sleep(5)
          except NoSuchElementException:
+           if config.BiliBili == "True":
+             time.sleep(5)
+           if config.Twitch == "True":
             fewtimes += 1
             driver.refresh()
             time.sleep(7)
-            if fewtimes == 3:
+            if fewtimes == 2:
               logging.info("Element not found success. shutdown")
               driver.quit()
               if config.unliststream == "True":
@@ -242,26 +187,13 @@ def offline_check(driver, live_url, spare_link, important):
            logging.info(important)
            countdownhours = 0
 
-def bilibili_load_check(driver):
-    while True:
-        try:
-            element = driver.find_element("xpath", "//div[@class='web-player-ending-panel']")
-            break
-        except NoSuchElementException:
-            time.sleep(5)
-        except:
-                logging.info("crashed restart driver")
-                try:
-                      driver.quit()
-                except:
-                      abc = "abc"
-                driveromg = selreload()
-                load_check(driveromg)
-
 def load_check(driver):
     while True:
         try:
-            element = driver.find_element("xpath", "//div[contains(@class, 'Layout-sc-1xcs6mc-0 liveIndicator--x8p4l')]//span[text()='LIVE']/ancestor::div")
+            if config.Twitch == "True":
+              element = driver.find_element("xpath", "//div[contains(@class, 'Layout-sc-1xcs6mc-0 liveIndicator--x8p4l')]//span[text()='LIVE']/ancestor::div")
+            if config.BiliBili == "True":
+              element = driver.find_element("xpath", "//div[@class='web-player-ending-panel']")
             break
         except NoSuchElementException:
             time.sleep(5)
@@ -279,7 +211,7 @@ def selreload():
         if config.Twitch == "True":
             driver.get("https://twitch.tv/" + config.username)
         if config.BiliBili == "True":
-            driver.get("https://live.bilibili.com/" + config.bilibililiveuid)
+            driver.get("https://live.bilibili.com/" + config.username)
         time.sleep(7)
         if config.BiliBili == "True":
               return driver
@@ -334,11 +266,11 @@ def selwebdriver_check(yt_link, infomation, driver):
           if config.Twitch == "True":
             driver.get("https://twitch.tv/" + config.username)
           if config.BiliBili == "True":
-            driver.get("https://live.bilibili.com/" + config.bilibililiveuid)
+            driver.get("https://live.bilibili.com/" + config.username)
           time.sleep(7)
         if config.BiliBili == "True":
          try:
-           live_link = "https://live.bilibili.com/" + config.bilibililiveuid
+           live_link = "https://live.bilibili.com/" + config.username
            driver.find_element("xpath", "//div[@class='web-player-ending-panel']")
            logging.info("wait stream to start")
            load_check(driver)
@@ -468,6 +400,27 @@ def get_service():
     creds = get_creds_saved()
     service = build('youtube', 'v3', credentials=creds)
     return service
+   
+def get_yt_title():
+ while True:
+   service = get_service()
+   request = service.search().list(
+       part="snippet",
+       channelId=config.username,
+       eventType="live",
+       type="video"
+   )
+
+   response = request.execute()
+
+   if "items" in response and len(response["items"]) > 0:
+       live_stream = response["items"][0]
+       video_id = live_stream["id"]["videoId"]
+       video_title = live_stream["snippet"]["title"]
+       logging.info(f"The channel is currently live. Video Title: {video_title}, Video ID: {video_id}")
+       return video_title, video_id
+   else:
+       time.sleep(5)
 
 def edit_live_stream(video_id, new_title, new_description):
   while True:
@@ -598,7 +551,7 @@ def confirm_logged_in(driver: webdriver) -> bool:
               exit()
 
 def get_stream_linkandtitle():
-        response = requests.get("https://live.bilibili.com/" + config.bilibililiveuid)
+        response = requests.get("https://live.bilibili.com/" + config.username)
         soup = BeautifulSoup(response.text, 'html.parser')
         title = soup.title.string
         main_title = re.sub(r' - .*', '', title)
@@ -645,7 +598,7 @@ def selwebdriver(live_url, timeisshit):
       if config.Twitch == "True":
               deik = "this stream is from https://twitch.tv/" + config.username + " (Stream Name:" + textnoemo + ")"
       if config.BiliBili == "True":
-              deik = "this stream is from https://live.bilibili.com/" + config.bilibililiveuid + " (Stream Name:" + textnoemo + ")"
+              deik = "this stream is from https://live.bilibili.com/" + config.username + " (Stream Name:" + textnoemo + ")"
       if len(filenametwitch) > 100:
               logging.info("title too long")
               filenametwitch = config.username +  " | " + datetime.datetime.now() \
