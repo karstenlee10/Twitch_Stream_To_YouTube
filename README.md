@@ -64,6 +64,7 @@ Technologies used in the project:
 *   Selenium Chromedriver
 *   YouTube data api v3
 *   Twitch api
+*   ffmpeg
 
 <h2>🔜 Future Update(not promising):</h2> 
 
