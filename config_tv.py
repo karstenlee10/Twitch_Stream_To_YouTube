@@ -1,12 +1,11 @@
 Twitch = "True"
 BiliBili = "False"
 Chrome_Profile = "Your_profile_folder"
-username = "twitchusername"
+username = "twitchusernameorbilibili"
 ytshort = "False" #not recommand
 unliststream = "False" #after stream will be public
 disablechat = "False"
 accountname = "YOUR_account_name_on_login_into_youtube_api"
-bilibililiveuid = "Null"
 ffmpeg1 = "ffmpeg111.exe"
 ffmpeg = "ffmpeg.exe"
 apiexe = "ffmpeg_api.exe"
