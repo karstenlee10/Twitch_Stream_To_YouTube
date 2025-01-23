@@ -17,7 +17,7 @@ PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING(channel description or video descrip
 
 <h2>🚨 Warning:</h2>
 
-This script is not in a complete finish state
+This script is not in a complete finish state and only support WINDOWS
 
 <h2>🚀 installation guide</h2>
 
@@ -30,6 +30,7 @@ Here're some of the project's best features:
 *   Archive and play back twitch stream in real time
 *   Save VODS forever (unless YouTube delete it)
 *   It is automated no need for human
+*   Don't need to download the vods and upload it back to youtube
 *   WHATEVER LANGUAGE IS SUPPORTED USING THIS SCRIPT
 
 <h2>🛠️ Installation Steps:</h2>
