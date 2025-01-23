@@ -344,10 +344,7 @@ def start_check(driver, live_url, haha):
             logging.info("--END-------------live_api-----------------")
             logging.info("wait for offine now... and start countdown")
             try:
-              if config.Twitch == "True":
-                offline_check(driver, live_url, live_spare_url, inport)
-              if config.BiliBili == "True":
-                bilibili_offline_check(driver, live_url, live_spare_url, inport)
+              offline_check(driver, live_url, live_spare_url, inport)
             except:
               logging.info("driver shutdown restarting")
               try:
@@ -355,10 +352,7 @@ def start_check(driver, live_url, haha):
               except:
                 abc = "abc"
               driveromg = selreload()
-              if config.Twitch == "True":
-                offline_check(driver, live_url, live_spare_url, inport)
-              if config.BiliBili == "True":
-                bilibili_offline_check(driver, live_url, live_spare_url, inport)
+              offline_check(driver, live_url, live_spare_url, inport)
             exit()
 
 class TwitchResponseStatus(enum.Enum):
