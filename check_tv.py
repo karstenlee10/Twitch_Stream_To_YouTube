@@ -545,11 +545,10 @@ def confirm_logged_in(driver: webdriver) -> bool:
               exit()
 
 def get_stream_linkandtitle():
-        response = requests.get("https://live.bilibili.com/" + config.username)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        title = soup.title.string
-        main_title = re.sub(r' - .*', '', title)
-        return main_title
+      response = requests.get(f"https://live.bilibili.com/{config.username}")
+      soup = BeautifulSoup(response.text, 'html.parser')
+      title = soup.title.string
+      return re.sub(r' - .*', '', title)
 
 def selwebdriver(live_url, timeisshit):
       if config.Twitch == "True":
