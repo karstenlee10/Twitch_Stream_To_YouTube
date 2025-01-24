@@ -649,26 +649,26 @@ def edit_rtmp_key(driver, what):
         exit()
 
 def check_is_live_api(url, ffmpeg, text):
- countshit = 0
- while True:
-    try:
-        print(url)
-        streams = streamlink.streams(url)
-        hls_stream = streams["best"]
-        logging.info('fucking live now')
-        break
-    except KeyError:
-            logging.info('The stream is messed up. Trying again...')
-            time.sleep(2)
-            os.system('TASKKILL /f /im ' + ffmpeg)
-            os.system('start relive_tv.py ' + text)
-            time.sleep(35)
-            countshit += 1
-    if countshit == 5:
-            logging.info("failed shutdown script")
-            os.system('TASKKILL /f /im ' + ffmpeg)
-            os.system('start relive_tv.py ' + text)
-            exit()
+      countshit = 0
+      while True:
+            try:
+                  print(url)
+                  streams = streamlink.streams(url)
+                  hls_stream = streams["best"]
+                  logging.info('fucking live now')
+                  break
+            except KeyError:
+                  logging.info('The stream is messed up. Trying again...')
+                  time.sleep(2)
+                  os.system(f'TASKKILL /f /im {ffmpeg}')
+                  os.system(f'start relive_tv.py {text}')
+                  time.sleep(35)
+                  countshit += 1
+            if countshit == 5:
+                  logging.info("failed shutdown script")
+                  os.system(f'TASKKILL /f /im {ffmpeg}')
+                  os.system(f'start relive_tv.py {text}')
+                  exit()
 
 def checktitlelol(arg1, arg2, reload, url_omg):
       if config.Twitch == "True":
