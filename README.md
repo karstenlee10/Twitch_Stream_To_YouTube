@@ -69,6 +69,7 @@ Technologies used in the project:
 <h2>🔜 Future Update(not promising):</h2> 
 
 * Simplify the code
+* code review
 * Make a mode that don't use any api
 * Make a gui for installation and automation
 * Make a mode the use independent webdriver.exe
