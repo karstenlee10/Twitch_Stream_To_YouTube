@@ -531,14 +531,14 @@ def api_load(url):
       notafrickdriver.quit()
 
 def confirm_logged_in(driver: webdriver) -> bool:
-          """ Confirm that the user is logged in. The browser needs to be navigated to a YouTube page. """
-          try:
-              WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "avatar-btn")))
-              return True
-          except:
-              logging.info(f"i domt know why it doesnot work lol")
-              driver.quit()
-              exit()
+      """ Confirm that the user is logged in. The browser needs to be navigated to a YouTube page. """
+      try:
+            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "avatar-btn")))
+            return True
+      except Exception:
+            logging.info("i domt know why it doesnot work lol")
+            driver.quit()
+            exit()
 
 def get_stream_linkandtitle():
       response = requests.get(f"https://live.bilibili.com/{config.username}")
