@@ -63,7 +63,8 @@ def offline_check(driver, live_url, spare_link, important):
         try:
           driver.find_element("xpath", "//button[@data-a-target='content-classification-gate-overlay-start-watching-button']").click()
           time.sleep(5)
-        except:
+        except Exception as e:
+          logging.error(f"Error clicking content button: {str(e)}")
           try:
             actions = ActionChains(driver)
             actions.send_keys('k').perform()
