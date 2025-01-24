@@ -76,10 +76,9 @@ def offline_check(driver, live_url, spare_link, important):
          try:
              current_url = driver.current_url
              if config.Twitch == "True" and current_url == desired_url:
-                 ok = "ok"
-
+                 pass
              if config.BiliBili == "True" and current_url == bilibili_desired_url:
-                       ok = "ok"
+                       pass
              else:
                 if '?referrer=raid' in current_url:
                   if config.Twitch == "True":
@@ -90,11 +89,11 @@ def offline_check(driver, live_url, spare_link, important):
                        logging.info("--START-------------(edit_tv)---------------")
                        public_stream(live_url)
                        logging.info("--END-------------(edit_tv)-----------------")
-                    os.system("taskkill /f /im " + config.apiexe)
-                    os.system("start check_tv.py " + spare_link + " " + important)
+                    os.system(f"taskkill /f /im {config.apiexe}")
+                    os.system(f"start check_tv.py {spare_link} {important}")
                     break
                 else:
-                    logging.info("the url has change:{current_url} killing process")
+                    logging.info(f"the url has change:{current_url} killing process")
                     driver.quit()
                     if config.unliststream == "True":
                        logging.info("public back the stream")
@@ -267,7 +266,7 @@ def selwebdriver_check(yt_link, infomation, driver):
           time.sleep(7)
         if config.BiliBili == "True":
          try:
-           live_link = "https://live.bilibili.com/" + config.username
+           live_link = f"https://live.bilibili.com/{config.username}"
            driver.find_element("xpath", "//div[@class='web-player-ending-panel']")
            logging.info("wait stream to start")
            load_check(driver)
@@ -327,7 +326,7 @@ def start_check(driver, live_url, haha):
                   logging.info("start relive_tv")
                   os.system("start relive_tv.py this")
                   inport = "schedule"
-            logging.info("your_live_url: " + live_url)
+            logging.info(f"your_live_url: {live_url}")
             logging.info("started relive_tv")
             logging.info("--START-----------(edit_tv)-----------------")
             try:
@@ -588,7 +587,7 @@ def selwebdriver(live_url, timeisshit):
       if config.Twitch == "True":
               deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo})"
       if config.BiliBili == "True":
-              deik = "this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo})"
+              deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo})"
       if len(filenametwitch) > 100:
               logging.info("title too long")
               filenametwitch = config.username +  " | " + datetime.datetime.now() \
