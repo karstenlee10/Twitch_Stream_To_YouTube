@@ -1,0 +1,17 @@
+Twitch = "True"
+BiliBili = "False"
+Chrome_Profile = "Your_profile_folder"
+username = "twitchusernameorbilibili"
+ytshort = "False" #not recommand
+unliststream = "False" #after stream will be public
+disablechat = "False"
+accountname = "YOUR_account_name_on_login_into_youtube_api"
+ffmpeg1 = "ffmpeg111.exe"
+ffmpeg = "ffmpeg.exe"
+apiexe = "ffmpeg_api.exe"
+rtmpkeyname1 = "1" + "twitchusername" + "mult"
+rtmpkeyname = "twitchusername"
+rtmp_key = "your_rtmp_key"
+rtmp_key_1 = "your_other_rtmp_key"
+client_id = "Twitch_api_id"
+client_secret = "Twitch_api_id_secret"
