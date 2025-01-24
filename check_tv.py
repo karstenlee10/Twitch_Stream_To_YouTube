@@ -654,7 +654,8 @@ def check_is_live_api(url, ffmpeg, text):
                   hls_stream = streams["best"]
                   logging.info('fucking live now')
                   break
-            except KeyError:
+            except KeyError as e:
+                  logging.error(f'Stream not available: {str(e)}')
                   logging.info('The stream is messed up. Trying again...')
                   time.sleep(2)
                   os.system(f'TASKKILL /f /im {ffmpeg}')
