@@ -61,7 +61,7 @@ def offline_check(driver, live_url, spare_link, important):
       fewtimes = 0
       if config.Twitch == "True":
         try:
-          driver.find_element("xpath", "//button[@data-a-target='content-classification-gate-overlay-start-watching-button']//div[text()='開始觀看']").click()
+          driver.find_element("xpath", "//button[@data-a-target='content-classification-gate-overlay-start-watching-button']").click()
           time.sleep(5)
         except:
           try:
@@ -78,8 +78,7 @@ def offline_check(driver, live_url, spare_link, important):
              if config.Twitch == "True" and current_url == desired_url:
                  ok = "ok"
 
-             if config.BiliBili == "True":
-                 if current_url == bilibili_desired_url:
+             if config.BiliBili == "True" and current_url == bilibili_desired_url:
                        ok = "ok"
              else:
                 if '?referrer=raid' in current_url:
@@ -219,7 +218,7 @@ def selreload():
          try:
             element = driver.find_element("xpath", "//div[contains(@class, 'Layout-sc-1xcs6mc-0 liveIndicator--x8p4l')]//span[text()='LIVE']/ancestor::div")
             try:
-                  driver.find_element("xpath", "//button[@data-a-target='content-classification-gate-overlay-start-watching-button']//div[text()='開始觀看']").click()
+                  driver.find_element("xpath", "//button[@data-a-target='content-classification-gate-overlay-start-watching-button']").click()
             except:
                   abc = "abc"
             return driver
