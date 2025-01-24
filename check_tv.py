@@ -669,43 +669,46 @@ def check_is_live_api(url, ffmpeg, text):
 
 def checktitlelol(arg1, arg2, reload, url_omg):
       if config.Twitch == "True" and reload == "Null":
-                  url = "https://api.twitch.tv/helix/streams"
-                  access_token = fetch_access_token()
-                  info = None
-                  status = TwitchResponseStatus.ERROR
-                  try:
-                        headers = {"Client-ID": config.client_id, "Authorization": "Bearer " + access_token}
-                        r = requests.get(url + "?user_login=" + config.username , headers=headers, timeout=15)
-                        r.raise_for_status()
-                        info = r.json()
-                        if info is None or not info["data"]:
-                            status = TwitchResponseStatus.OFFLINE
-                        else:
-                            status = TwitchResponseStatus.ONLINE
-                  except requests.exceptions.RequestException as e:
-                        if e.response:
-                              if e.response.status_code == 401:
-                                    status = TwitchResponseStatus.UNAUTHORIZED
-                              elif e.response.status_code == 404:
-                                    status = TwitchResponseStatus.NOT_FOUND
-                  channels = info["data"]
-                  channel = next(iter(channels), None)
-                  try:
-                    titletv = channel.get('title')
-                  except AttributeError:
-                    logging.info('the stream is not live please start at check_tv.py first! try again')
-                    time.sleep(10)
-                    checktitlelol(arg1, arg2, reload, url_omg)
-                    textnoemo = ''.join('[EMOJI]' if unicodedata.category(c) == 'So' else c for c in titletv)
-                    if "<" in textnoemo or ">" in textnoemo:
-                             textnoemo = textnoemo.replace("<", "[ERROR]").replace(">", "[ERROR]")
-                    calit = int(arg1) + 1
-                    filenametwitch = config.username +  " | " + textnoemo +  " | " + datetime.datetime.now() \
-                                .strftime("%Y-%m-%d") + " | " + "part " + str(calit)
-                    if len(filenametwitch) > 100:
-                          filenametwitch = config.username +  " | " + datetime.datetime.now() \
-                                 .strftime("%Y-%m-%d") + " | " + "part " + str(calit)
-                    deik = f"this stream is from twitch.tv/{config.username} (Stream Name:{textnoemo})"
+            url = "https://api.twitch.tv/helix/streams"
+            access_token = fetch_access_token()
+            info = None
+            status = TwitchResponseStatus.ERROR
+            try:
+                  headers = {
+                      "Client-ID": config.client_id,
+                      "Authorization": f"Bearer {access_token}",
+                  }
+                  r = requests.get(url + "?user_login=" + config.username , headers=headers, timeout=15)
+                  r.raise_for_status()
+                  info = r.json()
+                  if info is None or not info["data"]:
+                      status = TwitchResponseStatus.OFFLINE
+                  else:
+                      status = TwitchResponseStatus.ONLINE
+            except requests.exceptions.RequestException as e:
+                  if e.response:
+                        if e.response.status_code == 401:
+                              status = TwitchResponseStatus.UNAUTHORIZED
+                        elif e.response.status_code == 404:
+                              status = TwitchResponseStatus.NOT_FOUND
+            channels = info["data"]
+            channel = next(iter(channels), None)
+            try:
+              titletv = channel.get('title')
+            except AttributeError:
+              logging.info('the stream is not live please start at check_tv.py first! try again')
+              time.sleep(10)
+              checktitlelol(arg1, arg2, reload, url_omg)
+              textnoemo = ''.join('[EMOJI]' if unicodedata.category(c) == 'So' else c for c in titletv)
+              if "<" in textnoemo or ">" in textnoemo:
+                       textnoemo = textnoemo.replace("<", "[ERROR]").replace(">", "[ERROR]")
+              calit = int(arg1) + 1
+              filenametwitch = config.username +  " | " + textnoemo +  " | " + datetime.datetime.now() \
+                          .strftime("%Y-%m-%d") + " | " + "part " + str(calit)
+              if len(filenametwitch) > 100:
+                    filenametwitch = config.username +  " | " + datetime.datetime.now() \
+                           .strftime("%Y-%m-%d") + " | " + "part " + str(calit)
+              deik = f"this stream is from twitch.tv/{config.username} (Stream Name:{textnoemo})"
       if config.BiliBili == "True" and reload == "Null":
           titletv = get_stream_linkandtitle()
       try:
