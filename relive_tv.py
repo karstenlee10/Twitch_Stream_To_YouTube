@@ -16,18 +16,19 @@ def check_is_live():
   trytimes = 0
   while True:
     try:
-        if config.Twitch == "True":
-          streams = streamlink.streams("https://www.twitch.tv/" + config.username)
-        if config.BiliBili == "True":
-          streams = streamlink.streams("https://live.bilibili.com/" + config.bilibililiveuid)
-        hls_stream = streams["best"]
-        process_name = config.apiexe
-        for process in psutil.process_iter(['pid', 'name']):
-          if process.info['name'] == process_name:
-            logging.info('api exe still here')
-            return "True"
-        logging.info('api exe stop')
-        return "False"
+      if config.Twitch == "True":
+        streams = streamlink.streams(f"https://www.twitch.tv/{config.username}")
+      if config.BiliBili == "True":
+        streams = streamlink.streams(
+            f"https://live.bilibili.com/{config.bilibililiveuid}")
+      hls_stream = streams["best"]
+      process_name = config.apiexe
+      for process in psutil.process_iter(['pid', 'name']):
+        if process.info['name'] == process_name:
+          logging.info('api exe still here')
+          return "True"
+      logging.info('api exe stop')
+      return "False"
     except KeyError:
         trytimes += 1
         time.sleep(5)
