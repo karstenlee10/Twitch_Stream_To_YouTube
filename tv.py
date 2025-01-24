@@ -646,6 +646,7 @@ def edit_rtmp_key(driver, what):
 
 def check_is_live_api(url, ffmpeg, text):
       countshit = 0
+      MAX_RETRIES = 10  # example upper bound
       while True:
             try:
                   print(url)
@@ -657,16 +658,15 @@ def check_is_live_api(url, ffmpeg, text):
                   logging.error(f'Stream not available: {str(e)}')
                   logging.info('The stream is messed up. Trying again...')
                   time.sleep(2)
-                  os.system(f'TASKKILL /f /im {ffmpeg}')
-                  os.system(f'start relive_tv.py {text}')
+                  subprocess.run(["taskkill", "/f", "/im", ffmpeg], check=True)
+                  subprocess.run(["python", "relive_tv.py", text], check=True)
                   time.sleep(35)
                   countshit += 1
-            if countshit == 5:
-                  logging.info("failed shutdown script")
-                  os.system(f'TASKKILL /f /im {ffmpeg}')
-                  os.system(f'start relive_tv.py {text}')
+            if countshit >= MAX_RETRIES:
+                  logging.info("Retry limit exceeded. Shutting down.")
+                  subprocess.run(["taskkill", "/f", "/im", ffmpeg], check=True)
+                  subprocess.run(["python", "relive_tv.py", text], check=True)
                   exit()
-
 def checktitlelol(arg1, arg2, reload, url_omg):
       if config.Twitch == "True" and reload == "Null":
             url = "https://api.twitch.tv/helix/streams"
