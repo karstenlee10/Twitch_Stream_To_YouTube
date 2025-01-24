@@ -51,8 +51,8 @@ SCOPES = [
 ]
 home_dir = os.path.expanduser("~")
 arguments = sys.argv
-desired_url = "https://www.twitch.tv/" + config.username
-bilibili_desired_url = "https://live.bilibili.com/" + config.username
+desired_url = f"https://www.twitch.tv/{config.username}"
+bilibili_desired_url = f"https://live.bilibili.com/{config.username}"
 
 def offline_check(driver, live_url, spare_link, important):
       refresh_count = 0
@@ -61,7 +61,7 @@ def offline_check(driver, live_url, spare_link, important):
       fewtimes = 0
       if config.Twitch == "True":
         try:
-          driver.find_element("xpath", "//button[@data-a-target='content-classification-gate-overlay-start-watching-button']//div[text()='開始觀看']").click()
+          driver.find_element("xpath", "//button[@data-a-target='content-classification-gate-overlay-start-watching-button']").click()
           time.sleep(5)
         except:
           try:
@@ -75,17 +75,15 @@ def offline_check(driver, live_url, spare_link, important):
       while True:
          try:
              current_url = driver.current_url
-             if config.Twitch == "True":
-               if current_url == desired_url:
+             if config.Twitch == "True" and current_url == desired_url:
                  ok = "ok"
-             if config.BiliBili == "True":
-                 if current_url == bilibili_desired_url:
+
+             if config.BiliBili == "True" and current_url == bilibili_desired_url:
                        ok = "ok"
              else:
                 if '?referrer=raid' in current_url:
                   if config.Twitch == "True":
-                    kkkys = "the url has been raid:" + current_url + " killing process"
-                    logging.info(kkkys)
+                    logging.info("the url has been raid:{current_url} killing process")
                     driver.quit()
                     if config.unliststream == "True":
                        logging.info("public back the stream")
@@ -96,8 +94,7 @@ def offline_check(driver, live_url, spare_link, important):
                     os.system("start check_tv.py " + spare_link + " " + important)
                     break
                 else:
-                    kkkys = "the url has change:" + current_url + " killing process"
-                    logging.info(kkkys)
+                    logging.info("the url has change:{current_url} killing process")
                     driver.quit()
                     if config.unliststream == "True":
                        logging.info("public back the stream")
@@ -120,8 +117,8 @@ def offline_check(driver, live_url, spare_link, important):
                    logging.info("--START-------------(edit_tv)---------------")
                    public_stream(live_url)
                    logging.info("--END-------------(edit_tv)-----------------")
-                 os.system("taskkill /f /im " + config.apiexe)
-                 os.system("start check_tv.py " + spare_link + " " + important)
+                 os.system(f"taskkill /f /im {config.apiexe}")
+                 os.system(f"start check_tv.py {spare_link} {important}")
                  break
              if config.Twitch == "True":
                element = driver.find_element("xpath", "//div[@class='Layout-sc-1xcs6mc-0 liveIndicator--x8p4l']//span[text()='LIVE']/ancestor::div")
@@ -141,8 +138,8 @@ def offline_check(driver, live_url, spare_link, important):
                 logging.info("--START-------------(edit_tv)---------------")
                 public_stream(live_url)
                 logging.info("--END-------------(edit_tv)-----------------")
-              os.system("taskkill /f /im " + config.apiexe)
-              os.system("start check_tv.py " + spare_link + " " + important)
+              os.system(f"taskkill /f /im {config.apiexe}")
+              os.system(f"start check_tv.py {spare_link} {important}")
               break
          except:
             logging.info("sus offine i dnot know why it shutdown restart driver")
@@ -161,7 +158,7 @@ def offline_check(driver, live_url, spare_link, important):
             refresh_count = 0
          if countdownhours == 7871:
            logging.info("omg is almost 12hours reload stream and kill apiexe")
-           os.system("taskkill /f /im " + config.apiexe)
+           os.system(f"taskkill /f /im {config.apiexe}")
            logging.info("--START-----------live_api-----------------")
            checktitlelol(numberpart, important, "Null", spare_link)
            logging.info("--END-------------live_api-----------------")
@@ -174,7 +171,7 @@ def offline_check(driver, live_url, spare_link, important):
            logging.info("--START-----------live_api-----------------")
            live_spare_url = checktitlelol("0", important, "True", "Null")
            logging.info("--END-------------live_api-----------------")
-           os.system("start " + config.apiexe)
+           os.system(f"start {config.apiexe}")
            if config.unliststream == "True":
               logging.info("public back the stream")
               logging.info("--START-------------(edit_tv)---------------")
@@ -209,9 +206,9 @@ def load_check(driver):
 def selreload():
         driver = webdriver.Chrome()
         if config.Twitch == "True":
-            driver.get("https://twitch.tv/" + config.username)
+            driver.get(f"https://twitch.tv/{config.username}")
         if config.BiliBili == "True":
-            driver.get("https://live.bilibili.com/" + config.username)
+            driver.get(f"https://live.bilibili.com/{config.username}")
         time.sleep(7)
         if config.BiliBili == "True":
               return driver
@@ -219,7 +216,7 @@ def selreload():
          try:
             element = driver.find_element("xpath", "//div[contains(@class, 'Layout-sc-1xcs6mc-0 liveIndicator--x8p4l')]//span[text()='LIVE']/ancestor::div")
             try:
-                  driver.find_element("xpath", "//button[@data-a-target='content-classification-gate-overlay-start-watching-button']//div[text()='開始觀看']").click()
+                  driver.find_element("xpath", "//button[@data-a-target='content-classification-gate-overlay-start-watching-button']").click()
             except:
                   abc = "abc"
             return driver
@@ -264,9 +261,9 @@ def selwebdriver_check(yt_link, infomation, driver):
              haha = infomation
           driver = webdriver.Chrome()
           if config.Twitch == "True":
-            driver.get("https://twitch.tv/" + config.username)
+            driver.get(f"https://twitch.tv/{config.username}")
           if config.BiliBili == "True":
-            driver.get("https://live.bilibili.com/" + config.username)
+            driver.get(f"https://live.bilibili.com/{config.username}")
           time.sleep(7)
         if config.BiliBili == "True":
          try:
@@ -545,11 +542,10 @@ def confirm_logged_in(driver: webdriver) -> bool:
               exit()
 
 def get_stream_linkandtitle():
-        response = requests.get("https://live.bilibili.com/" + config.username)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        title = soup.title.string
-        main_title = re.sub(r' - .*', '', title)
-        return main_title
+      response = requests.get(f"https://live.bilibili.com/{config.username}")
+      soup = BeautifulSoup(response.text, 'html.parser')
+      title = soup.title.string
+      return re.sub(r' - .*', '', title)
 
 def selwebdriver(live_url, timeisshit):
       if config.Twitch == "True":
@@ -590,9 +586,9 @@ def selwebdriver(live_url, timeisshit):
       filenametwitch = config.username +  " | " + textnoemo +  " | " + datetime.datetime.now() \
                     .strftime("%Y-%m-%d")
       if config.Twitch == "True":
-              deik = "this stream is from https://twitch.tv/" + config.username + " (Stream Name:" + textnoemo + ")"
+              deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo})"
       if config.BiliBili == "True":
-              deik = "this stream is from https://live.bilibili.com/" + config.username + " (Stream Name:" + textnoemo + ")"
+              deik = "this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo})"
       if len(filenametwitch) > 100:
               logging.info("title too long")
               filenametwitch = config.username +  " | " + datetime.datetime.now() \
@@ -650,71 +646,68 @@ def edit_rtmp_key(driver, what):
         exit()
 
 def check_is_live_api(url, ffmpeg, text):
- countshit = 0
- while True:
-    try:
-        print(url)
-        streams = streamlink.streams(url)
-        hls_stream = streams["best"]
-        logging.info('fucking live now')
-        break
-    except KeyError:
-            logging.info('The stream is messed up. Trying again...')
-            time.sleep(2)
-            os.system('TASKKILL /f /im ' + ffmpeg)
-            os.system('start relive_tv.py ' + text)
-            time.sleep(35)
-            countshit += 1
-    if countshit == 5:
-            logging.info("failed shutdown script")
-            os.system('TASKKILL /f /im ' + ffmpeg)
-            os.system('start relive_tv.py ' + text)
-            exit()
+      countshit = 0
+      while True:
+            try:
+                  print(url)
+                  streams = streamlink.streams(url)
+                  hls_stream = streams["best"]
+                  logging.info('fucking live now')
+                  break
+            except KeyError:
+                  logging.info('The stream is messed up. Trying again...')
+                  time.sleep(2)
+                  os.system(f'TASKKILL /f /im {ffmpeg}')
+                  os.system(f'start relive_tv.py {text}')
+                  time.sleep(35)
+                  countshit += 1
+            if countshit == 5:
+                  logging.info("failed shutdown script")
+                  os.system(f'TASKKILL /f /im {ffmpeg}')
+                  os.system(f'start relive_tv.py {text}')
+                  exit()
 
 def checktitlelol(arg1, arg2, reload, url_omg):
-      if config.Twitch == "True":
-        if reload == "Null":
-          url = "https://api.twitch.tv/helix/streams"
-          access_token = fetch_access_token()
-          info = None
-          status = TwitchResponseStatus.ERROR
-          try:
-            headers = {"Client-ID": config.client_id, "Authorization": "Bearer " + access_token}
-            r = requests.get(url + "?user_login=" + config.username , headers=headers, timeout=15)
-            r.raise_for_status()
-            info = r.json()
-            if info is None or not info["data"]:
-                status = TwitchResponseStatus.OFFLINE
-            else:
-                status = TwitchResponseStatus.ONLINE
-          except requests.exceptions.RequestException as e:
-            if e.response:
-                if e.response.status_code == 401:
-                    status = TwitchResponseStatus.UNAUTHORIZED
-                if e.response.status_code == 404:
-                    status = TwitchResponseStatus.NOT_FOUND
-          channels = info["data"]
-          channel = next(iter(channels), None)
-          try:
-            titletv = channel.get('title')
-          except AttributeError:
-            logging.info('the stream is not live please start at check_tv.py first! try again')
-            time.sleep(10)
-            checktitlelol(arg1, arg2, reload, url_omg)
-      if config.BiliBili == "True":
-        if reload == "Null":
+      if config.Twitch == "True" and reload == "Null":
+                  url = "https://api.twitch.tv/helix/streams"
+                  access_token = fetch_access_token()
+                  info = None
+                  status = TwitchResponseStatus.ERROR
+                  try:
+                        headers = {"Client-ID": config.client_id, "Authorization": "Bearer " + access_token}
+                        r = requests.get(url + "?user_login=" + config.username , headers=headers, timeout=15)
+                        r.raise_for_status()
+                        info = r.json()
+                        if info is None or not info["data"]:
+                            status = TwitchResponseStatus.OFFLINE
+                        else:
+                            status = TwitchResponseStatus.ONLINE
+                  except requests.exceptions.RequestException as e:
+                        if e.response:
+                              if e.response.status_code == 401:
+                                    status = TwitchResponseStatus.UNAUTHORIZED
+                              elif e.response.status_code == 404:
+                                    status = TwitchResponseStatus.NOT_FOUND
+                  channels = info["data"]
+                  channel = next(iter(channels), None)
+                  try:
+                    titletv = channel.get('title')
+                  except AttributeError:
+                    logging.info('the stream is not live please start at check_tv.py first! try again')
+                    time.sleep(10)
+                    checktitlelol(arg1, arg2, reload, url_omg)
+                    textnoemo = ''.join('[EMOJI]' if unicodedata.category(c) == 'So' else c for c in titletv)
+                    if "<" in textnoemo or ">" in textnoemo:
+                             textnoemo = textnoemo.replace("<", "[ERROR]").replace(">", "[ERROR]")
+                    calit = int(arg1) + 1
+                    filenametwitch = config.username +  " | " + textnoemo +  " | " + datetime.datetime.now() \
+                                .strftime("%Y-%m-%d") + " | " + "part " + str(calit)
+                    if len(filenametwitch) > 100:
+                          filenametwitch = config.username +  " | " + datetime.datetime.now() \
+                                 .strftime("%Y-%m-%d") + " | " + "part " + str(calit)
+                    deik = f"this stream is from twitch.tv/{config.username} (Stream Name:{textnoemo})"
+      if config.BiliBili == "True" and reload == "Null":
           titletv = get_stream_linkandtitle()
-      if reload == "Null":
-        textnoemo = ''.join('[EMOJI]' if unicodedata.category(c) == 'So' else c for c in titletv)
-        if "<" in textnoemo or ">" in textnoemo:
-                 textnoemo = textnoemo.replace("<", "[ERROR]").replace(">", "[ERROR]")
-        calit = int(arg1) + 1
-        filenametwitch = config.username +  " | " + textnoemo +  " | " + datetime.datetime.now() \
-                    .strftime("%Y-%m-%d") + " | " + "part " + str(calit)
-        if len(filenametwitch) > 100:
-              filenametwitch = config.username +  " | " + datetime.datetime.now() \
-                     .strftime("%Y-%m-%d") + " | " + "part " + str(calit)
-        deik = "this stream is from twitch.tv/" + config.username + " (Stream Name:" + textnoemo + ")"
       try:
             if reload == "True":
                             filenametwitch = config.username + " (wait for stream title)"
@@ -770,22 +763,20 @@ def checktitlelol(arg1, arg2, reload, url_omg):
               check_is_live_api(new_url, config.ffmpeg, "this")
             logging.info("killing it rn and the driver and too long and start countdown")
             if arg2 == "schedule":
-                command = "taskkill /f /im " + config.ffmpeg
-                os.system(command)
+                os.system(f"taskkill /f /im {config.ffmpeg}")
             if arg2 == "schsheepedule":
-                command = "taskkill /f /im " + config.ffmpeg1
-                os.system(command)
+                os.system(f"taskkill /f /im {config.ffmpeg1}")
             time.sleep(2)
             if arg2 == "schedule": #"start " +
               if config.ytshort == "True":
-                os.system('start ' + config.ffmpeg + ' -fflags +genpts -re -i too-long.mp4 -c:v h264_qsv -c:a aac -b:a 128k -preset veryfast -filter_complex "[0:v]scale=1080:600,setsar=1[video];color=black:1080x1920[scaled];[scaled][video]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -f flv rtmp://a.rtmp.youtube.com/live2/' + config.rtmp_key)
+                os.system(f'start {config.ffmpeg} -fflags +genpts -re -i too-long.mp4 -c:v h264_qsv -c:a aac -b:a 128k -preset veryfast -filter_complex "[0:v]scale=1080:600,setsar=1[video];color=black:1080x1920[scaled];[scaled][video]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key}')
               if config.ytshort == "False":
-                os.system("start " + config.ffmpeg + " -re -i too-long.mp4 -c:v libx264 -preset veryfast -c:a aac -f flv rtmp://a.rtmp.youtube.com/live2/" + config.rtmp_key)
+                os.system(f'start {config.ffmpeg} -re -i too-long.mp4 -c:v libx264 -preset veryfast -c:a aac -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key}')
             if arg2 == "schsheepedule":
               if config.ytshort == "True":
-                os.system('start ' + config.ffmpeg1 + ' -fflags +genpts -re -i too-long.mp4 -c:v libx264 -preset veryfast -c:a aac -filter_complex "[0:v]scale=1080:600,setsar=1[video];color=black:1080x1920[scaled];[scaled][video]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -f flv rtmp://a.rtmp.youtube.com/live2/' + config.rtmp_key_1)
+                os.system(f'start {config.ffmpeg} -fflags +genpts -re -i too-long.mp4 -c:v libx264 -preset veryfast -c:a aac -filter_complex "[0:v]scale=1080:600,setsar=1[video];color=black:1080x1920[scaled];[scaled][video]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key_1}')
               if config.ytshort == "False":
-                os.system("start " + config.ffmpeg1 + " -re -i too-long.mp4 -c:v libx264 -preset veryfast -c:a aac -f flv rtmp://a.rtmp.youtube.com/live2/" + config.rtmp_key_1)
+                os.system(f'start {config.ffmpeg} -re -i too-long.mp4 -c:v libx264 -preset veryfast -c:a aac -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key}')
             if url_omg == "Null":
                logging.info("fucking finish")
             else:
