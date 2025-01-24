@@ -75,9 +75,9 @@ def offline_check(driver, live_url, spare_link, important):
       while True:
          try:
              current_url = driver.current_url
-             if config.Twitch == "True":
-               if current_url == desired_url:
+             if config.Twitch == "True" and current_url == desired_url:
                  ok = "ok"
+
              if config.BiliBili == "True":
                  if current_url == bilibili_desired_url:
                        ok = "ok"
