@@ -89,8 +89,8 @@ def offline_check(driver, live_url, spare_link, important):
                        logging.info("--START-------------(edit_tv)---------------")
                        public_stream(live_url)
                        logging.info("--END-------------(edit_tv)-----------------")
-                    os.system(f"taskkill /f /im {config.apiexe}")
-                    os.system(f"start check_tv.py {spare_link} {important}")
+                    subprocess.run(["taskkill", "/f", "/im", config.apiexe], check=True)
+                    subprocess.run(["python", "check_tv.py", spare_link, important], check=True)
                     break
                 else:
                     logging.info(f"the url has change:{current_url} killing process")
@@ -100,8 +100,8 @@ def offline_check(driver, live_url, spare_link, important):
                        logging.info("--START-------------(edit_tv)---------------")
                        public_stream(live_url)
                        logging.info("--END-------------(edit_tv)-----------------")
-                    os.system("taskkill /f /im " + config.apiexe)
-                    os.system("start check_tv.py " + spare_link + " " + important)
+                    subprocess.run(["taskkill", "/f", "/im", config.apiexe], check=True)
+                    subprocess.run(["python", "check_tv.py", spare_link, important], check=True)
                     break
              if config.BiliBili == "True":
                driver.find_element("xpath", "//div[@class='web-player-ending-panel']")
