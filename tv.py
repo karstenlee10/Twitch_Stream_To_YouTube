@@ -40,8 +40,7 @@ from selenium.webdriver.chrome.service import Service
 t = time.localtime()
 current_time = time.strftime("%H:%M:%S", t)
 refresh = 15
-token_url = "https://id.twitch.tv/oauth2/token?client_id=" + config.client_id + "&client_secret=" \
-                         + config.client_secret + "&grant_type=client_credentials"
+token_url = f"https://id.twitch.tv/oauth2/token?client_id={config.client_id}&client_secret={config.client_secret}&grant_type=client_credentials"
 APP_TOKEN_FILE = "client_secret.json"
 USER_TOKEN_FILE = "user_token.json"
 
