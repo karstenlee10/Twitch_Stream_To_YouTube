@@ -678,7 +678,11 @@ def checktitlelol(arg1, arg2, reload, url_omg):
                       "Client-ID": config.client_id,
                       "Authorization": f"Bearer {access_token}",
                   }
-                  r = requests.get(url + "?user_login=" + config.username , headers=headers, timeout=15)
+                  r = requests.get(
+                      f"{url}?user_login=" + config.username,
+                      headers=headers,
+                      timeout=15,
+                  )
                   r.raise_for_status()
                   info = r.json()
                   if info is None or not info["data"]:
