@@ -83,7 +83,7 @@ def offline_check(driver, live_url, spare_link, important):
              else:
                 if '?referrer=raid' in current_url:
                   if config.Twitch == "True":
-                    logging.info("the url has been raid:{current_url} killing process")
+                    logging.info(f"the url has been raid:{current_url} killing process")
                     driver.quit()
                     if config.unliststream == "True":
                        logging.info("public back the stream")
