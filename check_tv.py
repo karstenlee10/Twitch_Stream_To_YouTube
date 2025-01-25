@@ -68,10 +68,7 @@ def find_gmail_title(title):
 
     # Search for messages matching the query
     results = service.users().messages().list(userId='me', q=query).execute()
-    messages = results.get('messages', [])
-
-    # Process the search results
-    if messages:
+    if messages := results.get('messages', []):
         for message in messages:
             msg = service.users().messages().get(userId='me', id=message['id']).execute()
             logging.info(f"Found message: {msg['snippet']}")
