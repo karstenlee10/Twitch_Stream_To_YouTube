@@ -741,14 +741,14 @@ def edit_rtmp_key(driver, what):
         exit()
 
 def check_is_live_api(url, ffmpeg, text):
-      countshit = 0
+      retry_count = 0
       MAX_RETRIES = 10  # example upper bound
       while True:
             try:
-                  print(url)
+                  logging.info(f"Checking stream at URL: {url}")
                   streams = streamlink.streams(url)
                   hls_stream = streams["best"]
-                  logging.info('fucking live now')
+                  logging.info('Stream is now live')
                   break
             except KeyError as e:
                   logging.error(f'Stream not available: {str(e)}')
@@ -757,7 +757,7 @@ def check_is_live_api(url, ffmpeg, text):
                   subprocess.run(["taskkill", "/f", "/im", ffmpeg])
                   subprocess.Popen(["start", "python", "relive_tv.py", text], shell=True)
                   time.sleep(35)
-                  countshit += 1
+                  retry_count += 1
             if countshit >= MAX_RETRIES:
                   logging.info("Retry limit exceeded. Shutting down.")
                   subprocess.run(["taskkill", "/f", "/im", ffmpeg])
