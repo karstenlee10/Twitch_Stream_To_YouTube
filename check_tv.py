@@ -450,8 +450,7 @@ def get_service():
 
         with open(USER_TOKEN_FILE, 'w') as token:
             token.write(creds.to_json())
-    service = build('youtube', 'v3', credentials=creds)
-    return service
+    return build('youtube', 'v3', credentials=creds)
 
 def get_gmail_service():
   try:
