@@ -81,4 +81,8 @@ Technologies used in the project:
 * Using a different browers
 * Add Kick/Add YouTube??(Needed support on streamlink)
 
+<h2>💲 Donation</h2>
 
+The donation will be for the project or support me buying twitch turbo for the channel.
+
+https://streamlabs.com/karsteniee/tips
