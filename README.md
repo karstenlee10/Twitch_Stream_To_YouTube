@@ -21,7 +21,13 @@ This script is not in a complete finish state and only support WINDOWS
 
 <h2>🚀 installation guide</h2>
 
-[https://www.youtube.com/watch?v=8YztEWL-ilU](https://www.youtube.com/watch?v=8YztEWL-ilU)
+[below v0.3]
+
+https://www.youtube.com/watch?v=8YztEWL-ilU
+
+[upper or v0.3]
+
+https://www.youtube.com/watch?v=16ypGUFZFd0
   
 <h2>🧐 Features</h2>
 
