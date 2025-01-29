@@ -19,16 +19,6 @@ PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING(channel description or video descrip
 
 This script is not in a complete finish state and only support WINDOWS
 
-<h2>🚀 installation guide</h2>
-
-[below v0.3]
-
-https://www.youtube.com/watch?v=8YztEWL-ilU
-
-[upper or v0.3]
-
-https://www.youtube.com/watch?v=16ypGUFZFd0
-  
 <h2>🧐 Features</h2>
 
 Here're some of the project's best features:
@@ -38,6 +28,16 @@ Here're some of the project's best features:
 *   It is automated no need for human
 *   Don't need to download the vods and upload it back to youtube
 *   WHATEVER LANGUAGE IS SUPPORTED USING THIS SCRIPT
+
+<h2>🚀 installation video guide</h2>
+
+[below v0.3]
+
+https://www.youtube.com/watch?v=8YztEWL-ilU
+
+[upper or v0.3 no context]
+
+https://www.youtube.com/watch?v=16ypGUFZFd0
 
 <h2>🛠️ Installation Steps:</h2>
 
