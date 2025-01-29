@@ -91,11 +91,8 @@ username = "your_twitch_username"  # Username from your wanted archive streamer
   - Add RTMP keys from YouTube
   - Add API credentials (for Twitch)
 
-## Additional Resources
-
-- [Twitch API Documentation](https://dev.twitch.tv/docs)
-- [Twitch Developer Terms of Service](https://dev.twitch.tv/terms)
-- [Twitch Rate Limits](https://dev.twitch.tv/docs/api/guide#rate-limits)
+## 7. Cut google_auth_oauthlib folder(for auto generate api token)
+ - Cut the `google_auth_oauthlib` folder to python_location/Lib/site-packages and replace `flow.py`
 
 ## First-Time Startup
 
