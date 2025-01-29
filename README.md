@@ -41,9 +41,7 @@ Here're some of the project's best features:
 
 <h2>🛠️ Installation Steps:</h2>
 
-<p>1. Watch the video</p>
-
-<p>2. Enjoy</p>
+[GUIDE](readthisguide.md)
 
 <h2>🍰 Contribution:</h2>
 
