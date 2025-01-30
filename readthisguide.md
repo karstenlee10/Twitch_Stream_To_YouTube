@@ -17,17 +17,16 @@ cd Twitch_B2_Archive_To_YouTube
 - Download lastest [Streamlink](https://github.com/streamlink/windows-builds/releases) and keep press next in the installation
 - Download lastest [ffmpeg](https://www.gyan.dev/ffmpeg/builds/) and place two `ffmpeg.exe` in the project directory (rename according to your config_tv.py settings)
 
-## 3. Install required Python packages:
+## 3. Install required lastest Python packages:
 ```bash
-pip install selenium
-pip install google-auth-oauthlib
-pip install google-api-python-client
-pip install streamlink
-pip install beautifulsoup4
-pip install psutil
-pip install requests
-pip install opencv-python
-pip install twitchAPI
+pip install selenium # For web automation
+pip install google-auth-oauthlib # For Google OAuth authentication
+pip install google-api-python-client # For YouTube API and Gmail API
+pip install streamlink # For stream handling pipe to ffmpeg
+pip install beautifulsoup4 # For web scraping
+pip install psutil # For process management
+pip install requests # For HTTP requests
+pip install twitchAPI # For Twitch API integration
 ```
 
 ## 4. Set up Google API:
