@@ -19,14 +19,14 @@ cd Twitch_B2_Archive_To_YouTube
 
 ## 3. Install required lastest Python packages:
 ```bash
-pip install selenium # For web automation
-pip install google-auth-oauthlib # For Google OAuth authentication
-pip install google-api-python-client # For YouTube API and Gmail API
-pip install streamlink # For stream handling pipe to ffmpeg
-pip install beautifulsoup4 # For web scraping
-pip install psutil # For process management
-pip install requests # For HTTP requests
-pip install twitchAPI # For Twitch API integration
+pip install selenium 
+pip install google-auth-oauthlib
+pip install google-api-python-client
+pip install streamlink
+pip install beautifulsoup4
+pip install psutil
+pip install requests
+pip install twitchAPI
 ```
 
 ## 4. Set up Google API:
