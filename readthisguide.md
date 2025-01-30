@@ -27,6 +27,7 @@ pip install beautifulsoup4
 pip install psutil
 pip install requests
 pip install opencv-python
+pip install twitchAPI
 ```
 
 ## 4. Set up Google API:
