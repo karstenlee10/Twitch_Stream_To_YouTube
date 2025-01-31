@@ -4,23 +4,14 @@ import os
 import time
 import logging
 from selenium import webdriver
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from selenium.webdriver.remote.file_detector import LocalFileDetector
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import NoSuchElementException, ElementNotInteractableException, SessionNotCreatedException
-from selenium.webdriver.chrome.service import Service
+from selenium.common.exceptions import NoSuchElementException, SessionNotCreatedException
 from selenium.webdriver.chrome.options import Options
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from google.protobuf.timestamp_pb2 import Timestamp
-from google.oauth2 import service_account
 import google.auth.exceptions
 import config_tv as config
 import psutil
@@ -31,23 +22,20 @@ import string
 import random
 from datetime import datetime, timedelta
 import streamlink
-from urllib.parse import urlparse
 from bs4 import BeautifulSoup
-from requests.exceptions import RequestException
 import json
-import threading
-import getopt
 import re
-import shutil
 from twitchAPI.twitch import Twitch
-from twitchAPI.type import AuthScope
+from twitchAPI.type import AuthenticationError, NotFound
 import asyncio
+import aiohttp
 
 t = time.localtime()
 current_time = time.strftime("%H:%M:%S", t)
 refresh = 15
 token_url = f"https://id.twitch.tv/oauth2/token?client_id={config.client_id}&client_secret={config.client_secret}&grant_type=client_credentials"
 APP_TOKEN_FILE = "client_secret.json"
+GMAIL_TOKEN_FILE = "gmail_token.json"
 USER_TOKEN_FILE = "user_token.json"
 SCOPES = [
     'https://www.googleapis.com/auth/youtube.force-ssl',
@@ -94,64 +82,30 @@ def offline_check(driver, live_url, spare_link, important, titleforgmail):
     numberpart = 0
     fewtimes = 0
     gmailcount = 0
+    countyt = 0
     
     # Create event loop and run async code
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
     async def check_offline():
-        # Move all nonlocal declarations to the start of the function
         nonlocal refresh_count, countdownhours, numberpart, fewtimes, gmailcount, titleforgmail
         
-        twitch = await Twitch(config.client_id, config.client_secret)
-        await twitch.authenticate_app([])
-        
-        while True:
-            try:
-                if config.Twitch == "True":
-                    streams = []
-                    async for stream in twitch.get_streams(user_login=[config.username]):
-                        streams.append(stream)
-                    
-                    if not streams:
-                        fewtimes += 1
-                        if fewtimes == 2:
-                            logging.info("Stream offline detected. Shutting down...")
-                            if config.unliststream == "True":
-                                logging.info("public back the stream")
-                                public_stream(live_url)
-                            subprocess.run(["taskkill", "/f", "/im", config.apiexe])
-                            subprocess.Popen(["start", "python", "check_tv.py", spare_link, important], shell=True)
-                            return
-                
-                if config.BiliBili == "True":
-                    try:
-                        response = requests.get(f"https://live.bilibili.com/{config.username}")
-                        soup = BeautifulSoup(response.text, 'html.parser')
-                        soup.find("div", {"class": "web-player-ending-panel"})
-                        fewtimes += 1
-                        if fewtimes == 6:
-                            logging.info("Stream offline detected. Reloading program...")
-                            if config.unliststream == "True":
-                                logging.info("public back the stream")
-                                public_stream(live_url)
-                            subprocess.run(["taskkill", "/f", "/im", config.apiexe])
-                            subprocess.Popen(["start", "python", "check_tv.py", spare_link, important], shell=True)
-                            exit()
-                    except Exception as e:
-                        logging.error(f"Error checking BiliBili stream: {e}")
-                        pass
-
-                # Keep existing refresh and countdown logic
-                refresh_count += 1
-                countdownhours += 1
-                gmailcount += 1
-
-                # Keep existing Gmail check logic
-                if gmailcount == 11:
-                    whatistheans = find_gmail_title(titleforgmail)
-                    if whatistheans == "True":
-                        logging.info("alert detect third party info restart stream to spare stream")
+        # Create Twitch client without SSL verification
+        connector = aiohttp.TCPConnector(ssl=False)
+        async with aiohttp.ClientSession(connector=connector) as session:
+            twitch = await Twitch(config.client_id, config.client_secret)
+            twitch._http = session  # Use the session without SSL verification
+            await twitch.authenticate_app([])
+            
+            while True:
+                try:
+                    if countyt == 12:
+                     try:
+                       streams = streamlink.streams(live_url)
+                       hls_stream = streams["best"]
+                     except KeyError:
+                        logging.info("The stream is dead. Reloading stream...")
                         subprocess.run(["taskkill", "/f", "/im", config.apiexe])
                         titleforgmail = checktitlelol(numberpart, important, "Null", spare_link)
                         logging.info("finish reloading start spare stream")
@@ -171,43 +125,107 @@ def offline_check(driver, live_url, spare_link, important, titleforgmail):
                         spare_link = live_spare_url
                         logging.info(important)
                         countdownhours = 0
-                        gmailcount = 0
-                    else:
-                        gmailcount = 0
-
-                if refresh_count == 60:
+                        countyt = 0
+                    if config.Twitch == "True":
+                        streams = []
+                        async for stream in twitch.get_streams(user_login=[config.username]):
+                            streams.append(stream)
+                        
+                        if not streams:
+                            fewtimes += 1
+                            if fewtimes == 2:
+                                logging.info("Stream offline detected. Shutting down...")
+                                if config.unliststream == "True":
+                                    logging.info("public back the stream")
+                                    public_stream(live_url)
+                                subprocess.run(["taskkill", "/f", "/im", config.apiexe])
+                                subprocess.Popen(["start", "python", "check_tv.py", spare_link, important], shell=True)
+                                return
+                    
                     if config.BiliBili == "True":
-                        driver.refresh()
-                        await asyncio.sleep(7)
-                        refresh_count = 0
-                
-                if countdownhours == 7871:
-                    logging.info("12 hour limit reached. Reloading stream...")
-                    subprocess.run(["taskkill", "/f", "/im", config.apiexe])
-                    titleforgmail = checktitlelol(numberpart, important, "Null", spare_link)
-                    logging.info("finish reloading start spare stream")
-                    logging.info("load spare stream")
-                    if important == "schedule":
-                        important = "schsheepedule"
-                    elif important == "schsheepedule":
-                        important = "schedule"
-                    live_spare_url = checktitlelol("0", important, "True", "Null")
-                    subprocess.Popen(["start", config.apiexe], shell=True)
-                    if config.unliststream == "True":
-                        logging.info("public back the stream")
-                        public_stream(live_url)
-                    logging.info("load offline_check again")
-                    numberpart += 1
-                    live_url = spare_link
-                    spare_link = live_spare_url
-                    logging.info(important)
-                    countdownhours = 0
+                        try:
+                            response = requests.get(f"https://live.bilibili.com/{config.username}")
+                            soup = BeautifulSoup(response.text, 'html.parser')
+                            soup.find("div", {"class": "web-player-ending-panel"})
+                            fewtimes += 1
+                            if fewtimes == 6:
+                                logging.info("Stream offline detected. Reloading program...")
+                                if config.unliststream == "True":
+                                    logging.info("public back the stream")
+                                    public_stream(live_url)
+                                subprocess.run(["taskkill", "/f", "/im", config.apiexe])
+                                subprocess.Popen(["start", "python", "check_tv.py", spare_link, important], shell=True)
+                                exit()
+                        except Exception as e:
+                            logging.error(f"Error checking BiliBili stream: {e}")
+                            pass
 
-                await asyncio.sleep(15)  # Changed to asyncio.sleep
-                
-            except Exception as e:
-                logging.error(f"Error in offline check: {e}")
-                await asyncio.sleep(5)  # Changed to asyncio.sleep
+                    # Keep existing refresh and countdown logic
+                    refresh_count += 1
+                    countdownhours += 1
+                    gmailcount += 1
+
+                    # Keep existing Gmail check logic
+                    if gmailcount == 11:
+                        whatistheans = find_gmail_title(titleforgmail)
+                        if whatistheans == "True":
+                            logging.info("alert detect third party info restart stream to spare stream")
+                            subprocess.run(["taskkill", "/f", "/im", config.apiexe])
+                            titleforgmail = checktitlelol(numberpart, important, "Null", spare_link)
+                            logging.info("finish reloading start spare stream")
+                            logging.info("load spare stream")
+                            if important == "schedule":
+                                important = "schsheepedule"
+                            elif important == "schsheepedule":
+                                important = "schedule"
+                            live_spare_url = checktitlelol("0", important, "True", "Null")
+                            subprocess.Popen(["start", config.apiexe], shell=True)
+                            if config.unliststream == "True":
+                                logging.info("public back the stream")
+                                public_stream(live_url)
+                            logging.info("load offline_check again")
+                            numberpart += 1
+                            live_url = spare_link
+                            spare_link = live_spare_url
+                            logging.info(important)
+                            countdownhours = 0
+                            gmailcount = 0
+                        else:
+                            gmailcount = 0
+
+                    if refresh_count == 60:
+                        if config.BiliBili == "True":
+                            driver.refresh()
+                            await asyncio.sleep(7)
+                            refresh_count = 0
+                    
+                    if countdownhours == 7871:
+                        logging.info("12 hour limit reached. Reloading stream...")
+                        subprocess.run(["taskkill", "/f", "/im", config.apiexe])
+                        titleforgmail = checktitlelol(numberpart, important, "Null", spare_link)
+                        logging.info("finish reloading start spare stream")
+                        logging.info("load spare stream")
+                        if important == "schedule":
+                            important = "schsheepedule"
+                        elif important == "schsheepedule":
+                            important = "schedule"
+                        live_spare_url = checktitlelol("0", important, "True", "Null")
+                        subprocess.Popen(["start", config.apiexe], shell=True)
+                        if config.unliststream == "True":
+                            logging.info("public back the stream")
+                            public_stream(live_url)
+                        logging.info("load offline_check again")
+                        numberpart += 1
+                        live_url = spare_link
+                        spare_link = live_spare_url
+                        logging.info(important)
+                        countdownhours = 0
+
+                    await asyncio.sleep(15)  # Changed to asyncio.sleep
+                    
+                except Exception as e:
+                    logging.error(f"Error in offline check: {e}")
+                    await asyncio.sleep(5)  # Changed to asyncio.sleep
     
     # Run the async function
     loop.run_until_complete(check_offline())
@@ -228,20 +246,24 @@ def load_check(driver):
                 asyncio.set_event_loop(loop)
                 
                 async def check_stream():
-                    twitch = await Twitch(config.client_id, config.client_secret)
-                    await twitch.authenticate_app([])
-                    logging.info(f"Checking Twitch stream status for user: {config.username}")
-                    
-                    while True:
-                        streams = []
-                        async for stream in twitch.get_streams(user_login=[config.username]):
-                            streams.append(stream)
+                    # Create Twitch client without SSL verification
+                    import aiohttp
+                    connector = aiohttp.TCPConnector(ssl=False)
+                    async with aiohttp.ClientSession(connector=connector) as session:
+                        twitch = await Twitch(config.client_id, config.client_secret)
+                        twitch._http = session  # Use the session without SSL verification
+                        await twitch.authenticate_app([])
+                        logging.info(f"Checking Twitch stream status for user: {config.username}")
                         
-                        if not streams:
-                            logging.info(f"No live stream data found for {config.username}")
-                            await asyncio.sleep(5)
-                        else:
-                            return streams
+                        while True:
+                            streams = []
+                            async for stream in twitch.get_streams(user_login=[config.username]):
+                                streams.append(stream)
+                            
+                            if not streams:
+                                await asyncio.sleep(5)
+                            else:
+                                return streams
                 
                 # Run the async function and get results
                 streams = loop.run_until_complete(check_stream())
@@ -396,7 +418,6 @@ def check_process_running():
 
 def get_service():
     creds = None
-
     if os.path.exists(USER_TOKEN_FILE):
       try:
         creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES)
@@ -416,18 +437,21 @@ def get_service():
 
 def get_gmail_service():
     creds = None
-
-    if os.path.exists(USER_TOKEN_FILE):
-        creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES)
+    if config.brandacc == "True":
+        TOKEN_FILE = GMAIL_TOKEN_FILE
+    if config.brandacc == "False":
+        TOKEN_FILE = USER_TOKEN_FILE
+    if os.path.exists(TOKEN_FILE):
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file(TOKEN_FILE, SCOPES)
             creds = flow.run_local_server(port=0)
 
-        with open(USER_TOKEN_FILE, 'w') as token:
+        with open(TOKEN_FILE, 'w') as token:
             token.write(creds.to_json())
     service = build('gmail', 'v1', credentials=creds)
     return service
@@ -536,7 +560,7 @@ def create_live_stream(title, description, kmself):
       subprocess.run(["python", "get_token.py"], shell=True)
       time.sleep(5)
 
-def api_load(url):
+def api_load(url, brandacc):
       logging.basicConfig(filename="tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
       logging.getLogger().addHandler(logging.StreamHandler())
       logging.info("create api keying ---edit_tv---")
@@ -551,7 +575,10 @@ def api_load(url):
       notafrickdriver = webdriver.Chrome(options=options)
       notafrickdriver.get(url)
       time.sleep(3)
-      nameofaccount = f"//div[contains(text(),'{config.accountname}')]"
+      if brandacc == "nope":
+          nameofaccount = f"//div[contains(text(),'{config.accountname}')]"
+      if brandacc == "havebrand":
+          nameofaccount = f"//div[contains(text(),'{config.brandaccname}')]"
       button_element = notafrickdriver.find_element("xpath", nameofaccount)
       button_element.click()
       time.sleep(3)
@@ -589,33 +616,29 @@ def get_stream_linkandtitle():
 
 def selwebdriver(live_url, timeisshit):
       if config.Twitch == "True":
-       url = "https://api.twitch.tv/helix/streams"
-       access_token = fetch_access_token()
-       info = None
-       status = TwitchResponseStatus.ERROR
-       try:
-            headers = {"Client-ID": config.client_id, "Authorization": "Bearer " + access_token}
-            r = requests.get(url + "?user_login=" + config.username , headers=headers, timeout=15)
-            r.raise_for_status()
-            info = r.json()
-            if info is None or not info["data"]:
-                status = TwitchResponseStatus.OFFLINE
-            else:
-                status = TwitchResponseStatus.ONLINE
-       except requests.exceptions.RequestException as e:
-            if e.response:
-                if e.response.status_code == 401:
-                    status = TwitchResponseStatus.UNAUTHORIZED
-                if e.response.status_code == 404:
-                    status = TwitchResponseStatus.NOT_FOUND
-       try:
-        channels = info["data"]
-        channel = next(iter(channels), None)
-        titletv = channel.get('title')
-       except AttributeError:
-            logging.info('the stream is not live please start at relive_tv.py first! try again')
-            time.sleep(5)
-            selwebdriver(live_url, timeisshit)
+            max_retries = 10
+            retry_count = 0
+            
+            while retry_count < max_retries:
+                try:
+                    titletv = get_twitch_stream_title()
+                    if not titletv:
+                        status = TwitchResponseStatus.OFFLINE
+                        logging.info("Stream appears to be offline, retrying...")
+                    else:
+                        status = TwitchResponseStatus.ONLINE
+                        break  # Success - exit the retry loop
+                except Exception as e:
+                    retry_count += 1
+                    logging.error(f"Error getting Twitch stream title (attempt {retry_count}/{max_retries}): {e}")
+                    if retry_count >= max_retries:
+                        status = TwitchResponseStatus.ERROR
+                        logging.error("Max retries reached, using fallback title")
+                        # Use a fallback title if all retries fail
+                        titletv = "Stream[ERROR]"
+                    else:
+                        time.sleep(2)  # Wait before retrying
+
       if config.BiliBili == "True":
             titletv = get_stream_linkandtitle()
       textnoemo = ''.join('' if unicodedata.category(c) == 'So' else c for c in titletv)
@@ -623,16 +646,16 @@ def selwebdriver(live_url, timeisshit):
                    textnoemo = textnoemo.replace("<", "").replace(">", "")
       characters = string.ascii_letters + string.digits
       random_string = ''.join(random.choices(characters, k=7))
-      filenametwitch = config.username +  " | " + textnoemo +  " | " + datetime.now() \
-                    .strftime("%Y-%m-%d")
-      if config.Twitch == "True":
-              deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo})"
-      if config.BiliBili == "True":
-              deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo})"
+      filenametwitch = config.username + " | " + textnoemo + " | " + datetime.now().strftime("%Y-%m-%d")
+      # Calculate max length for textnoemo to keep total under 100 chars
       if len(filenametwitch) > 100:
-              logging.info("title too long")
-              filenametwitch = config.username +  " | " + datetime.now() \
-                    .strftime("%Y-%m-%d") + " | " + random_string
+        max_textnoemo_length = 100 - len(config.username) - len(datetime.now().strftime("%Y-%m-%d")) - len(" | " * 2)
+        textnoemo = textnoemo[:max_textnoemo_length-3] + "..."
+        filenametwitch = config.username + " | " + textnoemo + " | " + datetime.now().strftime("%Y-%m-%d")
+      if config.Twitch == "True":
+          deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo})"
+      if config.BiliBili == "True":
+          deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo})"
       logging.info('process of edit name started')
       try:
             edit_live_stream(live_url, filenametwitch, deik)
@@ -711,7 +734,7 @@ def check_is_live_api(url, ffmpeg, text):
                   exit()
 def checktitlelol(arg1, arg2, reload, live_url):
       if config.Twitch == "True" and reload == "Null":
-            max_retries = 3
+            max_retries = 10
             retry_count = 0
             
             while retry_count < max_retries:
@@ -722,18 +745,7 @@ def checktitlelol(arg1, arg2, reload, live_url):
                         logging.info("Stream appears to be offline, retrying...")
                     else:
                         status = TwitchResponseStatus.ONLINE
-                        textnoemo = ''.join('[EMOJI]' if unicodedata.category(c) == 'So' else c for c in titletv)
-                        if "<" in textnoemo or ">" in textnoemo:
-                            textnoemo = textnoemo.replace("<", "[ERROR]").replace(">", "[ERROR]")
-                        calit = int(arg1) + 1
-                        filenametwitch = config.username + " | " + textnoemo + " | " + datetime.now() \
-                            .strftime("%Y-%m-%d") + " | " + "part " + str(calit)
-                        if len(filenametwitch) > 100:
-                            filenametwitch = config.username + " | " + datetime.now() \
-                                .strftime("%Y-%m-%d") + " | " + "part " + str(calit)
-                        deik = f"this stream is from twitch.tv/{config.username} (Stream Name:{textnoemo})"
                         break  # Success - exit the retry loop
-                        
                 except Exception as e:
                     retry_count += 1
                     logging.error(f"Error getting Twitch stream title (attempt {retry_count}/{max_retries}): {e}")
@@ -741,13 +753,31 @@ def checktitlelol(arg1, arg2, reload, live_url):
                         status = TwitchResponseStatus.ERROR
                         logging.error("Max retries reached, using fallback title")
                         # Use a fallback title if all retries fail
-                        filenametwitch = f"{config.username} | Stream | {datetime.now().strftime('%Y-%m-%d')}"
-                        deik = f"this stream is from twitch.tv/{config.username}"
+                        titletv = "Stream[ERROR]"
                     else:
-                        time.sleep(2)  # Wait before retrying
+                        time.sleep(5)  # Wait before retrying
 
       if config.BiliBili == "True" and reload == "Null":
-          titletv = get_stream_linkandtitle()
+            titletv = get_stream_linkandtitle()
+      textnoemo = ''.join('' if unicodedata.category(c) == 'So' else c for c in titletv)
+      if "<" in textnoemo or ">" in textnoemo:
+                   textnoemo = textnoemo.replace("<", "").replace(">", "")
+      characters = string.ascii_letters + string.digits
+      random_string = ''.join(random.choices(characters, k=7))
+      calit = int(arg1) + 1
+      filenametwitch = config.username + " | " + textnoemo + " | " + datetime.now().strftime("%Y-%m-%d") + " | " + "part " + str(calit)
+      # Calculate max length for textnoemo to keep total under 100 chars
+      if len(filenametwitch) > 100:
+        max_textnoemo_length = 100 - len(config.username) - len(datetime.now().strftime("%Y-%m-%d")) - len(" | " * 3) - len("part " + str(calit))
+        textnoemo = textnoemo[:max_textnoemo_length-3] + "..."
+        filenametwitch = config.username + " | " + textnoemo + " | " + datetime.now().strftime("%Y-%m-%d") + " | " + "part " + str(calit)
+      if len(filenametwitch) > 100:
+        filenametwitch = config.username + " | " + datetime.now() \
+                .strftime("%Y-%m-%d") + " | " + "part " + str(calit)
+      if config.Twitch == "True":
+          deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo})"
+      if config.BiliBili == "True":
+          deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo})"
       try:
             if reload == "True":
                             filenametwitch = config.username + " (wait for stream title)"
@@ -837,23 +867,40 @@ def get_twitch_stream_title():
     asyncio.set_event_loop(loop)
     
     async def get_stream_info():
-        twitch = await Twitch(config.client_id, config.client_secret)
-        await twitch.authenticate_app([])
-        streams = []
-        async for stream in twitch.get_streams(user_login=[config.username]):
-            streams.append(stream)
-        return streams
+        # Create Twitch client without SSL verification
+        connector = aiohttp.TCPConnector(ssl=False)
+        async with aiohttp.ClientSession(connector=connector) as session:
+            twitch = await Twitch(config.client_id, config.client_secret)
+            twitch._http = session  # Use the session without SSL verification
+            await twitch.authenticate_app([])
+            
+            streams = []
+            async for stream in twitch.get_streams(user_login=[config.username]):
+                streams.append(stream)
+            
+            if not streams:
+                status = TwitchResponseStatus.OFFLINE
+                return None, status
+            
+            status = TwitchResponseStatus.ONLINE
+            return streams[0].title, status
     
     try:
-        streams = loop.run_until_complete(get_stream_info())
+        titletv, status = loop.run_until_complete(get_stream_info())
         loop.close()
         
-        if streams:
-            return streams[0].title
-        return None
+        if titletv is None:
+            raise AttributeError("Stream is offline")
+            
     except Exception as e:
+        if isinstance(e, AuthenticationError):
+            status = TwitchResponseStatus.UNAUTHORIZED
+        elif isinstance(e, NotFound):
+            status = TwitchResponseStatus.NOT_FOUND
+        else:
+            status = TwitchResponseStatus.ERROR
         logging.error(f"Error getting Twitch stream info: {e}")
-        return None
+        raise
 
 ######################check_tv##################
 if __name__ == "__main__":
