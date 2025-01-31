@@ -373,11 +373,11 @@ class InstalledAppFlow(Flow):
         "The authentication flow has completed. You may close this window."
     )
 
-    def call_api_load(auth_url):
+    def call_api_load(auth_url, brandacc):
       ####################################################################################################
       ####################################################################################################
       ####################################################################################################
-      check_tv.api_load(auth_url)
+      check_tv.api_load(auth_url, brandacc)
       ####################################################################################################
       ####################################################################################################
       ####################################################################################################
@@ -397,6 +397,7 @@ class InstalledAppFlow(Flow):
         timeout_seconds=None,
         token_audience=None,
         browser=None,
+        brandacc="Nope",
         **kwargs
     ):
         """Run the flow using the server strategy.
@@ -462,7 +463,7 @@ class InstalledAppFlow(Flow):
 
         if authorization_prompt_message:
             print(authorization_prompt_message.format(url=auth_url))
-            p = multiprocessing.Process(target=InstalledAppFlow.call_api_load, args=(auth_url,))
+            p = multiprocessing.Process(target=InstalledAppFlow.call_api_load, args=(auth_url, brandacc))
             p.start()
             
 
