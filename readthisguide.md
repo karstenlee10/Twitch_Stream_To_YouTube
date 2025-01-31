@@ -1,7 +1,7 @@
 ## Prerequisites
 
 - Valid YouTube/Google account with streaming enabled and login to the account
-- ***No [YouTube Brand Account](https://support.google.com/youtube/answer/7001996) or the script won't work when requesting gmail api***
+- ***[YouTube Brand Account](https://support.google.com/youtube/answer/7001996) is now support***
 
 ## Installation
 
@@ -44,8 +44,9 @@ https://www.googleapis.com/auth/gmail.readonly
 - 5. Test user is your channel email
 - 6. Create OAuth 2.0 credentials
 - 7. Download the client secret file and rename it to `client_secret.json`
-- 8. Start `get_token.py` to auth manually and copy down your username and paste it to `accountname` in `config.py`
-- 9. A `user_token.json` file will be created
+- 8. Start `get_token.py` to auth manually and copy down your username(with gmail) and paste it to `accountname` in `config_tv.py`
+  9. ***ALSO if your using a brand account copy down your username(with no gmail) and paste it to `brandaccname` and set `brandacc` to `True` in `config_tv.py`***
+- 10. And close the cmd and the chrome tab and delete `user_token.json` if had saved
 
 ## 5. Twitch API Setup Guide (***if you are using twitch***)
 - A Twitch account
@@ -97,7 +98,8 @@ username = "your_twitch_username"  # Username from your wanted archive streamer
 
 ## First-Time Startup
 
-1. After config run the authentication script to get YouTube API access:
+1. After config run the authentication script to get YouTube API and gmail access:
+2. ***if you set `brandacc` to `True` in `config_tv.py` it will run two time to auth gmail and youtube api*** 
 ```bash
 python get_token.py
 ```
@@ -152,6 +154,7 @@ The application creates several log files:
 
 2. **Stream Not Starting**:
    - Check RTMP keys in `config_tv.py`
+   - make sure you select the archive channel name(i don't know)
    - Verify source platform is streaming
    - Check log files for specific errors
 
