@@ -1,7 +1,7 @@
 ## Prerequisites
 
 - Valid YouTube/Google account with streaming enabled and login to the account
-- ***[YouTube Brand Account](https://support.google.com/youtube/answer/7001996) is now support***
+- ***[YouTube Brand Account](https://support.google.com/youtube/answer/7001996) is now supported***
 
 ## Installation
 
