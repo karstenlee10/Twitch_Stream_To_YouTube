@@ -9,7 +9,7 @@ import streamlink
 arguments = sys.argv
 apiexe = "taskkill /f /im " + config.apiexe
 if config.BiliBili == "True":
-  live_link_url = 'streamlink https://live.bilibili.com/' + config.bilibililiveuid
+  live_link_url = 'streamlink https://live.bilibili.com/' + config.username
 if config.Twitch == "True":
   live_link_url = "streamlink https://www.twitch.tv/" + config.username
 def check_is_live():
@@ -19,7 +19,7 @@ def check_is_live():
         if config.Twitch == "True":
           streams = streamlink.streams("https://www.twitch.tv/" + config.username)
         if config.BiliBili == "True":
-          streams = streamlink.streams("https://live.bilibili.com/" + config.bilibililiveuid)
+          streams = streamlink.streams("https://live.bilibili.com/" + config.username)
         hls_stream = streams["best"]
         process_name = config.apiexe
         for process in psutil.process_iter(['pid', 'name']):
@@ -69,13 +69,11 @@ def this():
     logging.info('stream has finish no loop it and kill countdown')
     os.system(apiexe)
 
+logging.basicConfig(filename="relive_yt.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logging.getLogger().addHandler(logging.StreamHandler())
 arg1 = arguments[1]
 if arg1 == "api_this":
-  logging.basicConfig(filename="relive_yt.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-  logging.getLogger().addHandler(logging.StreamHandler())
   api_this()
 if arg1 == "this":
-  logging.basicConfig(filename="relive_yt.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-  logging.getLogger().addHandler(logging.StreamHandler())
   this()
 exit()
