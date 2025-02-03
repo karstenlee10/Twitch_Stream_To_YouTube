@@ -69,7 +69,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                 else:
                     logging.info("The stream is dead or URL is not supported. Reloading stream...")
                     subprocess.run(["taskkill", "/f", "/im", config.apiexe])
-                    titleforgmail = await checktitlelol(numberpart, important, "Null", spare_link)
+                    titleforgmail = await checktitlelol(numberpart, important, "False", spare_link)
                     logging.info("finish reloading start spare stream")
                     logging.info("load spare stream")
                     if important == "schedule":
@@ -268,7 +268,6 @@ async def selwebdriver_check(yt_link, infomation, driver):
                 logging.info("Starting live API check to get initial stream URL")
                 haha = "schsheepedule"
                 live_url = await checktitlelol("0", haha, "True", "Null")
-                logging.info("Finished getting initial stream URL")
             else:
                 live_url = yt_link
                 haha = infomation
@@ -298,8 +297,9 @@ async def selwebdriver_check(yt_link, infomation, driver):
             await start_check(live_url, haha)
            
     except Exception as e:
-        logging.info(f"Error: {e}")
+        logging.error(f"Error: {e}")
         logging.info("the script failed shutting down")
+        exit(1)  # Ensure the script exits with an error code
 
 async def checkarg():
     try:
@@ -319,14 +319,14 @@ async def checkarg():
         except Exception as e:
             logging.error(f"Script failed to execute: {e}")
             logging.info("failed script shutdown")
-    except Exception as e:
+    except IndexError:  # Handle case where there are no arguments
         try:
             logging.info("theres no arg")
-            arg = "Null"
-            await selwebdriver_check(arg, arg, "Null")
+            await selwebdriver_check("Null", "Null", "Null")
         except Exception as e:
             logging.error(f"Failed to execute with null args: {e}")
             logging.info("failed script shutdown")
+            exit()
 
 async def start_check(live_url, haha):
     logging.info("Starting stream monitoring process...")
@@ -371,47 +371,67 @@ def check_process_running():
 
 def get_service():
     creds = None
+    from google_auth_oauthlib.flow import InstalledAppFlow
     try:
-        creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE)
-    except FileNotFoundError:
-        pass
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            if config.brandacc == "False":
+        if os.path.exists(USER_TOKEN_FILE):
+          # Load user credentials from a saved file
+          if config.brandacc == "False":    
+            creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES)
+          if config.brandacc == "True":
+            creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES_BRAND)
+            
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+              if config.brandacc == "False":
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')
-                creds = flow.run_local_server(port=6971)
-            if config.brandacc == "True":
+                creds = flow.run_local_server(port=6971, brandacc="Nope")
+              if config.brandacc == "True":
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob')
-                creds = flow.run_local_server(port=6971)
-        with open(USER_TOKEN_FILE, 'w') as token:
-            token.write(creds.to_json())
-    service = build('youtube', 'v3', credentials=creds)
-    return service
+                creds = flow.run_local_server(port=6971, brandacc="havebrand")
+              with open(USER_TOKEN_FILE, 'w') as token:
+                token.write(creds.to_json())
+                
+        return build('youtube', 'v3', credentials=creds)
+        
+    except Exception as e:
+        logging.error(f"Error in get_service: {e}")
+        exit(1)
 
 def get_gmail_service():
     creds = None
-    try:  
-      if config.brandacc == "True":
-        creds = Credentials.from_authorized_user_file(GMAIL_TOKEN_FILE)
-      if config.brandacc == "False":
-        creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE)
-    except FileNotFoundError:
-        pass
-    if not creds or not creds.valid:
-            if config.brandacc == "False":
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')
-                creds = flow.run_local_server(port=6971, brandacc="Nope")
-                with open(USER_TOKEN_FILE, 'w') as token:
-                    token.write(creds.to_json())
-            if config.brandacc == "True":
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    try:
+        if config.brandacc == "True":
+          if os.path.exists(GMAIL_TOKEN_FILE):
+            creds = Credentials.from_authorized_user_file(GMAIL_TOKEN_FILE, SCOPES_GMAIL)
+        if config.brandacc == "False":
+          if os.path.exists(USER_TOKEN_FILE):
+            creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES)
+            
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+              if config.brandacc == "True":
+                logging.info("Gmail token not found. Starting authentication flow...")
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob')
                 creds = flow.run_local_server(port=6971, brandacc="Nope")
                 with open(GMAIL_TOKEN_FILE, 'w') as token:
-                    token.write(creds.to_json())
-    service = build('gmail', 'v1', credentials=creds)
-    return service
+                   token.write(creds.to_json())
+              if config.brandacc == "False":
+                logging.info("Gmail token not found. Starting authentication flow...")
+                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')
+                creds = flow.run_local_server(port=6971, brandacc="Nope")
+                with open(USER_TOKEN_FILE, 'w') as token:
+                   token.write(creds.to_json())
+                
+        return build('gmail', 'v1', credentials=creds)
+        
+    except Exception as e:
+        logging.error(f"Error in get_gmail_service: {e}")
+        exit(1)
 
 def get_stream_linkandtitle():
         headers = {
@@ -512,7 +532,7 @@ def public_stream(live_id):
       logging.info(f"Error: {e}")
       time.sleep(5)
 
-async def create_live_stream(title, description, kmself):
+def create_live_stream(title, description, kmself):
     while True:
         try:
             service = get_service()
@@ -541,7 +561,7 @@ async def create_live_stream(title, description, kmself):
             return response['id']
         except Exception as e:
             logging.info(f"Error: {e}")
-            await asyncio.sleep(5)
+            time.sleep(5)
 
 def api_load(url, brandacc):
       logging.basicConfig(filename="tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -746,25 +766,25 @@ async def checktitlelol(arg1, arg2, reload, live_url):
         if not titletv:  # Fallback if neither Twitch nor BiliBili provided a title
           logging.error("Using fallback title")
           titletv = f"Stream_{datetime.now().strftime('%Y-%m-%d')}"
-
-    textnoemo = ''.join('' if unicodedata.category(c) == 'So' else c for c in titletv)
-    if "<" in textnoemo or ">" in textnoemo:
-        textnoemo = textnoemo.replace("<", "").replace(">", "")
-    characters = string.ascii_letters + string.digits
-    random_string = ''.join(random.choices(characters, k=7))
-    calit = int(arg1) + 1
-    filenametwitch = config.username + " | " + textnoemo + " | " + datetime.now().strftime("%Y-%m-%d") + " | " + "part " + str(calit)
-    # Calculate max length for textnoemo to keep total under 100 chars
-    if len(filenametwitch) > 100:
-        max_textnoemo_length = 100 - len(config.username) - len(datetime.now().strftime("%Y-%m-%d")) - len(" | " * 3) - len("part " + str(calit))
-        textnoemo = textnoemo[:max_textnoemo_length-3] + "..."
+    if reload == "False":
+        textnoemo = ''.join('' if unicodedata.category(c) == 'So' else c for c in titletv)
+        if "<" in textnoemo or ">" in textnoemo:
+            textnoemo = textnoemo.replace("<", "").replace(">", "")
+        characters = string.ascii_letters + string.digits
+        random_string = ''.join(random.choices(characters, k=7))
+        calit = int(arg1) + 1
         filenametwitch = config.username + " | " + textnoemo + " | " + datetime.now().strftime("%Y-%m-%d") + " | " + "part " + str(calit)
-    if len(filenametwitch) > 100:
-        filenametwitch = config.username + " | " + datetime.now().strftime("%Y-%m-%d") + " | " + "part " + str(calit)
-    if config.Twitch == "True":
-        deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo})"
-    if config.BiliBili == "True":
-        deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo})"
+        # Calculate max length for textnoemo to keep total under 100 chars
+        if len(filenametwitch) > 100:
+           max_textnoemo_length = 100 - len(config.username) - len(datetime.now().strftime("%Y-%m-%d")) - len(" | " * 3) - len("part " + str(calit))
+           textnoemo = textnoemo[:max_textnoemo_length-3] + "..."
+           filenametwitch = config.username + " | " + textnoemo + " | " + datetime.now().strftime("%Y-%m-%d") + " | " + "part " + str(calit)
+        if len(filenametwitch) > 100:
+           filenametwitch = config.username + " | " + datetime.now().strftime("%Y-%m-%d") + " | " + "part " + str(calit)
+        if config.Twitch == "True":
+           deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo})"
+        if config.BiliBili == "True":
+           deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo})"
     try:
         if reload == "True":
             filenametwitch = config.username + " (wait for stream title)"
@@ -773,9 +793,9 @@ async def checktitlelol(arg1, arg2, reload, live_url):
             logging.info('sending to api')
             
             if config.unliststream == "True":
-                live_url = await create_live_stream(filenametwitch, deik, "unlisted")
+                live_url = create_live_stream(filenametwitch, deik, "unlisted")
             if config.unliststream == "False":
-                live_url = await create_live_stream(filenametwitch, deik, "public")
+                live_url = create_live_stream(filenametwitch, deik, "public")
                 
             logging.info('reading api json and check if driver loading')
             check_process_running()
@@ -854,6 +874,5 @@ def fetch_access_token():
 if __name__ == "__main__":
     logging.basicConfig(filename="tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     logging.getLogger().addHandler(logging.StreamHandler())
-    from google_auth_oauthlib.flow import InstalledAppFlow
     asyncio.run(checkarg())
     exit()
