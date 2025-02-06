@@ -31,7 +31,7 @@ Here're some of the project's best features:
 *   Don't need to download the vods and upload it back to youtube
 *   WHATEVER LANGUAGE IS SUPPORTED USING THIS SCRIPT
 
-<h2>🚀 installation video guide</h2>
+<h2>🚀 installation video guide [NOT UPDATED]</h2>
 
 [below v0.3]
 
