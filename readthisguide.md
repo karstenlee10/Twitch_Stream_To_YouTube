@@ -33,7 +33,7 @@ pip install aiohttp
 ## 4. Set up Google API:
 - Go to [Google Cloud Console](https://console.cloud.google.com)
 - 1. Create a project in Google Cloud Console
-- 2. Enable YouTube Data API v3 and Gmail API
+- 2. Enable [YouTube Data API v3](https://console.cloud.google.com/apis/library/youtube.googleapis.com) and [Gmail API](https://console.cloud.google.com/apis/library/gmail.googleapis.com)
 - 3. Create OAuth consent screen and User support and Developer contact information email as same email login
 - 4. Add Scope by pasting:
 ```bash
