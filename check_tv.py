@@ -690,8 +690,10 @@ async def selwebdriver(live_url, timeisshit):
     # Calculate max length for textnoemo to keep total under 100 chars
     if len(filenametwitch) > 100:
         max_textnoemo_length = 100 - len(config.username) - len(datetime.now().strftime("%Y-%m-%d")) - len(" | " * 2)
-        textnoemo = textnoemo[:max_textnoemo_length-3] + "..."
-        filenametwitch = config.username + " | " + textnoemo + " | " + datetime.now().strftime("%Y-%m-%d")
+        textnoemo1 = textnoemo[:max_textnoemo_length-3] + "..."
+        filenametwitch = config.username + " | " + textnoemo1 + " | " + datetime.now().strftime("%Y-%m-%d")
+    if len(filenametwitch) > 100:
+        filenametwitch = config.username + " | " + datetime.now().strftime("%Y-%m-%d")
     if config.Twitch == "True":
         deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo})"
     if config.BiliBili == "True":
