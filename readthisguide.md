@@ -41,11 +41,11 @@ https://www.googleapis.com/auth/youtube.force-ssl
 https://www.googleapis.com/auth/userinfo.profile
 https://www.googleapis.com/auth/gmail.readonly
 ```
-- 5. Test user is your channel email
+- 5. ***Test user is your channel email***
 - 6. Create OAuth 2.0 credentials
 - 7. Download the client secret file and rename it to `client_secret.json`
-- 8. Start `get_token.py` to auth manually and copy down your username(with gmail) and paste it to `accountname` in `config_tv.py`
-  9. ***ALSO if your using a brand account copy down your username(with no gmail) and paste it to `brandaccname` and set `brandacc` to `True` in `config_tv.py`***
+- 8. Start `get_token.py` to auth manually and copy down your username(with gmail) on the login page and paste it to `accountname` in `config_tv.py`
+  9. ***ALSO if your using a brand account copy down your username(with no gmail) on the login page and paste it to `brandaccname` and set `brandacc` to `True` in `config_tv.py`***
 - 10. And close the cmd and the chrome tab and delete `user_token.json` if had saved
 
 ## 5. Twitch API Setup Guide (***if you are using twitch***)
