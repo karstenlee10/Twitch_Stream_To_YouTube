@@ -139,6 +139,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
             if countyt == 12:
                 try:
                   streams = streamlink.streams(f"https://www.youtube.com/watch?v={live_url}")
+                  hls_stream = streams["best"]
                   countyt = 0
                   pass
                 except KeyError:
@@ -147,8 +148,10 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                    if fewtimes == 6:
                     if config.Twitch == "True":
                       streams = streamlink.streams("https://www.twitch.tv/" + config.username)
+                      hls_stream = streams["best"]
                     if config.BiliBili == "True":
                       streams = streamlink.streams("https://live.bilibili.com/" + config.username)
+                      hls_stream = streams["best"]
                     logging.info("The stream is dead or URL is not supported. Reloading stream...")
                     subprocess.run(["taskkill", "/f", "/im", config.apiexe])
                     titleforgmail = await checktitlelol(numberpart, important, "False", spare_link)
