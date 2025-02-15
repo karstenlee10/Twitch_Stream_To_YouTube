@@ -275,11 +275,11 @@ async def load_check():
                 if not ending_panel:  # If ending panel is not found, stream is live
                     logging.info("Stream is now live!")
                     break
-                time.sleep(5)
+                await asyncio.sleep(5)
 
         except Exception as e:
             logging.error(f"Error checking stream status: {str(e)}")
-            await asyncio.sleep(15)
+            await asyncio.sleep(30)
 
 async def selwebdriver_check(yt_link, infomation, driver):
     try:
