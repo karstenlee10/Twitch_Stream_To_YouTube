@@ -2,7 +2,7 @@
 
 <p align="center"><img src="https://socialify.git.ci/karstenlee10/Twitch-and-BiliBili-Archive-to-Youtube-Script/image?font=Inter&amp;language=1&amp;logo=https%3A%2F%2Favatars.githubusercontent.com%2Fu%2F91263511%3Fv%3D4&amp;name=1&amp;owner=1&amp;pattern=Circuit+Board&amp;stargazers=1&amp;theme=Light" alt="project-image"></p>
 
-<h2>😊 Script is runing good (No major bugs)😊</h2>
+<h2>😊 Script is running good (No major bugs)😊</h2>
 
 <h2>🛡️ License:</h2>
 
