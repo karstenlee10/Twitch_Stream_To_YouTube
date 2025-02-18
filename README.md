@@ -6,7 +6,7 @@
 
 <h2>🛡️ License:</h2>
 
-PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING(channel description or video description) paste the github link  
+***PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING ON YOUR channel description*** paste the github link  
 [https://bit.ly/archivescript](https://bit.ly/archivescript)
 
 <h2>🛡️ License Example:</h2>
@@ -15,13 +15,13 @@ PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING(channel description or video descrip
 
 https://www.youtube.com/@FilianVODSArchive
 
-https://www.youtube.com/@NeuroVerseUnofficalVODS
+***https://www.youtube.com/@NeuroVerseUnofficalVODS***
 
 https://www.youtube.com/@CaseOhUnofficalVODS
 
 <h2>🚨 Warning:</h2>
 
-This script is not in a complete finish state and only support WINDOWS
+This script is not in a complete ***finish state*** and only support ***WINDOWS***
 
 <h2>🧐 Features</h2>
 
@@ -50,18 +50,6 @@ https://www.youtube.com/watch?v=16ypGUFZFd0
 <h2>🍰 Contribution:</h2>
 
 Make an issue when there a bug
-
-<h2>🤔💭 Q&A</h2>  
-
-> Q1: Why would I needed to create youtube and twitch api?
-> 
-A1: The youtube api is for creating streams and edit title it is a more effective method than automated chrome.
-
-A2: Twitch api is use for getting the title from streamers maybe i will make a no need for that.
-
->  Q2: Why is there no guide for bilibili streams?
-> 
-A: I think no one will use bilibili, maybe i will make another video for that.
   
 <h2>💻 Built with</h2>
 
