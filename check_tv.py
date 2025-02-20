@@ -70,7 +70,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                 
                 if not streams:
                     fewtimes += 1
-                    if fewtimes == 6:
+                    if fewtimes == 3:
                         logging.info("Stream offline detected. Shutting down...")
                         if config.unliststream == "True":
                             logging.info("public back the stream")
@@ -88,7 +88,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                     
                     if ending_panel:  # Only increment fewtimes if ending panel is found
                         fewtimes += 1
-                        if fewtimes == 6:
+                        if fewtimes == 3:
                             logging.info("Stream offline detected. Reloading program...")
                             if config.unliststream == "True":
                                 logging.info("public back the stream")
@@ -142,7 +142,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                   hls_stream = streams["best"]
                   countyt = 0
                   pass
-                except KeyError:
+                except (streamlink.exceptions.PluginError, KeyError):
                   try:
                    fewtimes += 1
                    if fewtimes == 6:
@@ -173,9 +173,9 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                     logging.info(important)
                     countdownhours = 0
                     countyt = 0
-                  except KeyError:
+                  except (streamlink.exceptions.PluginError, KeyError):
                     fewtimes += 1
-                    if fewtimes == 6:
+                    if fewtimes == 3:
                         logging.info("Stream offline detected. Shutting down...")
                         if config.unliststream == "True":
                             logging.info("public back the stream")
@@ -503,11 +503,12 @@ def get_stream_linkandtitle():
 async def find_gmail_title(title):
     while True:
         try:
+            title1 = f"：{title}"
             service = get_gmail_service()
             # Get the current time and the time X minutes ago
             now = datetime.now()
             minutes_ago = now - timedelta(minutes=2)
-            # Retrieve the latest 10 messages
+            # Retrieve the latest 2 messages
             results = service.users().messages().list(userId='me', maxResults=2).execute()
             messages = results.get('messages', [])
             # Process the latest messages
@@ -519,7 +520,7 @@ async def find_gmail_title(title):
                     # Get the subject line of the message
                     subject = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'subject'), '')
                     # Check if the message was received within the last X minutes and if the title is in the subject
-                    if received_time >= minutes_ago and title in subject:
+                    if received_time >= minutes_ago and title1 in subject:
                         logging.info(f"Found message: {subject}")
                         return "True"
             return "False"
@@ -698,9 +699,9 @@ async def selwebdriver(live_url, timeisshit):
     if len(filenametwitch) > 100:
         filenametwitch = config.username + " | " + datetime.now().strftime("%Y-%m-%d")
     if config.Twitch == "True":
-        deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo}) (THIS SCRIPT IS FROM https://bit.ly/archivescript BY KARSTENLEE)"
+        deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo})"
     if config.BiliBili == "True":
-        deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo}) (THIS SCRIPT IS FROM https://bit.ly/archivescript BY KARSTENLEE)"
+        deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo})"
     logging.info('process of edit name started')
     try:
         edit_live_stream(live_url, filenametwitch, deik)
@@ -826,9 +827,9 @@ async def checktitlelol(arg1, arg2, reload, live_url):
         if len(filenametwitch) > 100:
            filenametwitch = config.username + " | " + datetime.now().strftime("%Y-%m-%d") + " | " + "part " + str(calit)
         if config.Twitch == "True":
-           deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo}) (THIS SCRIPT IS FROM https://bit.ly/archivescript BY KARSTENLEE)"
+           deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo})"
         if config.BiliBili == "True":
-           deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo}) (THIS SCRIPT IS FROM https://bit.ly/archivescript BY KARSTENLEE)"
+           deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo})"
     if reload == "False":
       if not titletv:  # Fallback if neither Twitch nor BiliBili provided a title
           logging.error("Using fallback title")
@@ -836,7 +837,7 @@ async def checktitlelol(arg1, arg2, reload, live_url):
     try:
         if reload == "True":
             filenametwitch = config.username + " (wait for stream title)"
-            deik = "(wait for stream title) (THIS SCRIPT IS FROM https://bit.ly/archivescript BY KARSTENLEE)"
+            deik = "(wait for stream title)"
         if live_url == "Null":
             logging.info('sending to api')
             
