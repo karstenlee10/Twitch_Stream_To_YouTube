@@ -145,6 +145,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                 except (streamlink.exceptions.PluginError, KeyError):
                   try:
                    fewtimes += 1
+                   countyt = 11
                    if fewtimes == 6:
                     if config.Twitch == "True":
                       streams = streamlink.streams("https://www.twitch.tv/" + config.username)
@@ -171,6 +172,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                     live_url = spare_link
                     spare_link = live_spare_url
                     logging.info(important)
+                    fewtimes = 0
                     countdownhours = 0
                     countyt = 0
                   except (streamlink.exceptions.PluginError, KeyError):
