@@ -701,9 +701,11 @@ async def selwebdriver(live_url, timeisshit):
     if len(filenametwitch) > 100:
         filenametwitch = config.username + " | " + datetime.now().strftime("%Y-%m-%d")
     if config.Twitch == "True":
-        deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo})"
+        #PLEASE DONT REMOVE THE WATERMARK
+        deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo}) Source Code: https://bit.ly/archivescript By Karsten Lee"
     if config.BiliBili == "True":
-        deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo})"
+        #PLEASE DONT REMOVE THE WATERMARK
+        deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo}) Source Code: https://bit.ly/archivescript By Karsten Lee"
     logging.info('process of edit name started')
     try:
         edit_live_stream(live_url, filenametwitch, deik)
@@ -829,9 +831,11 @@ async def checktitlelol(arg1, arg2, reload, live_url):
         if len(filenametwitch) > 100:
            filenametwitch = config.username + " | " + datetime.now().strftime("%Y-%m-%d") + " | " + "part " + str(calit)
         if config.Twitch == "True":
-           deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo})"
+           #PLEASE DONT REMOVE THE WATERMARK
+           deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo}) Source Code: https://bit.ly/archivescript By Karsten Lee"
         if config.BiliBili == "True":
-           deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo})"
+           #PLEASE DONT REMOVE THE WATERMARK
+           deik = f"this stream is from https://live.bilibili.com/{config.username} (Stream Name:{textnoemo}) Source Code: https://bit.ly/archivescript By Karsten Lee"
     if reload == "False":
       if not titletv:  # Fallback if neither Twitch nor BiliBili provided a title
           logging.error("Using fallback title")
