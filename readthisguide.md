@@ -48,7 +48,7 @@ https://www.googleapis.com/auth/gmail.readonly
   9. ***ALSO if your using a brand account copy down your username(with no gmail) on the login page and paste it to `brandaccname` and set `brandacc` to `True` in `config_tv.py`***
 - 10. And close the cmd and the chrome tab and delete `user_token.json` if had saved
 
-## 5. Twitch API Setup Guide (***if you are using twitch***)
+## 5. Twitch API Setup Guide
 - A Twitch account
 1. Go to [Twitch Developer Console](https://dev.twitch.tv/console)
 2. Log in with your Twitch account
@@ -81,9 +81,7 @@ username = "your_twitch_username"  # Username from your wanted archive streamer
 
 ## 6. Set up configuration:
 - Update the configuration values in `config_tv.py`:
-  - Set your platform (`Twitch` or `BiliBili`)
   - Configure Chrome profile with chrome://version paste after User Data/
-  - Set usernames(Twitch or live.bilibili.com/{the number id})
   - ***Set account details***
     1. Go to [YT Studio](https://studio.youtube.com) and login with the archive channel
     2. Go to live stream and create ***TWO RTMP KEY***
@@ -91,7 +89,7 @@ username = "your_twitch_username"  # Username from your wanted archive streamer
     4. And copy ***streamer's username*** to `rtmpkeyname` and ***1streamer's usernamemult*** to `rtmpkeyname1` in `config_tv.py`
     5. And copy rtmp key of ***streamer's username*** to `rtmp_key` and rtmp key of ***1streamer's usernamemult*** to `rtmp_key_1` in `config_tv.py`
   - Add RTMP keys from YouTube
-  - Add API credentials (for Twitch)
+  - Add API credentials
 
 ## 7. Cut google_auth_oauthlib folder(for auto generate api token)
  - Cut the `google_auth_oauthlib` folder to python_location/Lib/site-packages and replace `flow.py`
@@ -131,30 +129,27 @@ python check_tv.py <stream_url> <mode>
 Key settings in `config_tv.py`:
 
 ```python
-Twitch = "True"          # Use Twitch as source(True)
-BiliBili = "False"         # Use Bilibili as source(True)
 ytshort = "False"         # Enable vertical video mode(not recommand)
-unliststream = "False"    # Make streams unlisted(after the streamer finish it will be public)
+unliststream = "False"    # Make streams unlisted(after the stream ended it will be public)
 disablechat = "True"      # Disable live chat
 ```
 
 ## Logging
 
 The application creates several log files:
-- `tv.log`: Main application logs
-- `relive_yt.log`: Streaming process logs
-- `get_token.log`: Authentication logs(trash)
+- `tv.log`: Main application logs(check_tv.py)
+- `relive_yt.log`: Streaming process logs(relive_tv.py)
 
 ## Troubleshooting
 
 1. **Authentication Issues**:
    - Delete `user_token.json`
    - Run `get_token.py` again
-   - Ensure correct permissions in Google Cloud Console
+   - Ensure correct permissions in Google Cloud Console(Step 4)
 
 2. **Stream Not Starting**:
    - Check RTMP keys in `config_tv.py`
-   - make sure you select the archive channel name(i don't know)
+   - Make sure you select the archive channel name(I don't know)
    - Verify source platform is streaming
    - Check log files for specific errors
 
