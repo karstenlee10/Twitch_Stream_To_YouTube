@@ -1,8 +1,8 @@
-<h1 align="center" id="title">Twitch and BiliBili Stream to YouTube Script</h1>
+<h1 align="center" id="title">Twitch Stream to YouTube Script</h1>
 
 <p align="center"><img src="https://socialify.git.ci/karstenlee10/Twitch-and-BiliBili-Archive-to-Youtube-Script/image?font=Inter&amp;language=1&amp;logo=https%3A%2F%2Favatars.githubusercontent.com%2Fu%2F91263511%3Fv%3D4&amp;name=1&amp;owner=1&amp;pattern=Circuit+Board&amp;stargazers=1&amp;theme=Light" alt="project-image"></p>
 
-<h2>😊 Script is running good (No major bugs)😊[ONLY TWITCH]</h2>
+<h2>😊 Script is running good (No major bugs)😊</h2>
 
 <h2>🛡️ License:</h2>
 
@@ -58,8 +58,8 @@ Technologies used in the project:
 *   Streamlink
 *   Python
 *   Selenium Chromedriver
-*   YouTube data api v3
-*   Twitch api
+*   YouTube Data API v3
+*   Twitch API
 *   ffmpeg
 
 <h2>🔜 Future Update(not promising):</h2> 
