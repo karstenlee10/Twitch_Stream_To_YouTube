@@ -8,35 +8,29 @@ import streamlink
 
 arguments = sys.argv
 apiexe = "taskkill /f /im " + config.apiexe
-if config.BiliBili == "True":
-  live_link_url = 'streamlink https://live.bilibili.com/' + config.username
-if config.Twitch == "True":
-  live_link_url = "streamlink https://www.twitch.tv/" + config.username
+live_link_url = "streamlink https://www.twitch.tv/" + config.username
 def check_is_live():
   trytimes = 0
   while True:
     try:
-        if config.Twitch == "True":
-          streams = streamlink.streams("https://www.twitch.tv/" + config.username)
-        if config.BiliBili == "True":
-          streams = streamlink.streams("https://live.bilibili.com/" + config.username)
+        streams = streamlink.streams("https://www.twitch.tv/" + config.username)
         hls_stream = streams["best"]
         process_name = config.apiexe
         for process in psutil.process_iter(['pid', 'name']):
           if process.info['name'] == process_name:
-            logging.info('api exe still here')
+            logging.info('API process is still running')
             return "True"
-        logging.info('api exe stop')
+        logging.info('API process has terminated')
         return "False"
     except KeyError:
         trytimes += 1
         time.sleep(5)
         if trytimes == 6:
-            logging.info('The stream is finsh')
+            logging.info('Stream has ended - no active broadcast detected')
             return "False"
 
 def api_this():
-  logging.info('script is started now api')
+  logging.info('Starting API stream processing')
   t = time.localtime()
   current_time = time.strftime("%H:%M:%S", t)
   if config.ytshort == "True":
@@ -46,14 +40,14 @@ def api_this():
   os.system(command)
   OMG = check_is_live()
   if OMG == "True":
-    logging.info("steam got down restart")
+    logging.info("Stream interrupted - initiating restart procedure")
     api_this()
   else:
-    logging.info('stream has finish no loop it and kill countdown')
+    logging.info('Stream completed - terminating process and cleanup')
     os.system(apiexe)
 
 def this():
-  logging.info('script is started now')
+  logging.info('Initializing stream processing')
   t = time.localtime()
   current_time = time.strftime("%H:%M:%S", t)
   if config.ytshort == "True":
@@ -63,13 +57,13 @@ def this():
   os.system(command)
   OMG = check_is_live()
   if OMG == "True":
-    logging.info("steam got down restart")
+    logging.info("Stream interrupted - initiating restart procedure")
     this()
   else:
-    logging.info('stream has finish no loop it and kill countdown')
+    logging.info('Stream completed - terminating process and cleanup')
     os.system(apiexe)
 
-logging.basicConfig(filename="relive_yt.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logging.basicConfig(filename="relive_tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 logging.getLogger().addHandler(logging.StreamHandler())
 arg1 = arguments[1]
 if arg1 == "api_this":
