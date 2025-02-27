@@ -30,6 +30,10 @@ pip install twitchAPI
 pip install aiohttp
 ```
 
+```bash
+pip install selenium google-auth-oauthlib google-api-python-client psutil requests beautifulsoup4 streamlink twitchAPI aiohttp
+```
+
 ## 4. Set up Google API:
 - Go to [Google Cloud Console](https://console.cloud.google.com)
 - 1. Create a project in Google Cloud Console
@@ -44,7 +48,7 @@ https://www.googleapis.com/auth/gmail.readonly
 - 5. ***Test user is your channel email***
 - 6. Create OAuth 2.0 credentials
 - 7. Download the client secret file and rename it to `client_secret.json`
-- 8. Start `get_token.py` to auth manually and copy down your username(with gmail) on the login page and paste it to `accountname` in `config_tv.py`
+- 8. Start `check_tv.py gentoken` to auth manually and copy down your username(with gmail) on the login page and paste it to `accountname` in `config_tv.py`
   9. ***ALSO if your using a brand account copy down your username(with no gmail) on the login page and paste it to `brandaccname` and set `brandacc` to `True` in `config_tv.py`***
 - 10. And close the cmd and the chrome tab and delete `user_token.json` if had saved
 
@@ -68,12 +72,7 @@ https://www.googleapis.com/auth/gmail.readonly
 client_id = "your_client_id_here"
 client_secret = "your_client_secret_here"
 ```
-10. Set Twitch mode to True:
-```python
-Twitch = "True"
-BiliBili = "False"
-```
-11. Add your Twitch streamer's username:
+10. Add your Twitch streamer's username:
 ***(https://twitch.tv/caseoh_) ONLY COPY THE USERNAME***
 ```python
 username = "your_twitch_username"  # Username from your wanted archive streamer
@@ -94,16 +93,6 @@ username = "your_twitch_username"  # Username from your wanted archive streamer
 ## 7. Cut google_auth_oauthlib folder(for auto generate api token)
  - Cut the `google_auth_oauthlib` folder to python_location/Lib/site-packages and replace `flow.py`
 
-## First-Time Startup
-
-1. After config run the authentication script to get YouTube API and gmail access:
-2. ***if you set `brandacc` to `True` in `config_tv.py` it will run two time to auth gmail and youtube api*** 
-```bash
-python get_token.py
-```
-
-2. Follow the browser prompts to authenticate your Google account
-
 ## Usage
 
 Start the main script:
@@ -112,39 +101,29 @@ python check_tv.py
 ```
 
 ### Optional Arguments:
-- `KILL`: Stops all running processes
+- `KILL`: Stops all running processes(For Script Only)
 - ***(DONT USE)***:
 ```bash
 python check_tv.py KILL
 ```
 
-- Custom stream URL and mode
+- Custom stream URL and mode(For Script Only)
 - ***(DONT USE)***:
 ```bash
 python check_tv.py <stream_url> <mode>
-```
-
-## Configuration Options
-
-Key settings in `config_tv.py`:
-
-```python
-ytshort = "False"         # Enable vertical video mode(not recommand)
-unliststream = "False"    # Make streams unlisted(after the stream ended it will be public)
-disablechat = "True"      # Disable live chat
 ```
 
 ## Logging
 
 The application creates several log files:
 - `tv.log`: Main application logs(check_tv.py)
-- `relive_yt.log`: Streaming process logs(relive_tv.py)
+- `relive_tv.log`: Streaming process logs(relive_tv.py)
 
 ## Troubleshooting
 
 1. **Authentication Issues**:
    - Delete `user_token.json`
-   - Run `get_token.py` again
+   - Run `check_tv.py gentoken` again
    - Ensure correct permissions in Google Cloud Console(Step 4)
 
 2. **Stream Not Starting**:
