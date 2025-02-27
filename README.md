@@ -62,6 +62,7 @@ Technologies used in the project:
 *   Python
 *   Selenium Chromedriver
 *   YouTube Data API v3
+*   Gmail API
 *   Twitch API
 *   ffmpeg
 
