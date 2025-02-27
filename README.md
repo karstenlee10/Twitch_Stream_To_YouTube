@@ -27,11 +27,14 @@ This script is not in a complete ***finish state*** and only support ***WINDOWS*
 
 Here're some of the project's best features:
 
-*   Archive and play back twitch stream in real time
-*   Save VODS forever (unless YouTube delete it)
-*   It is automated no need for human
-*   Don't need to download the vods and upload it back to youtube
-*   WHATEVER LANGUAGE IS SUPPORTED USING THIS SCRIPT
+*   Archive and play back twitch stream in real time ***(On youtube streams after opening dvr)***
+*   Save VODS forever ***(unless YouTube delete it)***
+*   It is ***automated*** no need for human
+*   Don't need to ***download the vods and upload it back to youtube***
+*   ***Faster than other vods archivers (e.g. they will need to download the vods and upload it and wait for youtube process it)***
+*   If the stream is almost over 12hours It will cut the stream for not losing the video after 12hours ***(e.g. subathon)***
+*   When receive thind-party takedown notice It will stop immediately and start another stream to protect from getting strikes ***(e.g. playing music or video)***
+*   ***WHATEVER LANGUAGE IS SUPPORTED USING THIS SCRIPT***
 
 <h2>🚀 installation video guide [NOT UPDATED LOOK AT Installation Steps]</h2>
 
