@@ -414,8 +414,8 @@ def is_youtube_livestream_live(video_id):
         if 'items' in response and len(response['items']) > 0:
             live_streaming_details = response['items'][0].get('liveStreamingDetails', {})
             if live_streaming_details.get('concurrentViewers') is not None:
-                return True
-        return False
+                return "True"
+        return "False"
     except Exception as e:
         logging.error(f"Error checking YouTube livestream status: {e}")
         return "ERROR"
