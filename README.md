@@ -48,6 +48,8 @@ https://www.youtube.com/watch?v=16ypGUFZFd0
 
 <h2>🛠️ Installation Steps:</h2>
 
+read the guide or just run setup_gui.py and read the guide there
+
 [GUIDE](readthisguide.md)
 
 <h2>🍰 Contribution:</h2>
