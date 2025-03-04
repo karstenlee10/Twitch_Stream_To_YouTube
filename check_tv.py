@@ -417,8 +417,11 @@ def is_youtube_livestream_live(video_id):
                 return "True"
         return "False"
     except Exception as e:
-        logging.error(f"Error checking YouTube livestream status: {e}")
-        return "ERROR"
+      if 'quotaExceeded' in str(e):
+        logging.info(f"Error and stoping because of api limited")
+        exit()
+      logging.error(f"Error checking YouTube livestream status: {e}")
+    return "ERROR"
 
 async def find_gmail_title(title):
     while True:
@@ -449,6 +452,7 @@ async def find_gmail_title(title):
             await asyncio.sleep(5)  # Use await here since it's an async function
 
 def edit_live_stream(video_id, new_title, new_description):
+  hitryagain = 0
   while True:
     try:
        service = get_service()
@@ -474,10 +478,17 @@ def edit_live_stream(video_id, new_title, new_description):
        return response['id']
        break
     except Exception as e:
+     if hitryagain == 3:
+      logging.info(f"Error and stoping because of error that can't fix")
+      if 'quotaExceeded' in str(e):
+        logging.info(f"Error and stoping because of api limited")
+        exit()
+      hitryagain += 1
       logging.info(f"Error: {e}")
       time.sleep(5)
 
 def public_stream(live_id):
+  hitryagain = 0
   while True:
     try:
        service = get_service()
@@ -495,10 +506,17 @@ def public_stream(live_id):
        return response['id']
        break
     except Exception as e:
+     if hitryagain == 3:
+      logging.info(f"Error and stoping because of error that can't fix")
+      if 'quotaExceeded' in str(e):
+        logging.info(f"Error and stoping because of api limited")
+        exit()
+      hitryagain += 1
       logging.info(f"Error: {e}")
       time.sleep(5)
 
 def create_live_stream(title, description, kmself):
+    hitryagain = 0
     while True:
         try:
             service = get_service()
@@ -526,8 +544,15 @@ def create_live_stream(title, description, kmself):
             response = request.execute()
             return response['id']
         except Exception as e:
-            logging.info(f"Error: {e}")
-            time.sleep(5)
+          if hitryagain == 3:
+           logging.info(f"Error and stoping because of error that can't fix")
+           if 'quotaExceeded' in str(e):
+            logging.info(f"Error and stoping because of api limited")
+            exit()
+           hitryagain += 1
+           logging.info(f"Error: {e}")
+           time.sleep(5)
+
 
 def api_load(url, brandacc):
       logging.basicConfig(filename="tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
