@@ -36,16 +36,6 @@ Here're some of the project's best features:
 *   When receive thind-party takedown notice It will stop immediately and start another stream to protect from getting strikes ***(e.g. playing music or video)***
 *   ***WHATEVER LANGUAGE IS SUPPORTED USING THIS SCRIPT***
 
-<h2>🚀 installation video guide [NOT UPDATED LOOK AT Installation Steps]</h2>
-
-[below v0.3]
-
-https://www.youtube.com/watch?v=8YztEWL-ilU
-
-[upper or v0.3 no context]
-
-https://www.youtube.com/watch?v=16ypGUFZFd0
-
 <h2>🛠️ Installation Steps:</h2>
 
 read the guide or just run setup_gui.py(need to install python and other things) and read the guide there
