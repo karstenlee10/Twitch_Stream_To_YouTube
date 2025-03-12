@@ -90,8 +90,8 @@ username = "your_twitch_username"  # Username from your wanted archive streamer
   - Add RTMP keys from YouTube
   - Add API credentials
 
-## 7. Cut google_auth_oauthlib folder(for auto generate api token)
- - Cut the `google_auth_oauthlib` folder to python_location/Lib/site-packages and replace `flow.py`
+## 7. MOVE/COPY google_auth_oauthlib folder(for auto generate api token)
+ - MOVE/COPY the `google_auth_oauthlib` folder to python_location/Lib/site-packages and replace `flow.py`
 
 ## Usage
 
@@ -123,7 +123,7 @@ The application creates several log files:
 
 1. **Authentication Issues**:
    - Delete `user_token.json`
-   - Run `check_tv.py gentoken` again
+   - Run `check_tv.py` again
    - Ensure correct permissions in Google Cloud Console(Step 4)
 
 2. **Stream Not Starting**:
