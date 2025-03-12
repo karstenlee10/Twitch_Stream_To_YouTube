@@ -61,9 +61,9 @@ Technologies used in the project:
 
 <h2>🔜 Future Update(not promising):</h2> 
 
-* S̶i̶m̶p̶l̶i̶f̶y̶ t̶h̶e̶ c̶o̶d̶e̶
+* 	~~Simplify the code~~
 * Make a mode that don't use any api
-* M̶a̶k̶e̶ a̶ g̶u̶i̶ f̶o̶r̶ i̶n̶s̶t̶a̶l̶l̶a̶t̶i̶o̶n̶ and automation
+* ~~Make a gui for installation~~ and automation
 * Make a mode the use independent webdriver.exe
 * Using a different browers
 * Add Kick/Add YouTube??(Needed support on streamlink)
