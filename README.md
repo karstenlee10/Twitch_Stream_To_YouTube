@@ -27,6 +27,7 @@ This script is not in a complete ***finish state*** and only support ***WINDOWS*
 
 Here're some of the project's best features:
 
+*   You can set the script to public the stream after the streamer finish ***(for no permission restreaming someones content like uploading the stream)***
 *   Archive and play back twitch stream in real time ***(On youtube streams after opening dvr)***
 *   Save VODS forever ***(unless YouTube delete it)***
 *   It is ***automated*** no need for human
