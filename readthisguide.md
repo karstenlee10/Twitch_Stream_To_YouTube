@@ -108,9 +108,12 @@ python check_tv.py KILL
 ```
 
 - Custom stream URL and mode(For Script Only)
+- example : check_tv.py THEYTLIVEID schedule/schsheepedule
+- (check_tv.py RgNO-U5tV2E schedule)
+- ***(DON'T INPUT ANYTHING)***
 - ***(DONT USE)***:
 ```bash
-python check_tv.py <stream_url> <mode>
+python check_tv.py <arg1> <arg2>
 ```
 
 ## Logging
