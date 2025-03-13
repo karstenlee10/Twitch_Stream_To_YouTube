@@ -11,7 +11,7 @@
 
 <h2>🛡️ License Example:</h2>
 
-***https://www.youtube.com/@TwitchLiveArchive***
+***https://www.youtube.com/@@twiARCHIVEtch***
 
 https://www.youtube.com/@FilianVODSArchive
 
