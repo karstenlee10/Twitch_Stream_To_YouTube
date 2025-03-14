@@ -37,6 +37,10 @@ Here're some of the project's best features:
 *   When receive thind-party takedown notice It will stop immediately and start another stream to protect from getting strikes ***(e.g. playing music or video)***
 *   ***WHATEVER LANGUAGE IS SUPPORTED USING THIS SCRIPT***
 
+<h2>🤔 Code main functionality explained by ai</h2>
+
+[READ](explain.md)
+
 <h2>🛠️ Installation Steps:</h2>
 
 read the guide or just run setup_gui.py(need to install python and other things) and read the guide there
