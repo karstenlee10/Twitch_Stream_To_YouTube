@@ -20,8 +20,6 @@ import string
 import random
 from datetime import datetime, timedelta, timezone
 import streamlink
-from bs4 import BeautifulSoup
-import re
 from twitchAPI.twitch import Twitch
 import asyncio
 from google.auth.transport.requests import Request
@@ -100,39 +98,56 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                     numberpart += 1
                     live_url = spare_link
                     spare_link = live_spare_url
-                    logging.info(important)
                     countdownhours = 0
                     gmailcount = 0
                 else:
                     gmailcount = 0
 
             if countyt == 12:
-                if is_youtube_livestream_live(config.username) == "True":
+                if is_youtube_livestream_live(live_url) == "True":
                     countyt = 0
-                if is_youtube_livestream_live(config.username) == "False":
+                if is_youtube_livestream_live(live_url) == "False":
+                    twitch = await get_twitch_client()
+                    streams = await get_twitch_streams(twitch, config.username)
+                    if not streams:
+                       logging.info("Stream offline status detected - initiating shutdown sequence...")
+                       if config.unliststream == "True":
+                          logging.info("Setting stream visibility to public...")
+                          await public_stream(live_url)
+                       subprocess.run(["taskkill", "/f", "/im", config.apiexe])
+                       subprocess.Popen(["start", "python", "check_tv.py", spare_link, important], shell=True)
+                       exit()
                     logging.info("Stream connection terminated - initiating reload sequence...")
-                    subprocess.run(["taskkill", "/f", "/im", config.apiexe])
-                    titleforgmail = await checktitlelol(numberpart, important, "False", spare_link)
-                    logging.info("Stream reload complete - initializing backup stream...")
-                    logging.info("Loading backup stream configuration...")
                     if important == "schedule":
-                        important = "schsheepedule"
+                        subprocess.run(["taskkill", "/f", "/im", config.ffmpeg])
                     elif important == "schsheepedule":
-                        important = "schedule"
-                    live_spare_url = await checktitlelol("0", important, "True", "Null")
-                    subprocess.Popen(["start", config.apiexe], shell=True)
-                    if config.unliststream == "True":
-                        logging.info("Setting stream visibility to public...")
-                        await public_stream(live_url)
+                        subprocess.run(["taskkill", "/f", "/im", config.ffmpeg1])
+                    await asyncio.sleep(30)
+                    logging.info("Checking for stream")
+                    if is_youtube_livestream_live(live_url) == "True":
+                        continue
+                    if is_youtube_livestream_live(live_url) == "False":
+                       logging.info("Error can't go back live without start other stream")
+                       subprocess.run(["taskkill", "/f", "/im", config.apiexe])
+                       titleforgmail = await checktitlelol(numberpart, important, "False", spare_link)
+                       logging.info("Stream reload complete - initializing backup stream...")
+                       logging.info("Loading backup stream configuration...")
+                       if important == "schedule":
+                           important = "schsheepedule"
+                       elif important == "schsheepedule":
+                           important = "schedule"
+                       live_spare_url = await checktitlelol("0", important, "True", "Null")
+                       subprocess.Popen(["start", config.apiexe], shell=True)
+                       if config.unliststream == "True":
+                           logging.info("Setting stream visibility to public...")
+                           await public_stream(live_url)
+                       numberpart += 1
+                       live_url = spare_link
+                       spare_link = live_spare_url
+                       countdownhours = 0
+                       countyt = 0
                     logging.info("Reinitializing offline detection service...")
-                    numberpart += 1
-                    live_url = spare_link
-                    spare_link = live_spare_url
-                    logging.info(important)
-                    fewtimes = 0
-                    countdownhours = 0
-                    countyt = 0
-                if is_youtube_livestream_live(config.username) == "ERROR":
+                if is_youtube_livestream_live(live_url) == "ERROR":
                     logging.info("YouTube API verification failed - check credentials and connectivity...")
                     countyt = 0
             
@@ -252,7 +267,11 @@ async def checkarg():
             subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])
             exit()
         arg2 = arguments[2]
-        logging.info("theres arg")
+        logging.info("==================================================")
+        logging.info("INPUT ARGUMENT AVAILABLE")
+        logging.info(f"ARG1: {arg1} ARG2: {arg2}")
+        logging.info(f"ARCHIVE USER: {config.username}")
+        logging.info("==================================================")
         try:
             await selwebdriver_check(arg1, arg2, "Null")
             exit()
@@ -261,7 +280,10 @@ async def checkarg():
             logging.info("failed script shutdown")
     except IndexError:  # Handle case where there are no arguments
         try:
-            logging.info("theres no arg")
+            logging.info("==================================================")
+            logging.info("NO ARGUMENT AVAILABLE")
+            logging.info(f"ARCHIVE USER: {config.username}")
+            logging.info("==================================================")
             await selwebdriver_check("Null", "Null", "Null")
         except Exception as e:
             logging.error(f"Failed to execute with null args: {e}")
@@ -400,28 +422,14 @@ def get_gmail_service():
 
 def is_youtube_livestream_live(video_id):
     try:
-        # Build the YouTube service
-        youtube = get_service()
-        
-        # Request the live broadcast status
-        request = youtube.videos().list(
-            part="liveStreamingDetails",
-            id=video_id
-        )
-        response = request.execute()
-        
-        # Check if the live broadcast is active
-        if 'items' in response and len(response['items']) > 0:
-            live_streaming_details = response['items'][0].get('liveStreamingDetails', {})
-            if live_streaming_details.get('concurrentViewers') is not None:
-                return "True"
+      streams = streamlink.streams(f"https://youtube.com/watch?v={video_id}")
+      hls_stream = streams["best"]
+      return "True"
+    except KeyError as e:
         return "False"
     except Exception as e:
-      if 'quotaExceeded' in str(e):
-        logging.info(f"Error and stoping because of api limited")
-        exit()
       logging.error(f"Error checking YouTube livestream status: {e}")
-    return "ERROR"
+      return "ERROR"
 
 async def find_gmail_title(title):
     while True:
@@ -780,7 +788,9 @@ async def checktitlelol(arg1, arg2, reload, live_url):
                 live_url = create_live_stream(filenametwitch, deik, "unlisted")
             if config.unliststream == "False":
                 live_url = create_live_stream(filenametwitch, deik, "public")
-                
+            logging.info("==================================================")
+            logging.info(f"LIVE STREAM SCHEDULE CREATED: {live_url}")
+            logging.info("==================================================")
             logging.info('reading api json and check if driver loading')
             check_process_running()
             subprocess.Popen(["start", "countdriver.exe"], shell=True)
