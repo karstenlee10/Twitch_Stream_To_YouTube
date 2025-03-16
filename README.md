@@ -23,6 +23,8 @@ https://www.youtube.com/@CaseOhUnofficalVODS
 
 This script is not in a complete ***finish state*** and only support ***WINDOWS***
 
+If you can't successfully run the google api please make an issue and give your email and then I will give you a client_secret for the api
+
 <h2>🧐 Features</h2>
 
 Here're some of the project's best features:
