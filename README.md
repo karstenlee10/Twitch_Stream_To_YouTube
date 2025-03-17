@@ -17,8 +17,6 @@ https://www.youtube.com/@FilianVODSArchive
 
 ***https://www.youtube.com/@NeuroVerseUnofficalVODS***
 
-https://www.youtube.com/@CaseOhUnofficalVODS
-
 <h2>🚨 Warning:</h2>
 
 This script is not in a complete ***finish state*** and only support ***WINDOWS***
