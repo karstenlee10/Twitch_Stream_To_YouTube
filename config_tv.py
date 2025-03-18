@@ -5,6 +5,9 @@ username = "" #twitch or bilibili username
 ytshort = "False" #not recommand
 unliststream = "False" #after stream will be public
 disablechat = "True"  #disable chat on live stream
+playlist = "False"  # True or DOUBLE IF YOU WANT TO SAVE TO MULTIPLE PLAYLIST disable to False
+playlist_id0 = "YOUR_PLAYLIST_ID"  # Replace with your First YouTube playlist ID
+playlist_id1 = "YOUR_PLAYLIST_ID"  # Replace with your actual second YouTube playlist ID
 ##########################################################################
 #YOUTUBE STUDIO RTMP SETTINGS
 rtmpkeyname1 = "1" + "username" + "mult" #first yt rtmp key name
