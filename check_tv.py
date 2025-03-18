@@ -153,7 +153,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
             
             # Time limit check
             if countdownhours == 7871:
-                logging.info("Stream duration limit (12h) reached - initiating scheduled reload...")
+                logging.info("Stream duration limit near 12h reached - initiating scheduled reload...")
                 subprocess.run(["taskkill", "/f", "/im", config.apiexe])
                 titleforgmail = await checktitlelol(numberpart, important, "False", spare_link)
                 logging.info("Stream reload complete - initializing backup stream...")
@@ -253,7 +253,7 @@ async def selwebdriver_check(yt_link, infomation, driver):
            
     except Exception as e:
         logging.error(f"Error: {e}")
-        logging.info("the script failed shutting down")
+        logging.error("Critical error encountered - terminating script execution")
         exit(1)  # Ensure the script exits with an error code
 
 async def checkarg():
@@ -550,7 +550,47 @@ def create_live_stream(title, description, kmself):
                 }
             )
             response = request.execute()
-            return response['id']
+            video_id = response['id']
+            
+            # Add to playlist if configured
+            if config.playlist == "True":
+                try:
+                    playlist_request = service.playlistItems().insert(
+                        part="snippet",
+                        body={
+                            "snippet": {
+                                "playlistId": config.playlist_id0,
+                                "resourceId": {
+                                    "kind": "youtube#video",
+                                    "videoId": video_id
+                                }
+                            }
+                        }
+                    )
+                    playlist_request.execute()
+                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id}")
+                except Exception as playlist_error:
+                    logging.error(f"Failed to add video to playlist: {playlist_error}")
+            if config.playlist == "DOUBLE":
+                try:
+                    playlist_request = service.playlistItems().insert(
+                        part="snippet",
+                        body={
+                            "snippet": {
+                                "playlistId": config.playlist_id1,
+                                "resourceId": {
+                                    "kind": "youtube#video",
+                                    "videoId": video_id
+                                }
+                            }
+                        }
+                    )
+                    playlist_request.execute()
+                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id}")
+                except Exception as playlist_error:
+                    logging.error(f"Failed to add video to playlist: {playlist_error}")
+            
+            return video_id
         except Exception as e:
           if hitryagain == 3:
            logging.info(f"Error and stoping because of error that can't fix")
@@ -577,7 +617,6 @@ def api_load(url, brandacc):
       notafrickdriver = webdriver.Chrome(options=options)
       notafrickdriver.get(url)
       time.sleep(3)
-      print(brandacc)
       if brandacc == "Nope":
           nameofaccount = f"//div[contains(text(),'{config.accountname}')]"
       if brandacc == "havebrand":
@@ -600,16 +639,6 @@ def api_load(url, brandacc):
       logging.info("finish idk ---edit_tv---")
       time.sleep(5)
       notafrickdriver.quit()
-
-def confirm_logged_in(driver: webdriver) -> bool:
-      """ Confirm that the user is logged in. The browser needs to be navigated to a YouTube page. """
-      try:
-            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "avatar-btn")))
-            return True
-      except Exception:
-            logging.info("i domt know why it doesnot work lol")
-            driver.quit()
-            exit()
 
 async def selwebdriver(live_url, timeisshit):
     max_retries = 10
@@ -649,7 +678,7 @@ async def selwebdriver(live_url, timeisshit):
     if len(filenametwitch) > 100:
         filenametwitch = config.username + " | " + datetime.now().strftime("%Y-%m-%d")
     #PLEASE DONT REMOVE THE WATERMARK
-    deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo}) Source Code: https://bit.ly/archivescript By Karsten Lee"
+    deik = f"Original broadcast from https://twitch.tv/{config.username} [Stream Title: {textnoemo}] Archived using open-source tools: https://bit.ly/archivescript Service by Karsten Lee"
     logging.info('process of edit name started')
     try:
         edit_live_stream(live_url, filenametwitch, deik)
@@ -755,8 +784,7 @@ async def checktitlelol(arg1, arg2, reload, live_url):
                     await asyncio.sleep(5)  # Wait before retrying
             if not titletv:
                 logging.error("Using fallback title")
-                titletv = f"Stream_{datetime.now().strftime('%Y-%m-%d')}"
-    if reload == "False":
+                titletv = f"Stream[ERROR]"
         textnoemo = ''.join('' if unicodedata.category(c) == 'So' else c for c in titletv)
         if "<" in textnoemo or ">" in textnoemo:
             textnoemo = textnoemo.replace("<", "").replace(">", "")
@@ -772,24 +800,27 @@ async def checktitlelol(arg1, arg2, reload, live_url):
         if len(filenametwitch) > 100:
            filenametwitch = config.username + " | " + datetime.now().strftime("%Y-%m-%d") + " | " + "part " + str(calit)
         #PLEASE DONT REMOVE THE WATERMARK
-        deik = f"this stream is from https://twitch.tv/{config.username} (Stream Name:{textnoemo}) Source Code: https://bit.ly/archivescript By Karsten Lee"
-    if reload == "False":
-      if not titletv:  # Fallback if neither Twitch nor BiliBili provided a title
+        deik = f"Original broadcast from https://twitch.tv/{config.username} [Stream Title: {textnoemo}] Archived using open-source tools: https://bit.ly/archivescript Service by Karsten Lee"
+        if not titletv:  # Fallback if neither Twitch nor BiliBili provided a title
           logging.error("Using fallback title")
-          titletv = f"Stream_{datetime.now().strftime('%Y-%m-%d')}"
+          titletv = f"Stream[Error]"
     try:
         if reload == "True":
             filenametwitch = config.username + " (wait for stream title)"
             deik = "(wait for stream title)"
         if live_url == "Null":
-            logging.info('sending to api')
-            
+            logging.info('Initiating API request for stream creation...')
             if config.unliststream == "True":
                 live_url = create_live_stream(filenametwitch, deik, "unlisted")
             if config.unliststream == "False":
                 live_url = create_live_stream(filenametwitch, deik, "public")
             logging.info("==================================================")
-            logging.info(f"LIVE STREAM SCHEDULE CREATED: {live_url}")
+            if config.playlist == "True":
+              logging.info(f"LIVE STREAM SCHEDULE CREATED: {live_url} AND ADD TO PLAYLIST: {config.playlist_id0}")
+            if config.playlist == "DOUBLE":
+              logging.info(f"LIVE STREAM SCHEDULE CREATED: {live_url} AND ADD TO PLAYLIST: {config.playlist_id0} AND {config.playlist_id1}")
+            if config.playlist == "False":
+              logging.info(f"LIVE STREAM SCHEDULE CREATED: {live_url}")
             logging.info("==================================================")
             logging.info('reading api json and check if driver loading')
             check_process_running()
@@ -855,7 +886,7 @@ async def checktitlelol(arg1, arg2, reload, live_url):
         abc = "abc"
     except Exception as e:
         logging.info(e)
-        logging.info("something errorly happen lol stop rn")
+        logging.error("Critical error encountered during execution - terminating process")
         exit()
 
 def fetch_access_token():
@@ -864,7 +895,6 @@ def fetch_access_token():
         token = token_response.json()
         return token["access_token"]
 
-######################check_tv##################
 if __name__ == "__main__":
     logging.basicConfig(filename="tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     logging.getLogger().addHandler(logging.StreamHandler())
