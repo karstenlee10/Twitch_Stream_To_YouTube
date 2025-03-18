@@ -268,7 +268,7 @@ async def checkarg():
             exit()
         arg2 = arguments[2]
         logging.info("==================================================")
-        logging.info("INPUT ARGUMENT AVAILABLE")
+        logging.info("INPUT ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")
         logging.info(f"ARG1: {arg1} ARG2: {arg2}")
         logging.info(f"ARCHIVE USER: {config.username}")
         logging.info("==================================================")
@@ -281,7 +281,7 @@ async def checkarg():
     except IndexError:  # Handle case where there are no arguments
         try:
             logging.info("==================================================")
-            logging.info("NO ARGUMENT AVAILABLE")
+            logging.info("NO ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")
             logging.info(f"ARCHIVE USER: {config.username}")
             logging.info("==================================================")
             await selwebdriver_check("Null", "Null", "Null")
@@ -553,7 +553,7 @@ def create_live_stream(title, description, kmself):
             video_id = response['id']
             
             # Add to playlist if configured
-            if config.playlist == "True":
+            if config.playlist == "True" or config.playlist == "DOUBLE":
                 try:
                     playlist_request = service.playlistItems().insert(
                         part="snippet",
@@ -568,7 +568,7 @@ def create_live_stream(title, description, kmself):
                         }
                     )
                     playlist_request.execute()
-                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id}")
+                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id0}")
                 except Exception as playlist_error:
                     logging.error(f"Failed to add video to playlist: {playlist_error}")
             if config.playlist == "DOUBLE":
@@ -586,7 +586,7 @@ def create_live_stream(title, description, kmself):
                         }
                     )
                     playlist_request.execute()
-                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id}")
+                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id1}")
                 except Exception as playlist_error:
                     logging.error(f"Failed to add video to playlist: {playlist_error}")
             
