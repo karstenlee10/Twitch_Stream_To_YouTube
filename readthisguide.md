@@ -89,6 +89,7 @@ username = "your_twitch_username"  # Username from your wanted archive streamer
     5. And copy rtmp key of ***streamer's username*** to `rtmp_key` and rtmp key of ***1streamer's usernamemult*** to `rtmp_key_1` in `config_tv.py`
   - Add RTMP keys from YouTube
   - Add API credentials
+  - Add `playlist` to `True` (or DOUBLE for two playlist) and paste your playlist id to `playlistid0` for the first one(optional for adding playlist)
 
 ## 7. MOVE/COPY google_auth_oauthlib folder(for auto generate api token)
  - MOVE/COPY the `google_auth_oauthlib` folder to python_location/Lib/site-packages and replace `flow.py`
