@@ -465,19 +465,14 @@ def edit_live_stream(video_id, new_title, new_description):
     try:
        service = get_service()
        category_id = '24'
-       # Ensure new_title and new_description are strings, not coroutines
-       if asyncio.iscoroutine(new_title):
-           new_title = asyncio.run(new_title)
-       if asyncio.iscoroutine(new_description):
-           new_description = asyncio.run(new_description)
            
        request = service.videos().update(
              part="snippet",
              body={
                  "id": video_id,
                  "snippet": {
-                     "title": str(new_title),  # Ensure string conversion
-                     "description": str(new_description),  # Ensure string conversion
+                     "title": new_title,  # Ensure string conversion
+                     "description": new_description,  # Ensure string conversion
                      "categoryId": category_id
             }
         }
@@ -491,9 +486,9 @@ def edit_live_stream(video_id, new_title, new_description):
       if 'quotaExceeded' in str(e):
         logging.info(f"Error and stoping because of api limited")
         exit()
-      hitryagain += 1
-      logging.info(f"Error: {e}")
-      time.sleep(5)
+     hitryagain += 1
+     logging.info(f"Error: {e}")
+     time.sleep(5)
 
 def public_stream(live_id):
   hitryagain = 0
@@ -519,9 +514,9 @@ def public_stream(live_id):
       if 'quotaExceeded' in str(e):
         logging.info(f"Error and stoping because of api limited")
         exit()
-      hitryagain += 1
-      logging.info(f"Error: {e}")
-      time.sleep(5)
+     hitryagain += 1
+     logging.info(f"Error: {e}")
+     time.sleep(5)
 
 def create_live_stream(title, description, kmself):
     hitryagain = 0
@@ -597,9 +592,9 @@ def create_live_stream(title, description, kmself):
            if 'quotaExceeded' in str(e):
             logging.info(f"Error and stoping because of api limited")
             exit()
-           hitryagain += 1
-           logging.info(f"Error: {e}")
-           time.sleep(5)
+          hitryagain += 1
+          logging.info(f"Error: {e}")
+          time.sleep(5)
 
 
 def api_load(url, brandacc):
