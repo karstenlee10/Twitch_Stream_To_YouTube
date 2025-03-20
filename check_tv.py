@@ -66,7 +66,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                 logging.info("Stream offline status detected - initiating shutdown sequence...")
                 if config.unliststream == "True":
                     logging.info("Setting stream visibility to public...")
-                    await public_stream(live_url)
+                    public_stream(live_url)
                 subprocess.run(["taskkill", "/f", "/im", config.apiexe])
                 subprocess.Popen(["start", "python", "check_tv.py", spare_link, important], shell=True)
                 exit()
@@ -93,7 +93,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                     subprocess.Popen(["start", config.apiexe], shell=True)
                     if config.unliststream == "True":
                         logging.info("Setting stream visibility to public...")
-                        await public_stream(live_url)
+                        public_stream(live_url)
                     logging.info("Reinitializing offline detection service...")
                     numberpart += 1
                     live_url = spare_link
@@ -113,7 +113,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                        logging.info("Stream offline status detected - initiating shutdown sequence...")
                        if config.unliststream == "True":
                           logging.info("Setting stream visibility to public...")
-                          await public_stream(live_url)
+                          public_stream(live_url)
                        subprocess.run(["taskkill", "/f", "/im", config.apiexe])
                        subprocess.Popen(["start", "python", "check_tv.py", spare_link, important], shell=True)
                        exit()
@@ -140,7 +140,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                        subprocess.Popen(["start", config.apiexe], shell=True)
                        if config.unliststream == "True":
                            logging.info("Setting stream visibility to public...")
-                           await public_stream(live_url)
+                           public_stream(live_url)
                        numberpart += 1
                        live_url = spare_link
                        spare_link = live_spare_url
@@ -166,7 +166,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                 subprocess.Popen(["start", config.apiexe], shell=True)
                 if config.unliststream == "True":
                     logging.info("Setting stream visibility to public...")
-                    await public_stream(live_url)
+                    public_stream(live_url)
                 logging.info("Reinitializing offline detection service...")
                 numberpart += 1
                 live_url = spare_link
