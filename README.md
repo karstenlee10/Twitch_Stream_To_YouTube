@@ -23,22 +23,31 @@ https://www.youtube.com/@FilianVODSArchive
 
 This script is not in a complete ***finish state*** and only support ***WINDOWS***
 
-If you can't successfully run the google api please make an issue and give your email and then I will give you a client_secret for the api
+If you can't successfully run the google api please make an issue and give your channel's email and then I will give you a client_secret for the api
 
 <h2>🧐 Features</h2>
 
 Here're some of the project's best features:
 
-*   You can set the script to public the stream after the streamer finish ***(for no permission restreaming someones content like uploading the stream)***
+*   You can set the script to public the stream after the streamer finish ***(for no permission restreaming someones content)***
 *   Archive and play back twitch stream in real time ***(On youtube streams after opening dvr)***
 *   Save VODS forever ***(unless YouTube delete it)***
 *   VODS don't have muted copyrighted music ***(Unless YouTube copyrighted it)***
 *   It is ***automated*** no need for human
 *   Don't need to ***download the vods and upload it back to youtube***
-*   ***Faster than other vods archivers (e.g. they will need to download the vods and upload it and wait for youtube process it)***
-*   If the stream is almost over 12hours It will cut the stream for not losing the video after 12hours ***(e.g. subathon)***
-*   When receive thind-party takedown notice It will stop immediately and start another stream to protect from getting strikes ***(e.g. playing music or video)***
+*   ***Faster than other vods archivers (e.g. they will need to wait for youtube processing)***
+*   If the stream is almost over 12 hours It will cut the stream for not losing the video after 12 hours ***(e.g. subathon)***
+*   When receive thind-party takedown notice It will stop immediately and start another stream to protect from getting copyrighted strikes on your channel ***(e.g. playing music or video may cause this)***
 *   ***WHATEVER LANGUAGE IS SUPPORTED USING THIS SCRIPT***
+
+<h2>👎 Disadvantage</h2>
+
+Here're some of the project's disadvantage:
+
+* If you don't have ***twitch turbo*** or you have turbo but didn't input your token to streamlink, there will be ***ads(commercial break) on the vods***
+* Sometimes youtube will cut the stream for no reason or ***thind-party takedown*** and it will causes a ***few minutes of archive video loss***
+* This project is still in ***beta*** may have some bugs that didn't fix or found
+* Setup can be difficult for people who are not computer savvy
 
 <h2>🤔 Code main functionality explained by ai</h2>
 
@@ -68,7 +77,7 @@ Technologies used in the project:
 
 <h2>🔜 Future Update(not promising):</h2> 
 
-* 	~~Simplify the code~~
+* ~~Simplify the code~~
 * Make a mode that don't use any api
 * ~~Make a gui for installation~~ and automation
 * Make a mode the use independent webdriver.exe
