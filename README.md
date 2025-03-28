@@ -30,6 +30,7 @@ Here're some of the project's best features:
 *   You can set the script to public the stream after the streamer finish ***(for no permission restreaming someones content like uploading the stream)***
 *   Archive and play back twitch stream in real time ***(On youtube streams after opening dvr)***
 *   Save VODS forever ***(unless YouTube delete it)***
+*   VODS don't have muted copyrighted music ***(Unless YouTube copyrighted it)***
 *   It is ***automated*** no need for human
 *   Don't need to ***download the vods and upload it back to youtube***
 *   ***Faster than other vods archivers (e.g. they will need to download the vods and upload it and wait for youtube process it)***
