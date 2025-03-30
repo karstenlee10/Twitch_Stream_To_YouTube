@@ -600,29 +600,52 @@ class TwitchYoutubeApp(ctk.CTk):
             config_path = "config_tv.py"
             
             with open(config_path, 'w') as f:
-                f.write(f"#bulid updated at {time.strftime('%H:%M:%S')} {time.strftime('%Y-%m-%d')}\n")
-                f.write(f"Twitch = \"True\" #twitch or bilibili\n")
-                f.write(f"BiliBili = \"False\" #twitch or bilibili\n")
-                f.write(f"Chrome_Profile = \"{self.chrome_profile_var.get()}\" #chrome profile folder name\n")
+                # Add timestamp as a comment
+                f.write(f"# Config updated at {time.strftime('%H:%M:%S')} {time.strftime('%Y-%m-%d')}\n\n")
+                
+                # ARCHIVE STREAMER USERNAME section
+                f.write("#ARCHIVE STREAMER USERNAME\n")
                 f.write(f"username = \"{self.twitch_username_var.get()}\" #twitch or bilibili username\n")
+                f.write("##########################################################################\n")
+                
+                # ARCHIVE SETTINGS section
+                f.write("#ARCHIVE SETTINGS\n")
                 f.write(f"ytshort = \"{str(self.ytshort_var.get()).capitalize()}\" #not recommand\n")
                 f.write(f"unliststream = \"{str(self.unliststream_var.get()).capitalize()}\" #after stream will be public\n")
                 f.write(f"disablechat = \"{str(self.disablechat_var.get()).capitalize()}\"  #disable chat on live stream\n")
-                f.write(f"accountname = \"{self.accountname_var.get()}\" #google account name(not brand acc have email) when login to google api\n")
-                f.write(f"brandacc = \"{str(self.brandacc_var.get()).capitalize()}\" #do you use the brand acc as the archive channel\n")
-                f.write(f"brandaccname = \"{self.brandaccname_var.get()}\" #if you have brand acc copy the google account name when login to google api\n")
-                f.write(f"ffmpeg1 = \"{self.ffmpeg1_path_var.get()}\" #ffmpeg exe name\n")
-                f.write(f"ffmpeg = \"{self.ffmpeg_path_var.get()}\" #ffmpeg exe name\n")
-                f.write(f"apiexe = \"{self.apiexe_path_var.get()}\" #api exe name\n")
-                f.write(f"rtmpkeyname1 = \"{self.rtmpkeyname1_var.get()}\" #second yt rtmp key name\n")
-                f.write(f"rtmpkeyname = \"{self.rtmpkeyname_var.get()}\" #first yt rtmp key name\n")
-                f.write(f"rtmp_key = \"{self.rtmp_key_var.get()}\" #first yt rtmp key\n")
-                f.write(f"rtmp_key_1 = \"{self.rtmp_key1_var.get()}\" #second yt rtmp key\n")
-                f.write(f"client_id = \"{self.client_id_var.get()}\" #twitch api client id\n")
-                f.write(f"client_secret = \"{self.client_secret_var.get()}\" #twitch api client sercet\n")
                 f.write(f"playlist = \"{self.playlist_var.get()}\"  # True or DOUBLE IF YOU WANT TO SAVE TO MULTIPLE PLAYLIST disable to False\n")
                 f.write(f"playlist_id0 = \"{self.playlist_id0_var.get()}\"  # Replace with your First YouTube playlist ID\n")
                 f.write(f"playlist_id1 = \"{self.playlist_id1_var.get()}\"  # Replace with your actual second YouTube playlist ID\n")
+                f.write("##########################################################################\n")
+                
+                # YOUTUBE STUDIO RTMP SETTINGS section
+                f.write("#YOUTUBE STUDIO RTMP SETTINGS\n")
+                f.write(f"rtmpkeyname1 = \"{self.rtmpkeyname1_var.get()}\" #first yt rtmp key name\n")
+                f.write(f"rtmpkeyname = \"{self.rtmpkeyname_var.get()}\" #second yt rtmp key name\n")
+                f.write(f"rtmp_key = \"{self.rtmp_key_var.get()}\" #first yt rtmp key\n")
+                f.write(f"rtmp_key_1 = \"{self.rtmp_key1_var.get()}\" #second yt rtmp key\n")
+                f.write("##########################################################################\n")
+                
+                # CHROME PROFILE FOLDER NAME section
+                f.write("#CHROME PROFILE FOLDER NAME\n")
+                f.write(f"Chrome_Profile = \"{self.chrome_profile_var.get()}\" #chrome profile folder name\n")
+                f.write("##########################################################################\n")
+                
+                # API SETTINGS section
+                f.write("#API SETTINGS\n")
+                f.write(f"accountname = \"{self.accountname_var.get()}\" #google account name(not brand acc have email) when login to google api\n")
+                f.write(f"brandacc = \"{str(self.brandacc_var.get()).capitalize()}\" #do you use the brand acc as the archive channel\n")
+                f.write(f"brandaccname = \"{self.brandaccname_var.get() or 'Null'}\" #if you have brand acc copy the google account name when login to google api\n")
+                f.write("#TWITCH API SETTINGS\n")
+                f.write(f"client_id = \"{self.client_id_var.get()}\" #twitch api client id\n")
+                f.write(f"client_secret = \"{self.client_secret_var.get()}\" #twitch api client sercet\n")
+                f.write("##########################################################################\n")
+                
+                # EXE NAME section
+                f.write("#EXE NAME\n")
+                f.write(f"ffmpeg1 = \"{self.ffmpeg1_path_var.get()}\" #ffmpeg exe name\n")
+                f.write(f"ffmpeg = \"{self.ffmpeg_path_var.get()}\" #ffmpeg exe name\n")
+                f.write(f"apiexe = \"{self.apiexe_path_var.get()}\" #api exe name\n")
                 
             self.add_log_entry("Configuration saved successfully")
             messagebox.showinfo("Success", "Configuration saved successfully!")
