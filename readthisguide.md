@@ -95,6 +95,10 @@ username = "your_twitch_username"  # Username from your wanted archive streamer
  - MOVE/COPY the `google_auth_oauthlib` folder to python_location/Lib/site-packages and replace `flow.py`
 
 ## Usage
+Start the GUI for config settings and main script monitoring:
+```bash
+python gui.py
+```
 
 Start the main script:
 ```bash
