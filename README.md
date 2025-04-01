@@ -9,7 +9,8 @@ The code is designed to run as a continuous service, monitoring streams and hand
 <h2>🛡️ License:</h2>
 
 ***PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING ON YOUR channel description*** paste the github link  
-[https://bit.ly/archivescript](https://bit.ly/archivescript)
+https://bit.ly/archivescript
+https://is.gd/archivescript
 
 <h2>🛡️ License Example:</h2>
 
