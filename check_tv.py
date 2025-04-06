@@ -23,10 +23,6 @@ import streamlink
 from twitchAPI.twitch import Twitch
 import asyncio
 from google.auth.transport.requests import Request
-
-t = time.localtime()
-current_time = time.strftime("%H:%M:%S", t)
-refresh = 15
 token_url = f"https://id.twitch.tv/oauth2/token?client_id={config.client_id}&client_secret={config.client_secret}&grant_type=client_credentials"
 APP_TOKEN_FILE = "client_secret.json"
 GMAIL_TOKEN_FILE = "gmail_token.json"
@@ -53,15 +49,10 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
     numberpart = 0
     gmailcount = 0
     countyt = 0
-    
     while True:
         try:
-            # Initialize Twitch client
             twitch = await get_twitch_client()
-                
-            # Get streams
             streams = await get_twitch_streams(twitch, config.username)
-                
             if not streams:
                 logging.info("Stream offline status detected - initiating shutdown sequence...")
                 if config.unliststream == "True":
@@ -70,26 +61,22 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                 subprocess.run(["taskkill", "/f", "/im", config.apiexe])
                 subprocess.Popen(["start", "python", "check_tv.py", spare_link, important], shell=True)
                 exit()
-
-            # Update counters
             countdownhours += 1
             gmailcount += 1
             countyt += 1
-
-            # Gmail check
             if gmailcount == 12:
                 whatistheans = await find_gmail_title(titleforgmail)
                 if whatistheans == "True":
                     logging.info("Third-party notification detected - switching to backup stream...")
                     subprocess.run(["taskkill", "/f", "/im", config.apiexe])
-                    titleforgmail = await checktitlelol(numberpart, important, "False", spare_link)
+                    titleforgmail = await api_create_edit_schedule(numberpart, important, "False", spare_link)
                     logging.info("Stream reload complete - initializing backup stream...")
                     logging.info("Loading backup stream configuration...")
-                    if important == "schedule":
-                        important = "schsheepedule"
-                    elif important == "schsheepedule":
-                        important = "schedule"
-                    live_spare_url = await checktitlelol("0", important, "True", "Null")
+                    if important == "bkrtmp":
+                        important = "defrtmp"
+                    elif important == "defrtmp":
+                        important = "bkrtmp"
+                    live_spare_url = await api_create_edit_schedule("0", important, "True", "Null")
                     subprocess.Popen(["start", config.apiexe], shell=True)
                     if config.unliststream == "True":
                         logging.info("Setting stream visibility to public...")
@@ -102,7 +89,6 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                     gmailcount = 0
                 else:
                     gmailcount = 0
-
             if countyt == 12:
                 if is_youtube_livestream_live(live_url) == "True":
                     countyt = 0
@@ -118,9 +104,9 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                        subprocess.Popen(["start", "python", "check_tv.py", spare_link, important], shell=True)
                        exit()
                     logging.info("Stream connection terminated - initiating reload sequence...")
-                    if important == "schedule":
+                    if important == "bkrtmp":
                         subprocess.run(["taskkill", "/f", "/im", config.ffmpeg])
-                    elif important == "schsheepedule":
+                    elif important == "defrtmp":
                         subprocess.run(["taskkill", "/f", "/im", config.ffmpeg1])
                     await asyncio.sleep(30)
                     logging.info("Checking for stream")
@@ -129,14 +115,14 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                     if is_youtube_livestream_live(live_url) == "False":
                        logging.info("Error can't go back live without start other stream")
                        subprocess.run(["taskkill", "/f", "/im", config.apiexe])
-                       titleforgmail = await checktitlelol(numberpart, important, "False", spare_link)
+                       titleforgmail = await api_create_edit_schedule(numberpart, important, "False", spare_link)
                        logging.info("Stream reload complete - initializing backup stream...")
                        logging.info("Loading backup stream configuration...")
-                       if important == "schedule":
-                           important = "schsheepedule"
-                       elif important == "schsheepedule":
-                           important = "schedule"
-                       live_spare_url = await checktitlelol("0", important, "True", "Null")
+                       if important == "bkrtmp":
+                           important = "defrtmp"
+                       elif important == "defrtmp":
+                           important = "bkrtmp"
+                       live_spare_url = await api_create_edit_schedule("0", important, "True", "Null")
                        subprocess.Popen(["start", config.apiexe], shell=True)
                        if config.unliststream == "True":
                            logging.info("Setting stream visibility to public...")
@@ -150,19 +136,17 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                 if is_youtube_livestream_live(live_url) == "ERROR":
                     logging.info("YouTube API verification failed - check credentials and connectivity...")
                     countyt = 0
-            
-            # Time limit check
             if countdownhours == 7871:
                 logging.info("Stream duration limit near 12h reached - initiating scheduled reload...")
                 subprocess.run(["taskkill", "/f", "/im", config.apiexe])
-                titleforgmail = await checktitlelol(numberpart, important, "False", spare_link)
+                titleforgmail = await api_create_edit_schedule(numberpart, important, "False", spare_link)
                 logging.info("Stream reload complete - initializing backup stream...")
                 logging.info("Loading backup stream configuration...")
-                if important == "schedule":
-                    important = "schsheepedule"
-                elif important == "schsheepedule":
-                    important = "schedule"
-                live_spare_url = await checktitlelol("0", important, "True", "Null")
+                if important == "bkrtmp":
+                    important = "defrtmp"
+                elif important == "defrtmp":
+                    important = "bkrtmp"
+                live_spare_url = await api_create_edit_schedule("0", important, "True", "Null")
                 subprocess.Popen(["start", config.apiexe], shell=True)
                 if config.unliststream == "True":
                     logging.info("Setting stream visibility to public...")
@@ -173,9 +157,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail):
                 spare_link = live_spare_url
                 logging.info(important)
                 countdownhours = 0
-
-            await asyncio.sleep(5)  # Main loop delay
-            
+            await asyncio.sleep(5)
         except Exception as e:
             logging.error(f"Error in offline check: {str(e)}", exc_info=True)
             await asyncio.sleep(15)
@@ -190,23 +172,16 @@ async def get_twitch_streams(twitch, username):
 
 async def get_twitch_stream_title():
     MAX_RETRIES = 3
-    RETRY_DELAY = 5  # seconds
-    
+    RETRY_DELAY = 5
     for attempt in range(MAX_RETRIES):
         try:
-            # Initialize Twitch client
             twitch = await get_twitch_client()
-            
-            # Get streams
             streams = await get_twitch_streams(twitch, config.username)
-            
             if not streams:
                 logging.info(f"No streams found (attempt {attempt + 1}/{MAX_RETRIES})")
                 await asyncio.sleep(RETRY_DELAY)
-                continue
-                
+                continue 
             return streams[0].title
-            
         except Exception as e:
             logging.error(f"Error getting Twitch stream info (attempt {attempt + 1}/{MAX_RETRIES}): {e}")
             if attempt < MAX_RETRIES - 1:
@@ -219,38 +194,30 @@ async def load_check():
     logging.info("Waiting for stream to go live...")
     while True:
         try:
-            # Initialize Twitch client
             twitch = await get_twitch_client()
-                
-            # Get streams
             streams = await get_twitch_streams(twitch, config.username)
-                
             if streams:
                     stream = streams[0]
                     logging.info(f"Stream is now live! Title: {stream.title}")
                     break
             else:
                     await asyncio.sleep(5)
-
         except Exception as e:
             logging.error(f"Error checking stream status: {str(e)}")
             await asyncio.sleep(30)
 
-async def selwebdriver_check(yt_link, infomation, driver):
+async def selwebdriver_check(yt_link, infomation):
     try:
-        if driver == "Null":
-            if yt_link == "Null":
+        if yt_link == "Null":
                 logging.info("Starting live API check to get initial stream URL")
-                haha = "schsheepedule"
-                live_url = await checktitlelol("0", haha, "True", "Null")
-            else:
+                haha = "defrtmp"
+                live_url = await api_create_edit_schedule("0", haha, "True", "Null")
+        else:
                 live_url = yt_link
                 haha = infomation
-
         await load_check()
         logging.info("load start")
         await start_check(live_url, haha)
-           
     except Exception as e:
         logging.error(f"Error: {e}")
         logging.error("Critical error encountered - terminating script execution")
@@ -273,7 +240,7 @@ async def checkarg():
         logging.info(f"ARCHIVE USER: {config.username}")
         logging.info("==================================================")
         try:
-            await selwebdriver_check(arg1, arg2, "Null")
+            await selwebdriver_check(arg1, arg2)
             exit()
         except Exception as e:
             logging.error(f"Script failed to execute: {e}")
@@ -284,7 +251,7 @@ async def checkarg():
             logging.info("NO ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")
             logging.info(f"ARCHIVE USER: {config.username}")
             logging.info("==================================================")
-            await selwebdriver_check("Null", "Null", "Null")
+            await selwebdriver_check("Null", "Null")
         except Exception as e:
             logging.error(f"Failed to execute with null args: {e}")
             logging.info("failed script shutdown")
@@ -294,14 +261,14 @@ async def start_check(live_url, haha):
     logging.info("Starting stream monitoring process...")
     logging.info("Launching streaming API process...")
     subprocess.Popen(["start", config.apiexe], shell=True)
-    if haha == "schedule":
+    if haha == "bkrtmp":
         logging.info("Starting scheduled stream relay...")
         subprocess.Popen(["start", "python", "relive_tv.py", "api_this"], shell=True)
-        inport = "schsheepedule"
-    if haha == "schsheepedule":
+        inport = "defrtmp"
+    if haha == "defrtmp":
         logging.info("Starting alternate stream relay...")
         subprocess.Popen(["start", "python", "relive_tv.py", "this"], shell=True)
-        inport = "schedule"
+        inport = "bkrtmp"
     logging.info(f"Stream URL configured: {live_url}")
     logging.info("Stream relay process started successfully")
     try:
@@ -309,7 +276,7 @@ async def start_check(live_url, haha):
     except UnboundLocalError:
         this_bug_is_unfixable = "sigh"
     logging.info("Loading backup stream configuration...")
-    live_spare_url = await checktitlelol("0", inport, "True", "Null")
+    live_spare_url = await api_create_edit_schedule("0", inport, "True", "Null")
     logging.info("wait for offine now... and start countdown")
     await offline_check(live_url, live_spare_url, inport, titleforgmail)
 
@@ -495,7 +462,6 @@ def public_stream(live_id):
   while True:
     try:
        service = get_service()
-       scheduled_start_time = datetime.now(timezone.utc).isoformat()
        request = service.videos().update(
            part='status',
            body={
@@ -680,9 +646,9 @@ async def selwebdriver(live_url, timeisshit):
         new_url = f"https://youtube.com/watch?v={live_url}"
         logging.info("wait to check live 40sec")
         await asyncio.sleep(40)
-        if timeisshit == "schedule":
+        if timeisshit == "bkrtmp":
             check_is_live_api(new_url, config.ffmpeg1, "api_this")
-        if timeisshit == "schsheepedule":
+        if timeisshit == "defrtmp":
             check_is_live_api(new_url, config.ffmpeg, "this")
     finally:
         logging.info('edit finished continue the stream')
@@ -694,12 +660,12 @@ def edit_rtmp_key(driver, what):
   try:
     driver.find_element(By.XPATH, "//tp-yt-iron-icon[@icon='yt-icons:arrow-drop-down']").click()
     time.sleep(3)
-    if what == "schedule":
+    if what == "bkrtmp":
         xpath = "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname1 + " (')]]"
         element2 = driver.find_element(By.XPATH, xpath)
         element2.click()
         time.sleep(7)
-    if what == "schsheepedule":
+    if what == "defrtmp":
         xpath = "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname + " (')]]"
         element3 = driver.find_element(By.XPATH, xpath)
         element3.click()
@@ -750,7 +716,7 @@ def check_is_live_api(url, ffmpeg, text):
                   subprocess.Popen(["start", "python", "check_tv.py", "KILL"], shell=True)
                   exit()
 
-async def checktitlelol(arg1, arg2, reload, live_url):
+async def api_create_edit_schedule(arg1, arg2, reload, live_url):
     titletv = None  # Initialize titletv at the start
     
     if reload == "False":
@@ -836,10 +802,10 @@ async def checktitlelol(arg1, arg2, reload, live_url):
             driver.refresh()
             time.sleep(30)
             logging.info("Configuring RTMP key and chat settings...")
-            if arg2 == "schedule":
-                edit_rtmp_key(driver, "schedule")
-            if arg2 == "schsheepedule":
-                edit_rtmp_key(driver, "schsheepedule")
+            if arg2 == "bkrtmp":
+                edit_rtmp_key(driver, "bkrtmp")
+            if arg2 == "defrtmp":
+                edit_rtmp_key(driver, "defrtmp")
             driver.quit()
             subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])
         else:
@@ -848,29 +814,29 @@ async def checktitlelol(arg1, arg2, reload, live_url):
         if reload == "True":
             return live_url
         logging.info("Initializing stream relay service...")
-        if arg2 == "schedule":
+        if arg2 == "bkrtmp":
             subprocess.Popen(["start", "python", "relive_tv.py", "api_this"], shell=True)
-        if arg2 == "schsheepedule":
+        if arg2 == "defrtmp":
             subprocess.Popen(["start", "python", "relive_tv.py", "this"], shell=True)
         logging.info("Stream initialization complete - terminating previous instance and performing live status verification...")
         time.sleep(25)
         new_url = f"https://youtube.com/watch?v={live_url}"
-        if arg2 == "schedule":
+        if arg2 == "bkrtmp":
             check_is_live_api(new_url, config.ffmpeg1, "api_this")
-        if arg2 == "schsheepedule":
+        if arg2 == "defrtmp":
             check_is_live_api(new_url, config.ffmpeg, "this")
         logging.info("Terminating current stream instance and browser session - initiating countdown sequence...")
-        if arg2 == "schedule":
+        if arg2 == "bkrtmp":
             subprocess.run(["taskkill", "/f", "/im", config.ffmpeg])
-        if arg2 == "schsheepedule":
+        if arg2 == "defrtmp":
             subprocess.run(["taskkill", "/f", "/im", config.ffmpeg1])
         time.sleep(2)
-        if arg2 == "schedule":
+        if arg2 == "bkrtmp":
             if config.ytshort == "True":
                 subprocess.run([config.ffmpeg, '-fflags', '+genpts', '-re', '-i', 'too-long.mp4', '-c:v', 'h264_qsv', '-c:a', 'aac', '-b:a', '128k', '-preset', 'veryfast', '-filter_complex', '[0:v]scale=1080:600,setsar=1[video];color=black:1080x1920[scaled];[scaled][video]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2', '-f', 'flv', f'rtmp://a.rtmp.youtube.com/live2/' + config.rtmp_key], shell=True)
             if config.ytshort == "False":
                 subprocess.run([config.ffmpeg, '-re', '-i', 'too-long.mp4', '-c:v', 'libx264', '-preset', 'veryfast', '-c:a', 'aac', '-f', 'flv', f'rtmp://a.rtmp.youtube.com/live2/' + config.rtmp_key], shell=True)
-        if arg2 == "schsheepedule":
+        if arg2 == "defrtmp":
             if config.ytshort == "True":
                 subprocess.run([config.ffmpeg, '-fflags', '+genpts', '-re', '-i', 'too-long.mp4', '-c:v', 'libx264', '-preset', 'veryfast', '-c:a', 'aac', '-filter_complex', '[0:v]scale=1080:600,setsar=1[video];color=black:1080x1920[scaled];[scaled][video]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2', '-f', 'flv', f'rtmp://a.rtmp.youtube.com/live2/' + config.rtmp_key_1], shell=True)
             if config.ytshort == "False":
