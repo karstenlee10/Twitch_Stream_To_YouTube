@@ -234,6 +234,9 @@ async def checkarg():
             subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])
             exit()
         arg2 = arguments[2]
+        if arg2 not in ["defrtmp", "bkrtmp"]:
+            logging.error(f"Invalid argument for ARG2: {arg2}. Must be 'defrtmp' or 'bkrtmp'")
+            exit(1)
         logging.info("==================================================")
         logging.info("INPUT ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")
         logging.info(f"ARG1: {arg1} ARG2: {arg2}")
@@ -550,7 +553,6 @@ def create_live_stream(title, description, kmself):
                     logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id1}")
                 except Exception as playlist_error:
                     logging.error(f"Failed to add video to playlist: {playlist_error}")
-            
             return video_id
         except Exception as e:
           if hitryagain == 3:
@@ -561,7 +563,6 @@ def create_live_stream(title, description, kmself):
           hitryagain += 1
           logging.info(f"Error: {e}")
           time.sleep(5)
-
 
 def api_load(url, brandacc):
       logging.basicConfig(filename="tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -602,9 +603,8 @@ def api_load(url, brandacc):
       notafrickdriver.quit()
 
 async def selwebdriver(live_url, timeisshit):
-    max_retries = 10
+    max_retries = 3
     retry_count = 0
-        
     while retry_count < max_retries:
         try:
                 titletv = await get_twitch_stream_title()
@@ -613,18 +613,16 @@ async def selwebdriver(live_url, timeisshit):
                     logging.info("Stream appears to be offline, retrying...")
                 else:
                     status = TwitchResponseStatus.ONLINE
-                    break  # Success - exit the retry loop
+                    break
         except Exception as e:
                 retry_count += 1
                 logging.error(f"Error getting Twitch stream title (attempt {retry_count}/{max_retries}): {e}")
                 if retry_count >= max_retries:
                     status = TwitchResponseStatus.ERROR
                     logging.error("Max retries reached, using fallback title")
-                    # Use a fallback title if all retries fail
                     titletv = "Stream[ERROR]"
                 else:
-                    await asyncio.sleep(2)  # Wait before retrying
-
+                    await asyncio.sleep(2)
     textnoemo = ''.join('' if unicodedata.category(c) == 'So' else c for c in titletv)
     if "<" in textnoemo or ">" in textnoemo:
         textnoemo = textnoemo.replace("<", "").replace(">", "")
@@ -717,12 +715,10 @@ def check_is_live_api(url, ffmpeg, text):
                   exit()
 
 async def api_create_edit_schedule(arg1, arg2, reload, live_url):
-    titletv = None  # Initialize titletv at the start
-    
+    titletv = None
     if reload == "False":
         max_retries = 10
         retry_count = 0
-        
         while retry_count < max_retries:
             try:
                 titletv = await get_twitch_stream_title()
@@ -753,7 +749,6 @@ async def api_create_edit_schedule(arg1, arg2, reload, live_url):
         random_string = ''.join(random.choices(characters, k=7))
         calit = int(arg1) + 1
         filenametwitch = config.username + " | " + textnoemo + " | " + datetime.now().strftime("%Y-%m-%d") + " | " + "part " + str(calit)
-        # Calculate max length for textnoemo to keep total under 100 chars
         if len(filenametwitch) > 100:
            max_textnoemo_length = 100 - len(config.username) - len(datetime.now().strftime("%Y-%m-%d")) - len(" | " * 3) - len("part " + str(calit))
            textnoemo1 = textnoemo[:max_textnoemo_length-3] + "..."
