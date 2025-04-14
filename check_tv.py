@@ -60,7 +60,7 @@ async def offline_check(live_url, spare_link, important, titleforgmail): # 離�
             twitch = await get_twitch_client() # 獲取Twitch客戶端
             streams = await get_twitch_streams(twitch, config.username) # 獲取指定用戶的直播流
             if not streams: # 如果直播流不存在
-                logging.info("Stream offline status detected - initiating shutdown sequence... and ending screen") # 記錄檢測到離線狀態
+                logging.info("Stream offline status detected - initiating shutdown sequence... and play ending screen") # 記錄檢測到離線狀態
                 if arg2 == "bkrtmp": # 如果使用備用RTMP
                   if config.ytshort == "True": # 如果啟用YouTube短視頻
                    os.system(f'start {config.ffmpeg} -fflags +genpts -re -i ending.mp4 -c:v libx264 -preset veryfast -c:a aac -filter_complex "[0:v]scale=1080:600,setsar=1[video];color=black:1080x1920[scaled];[scaled][video]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key}') # 使用ffmpeg處理短視頻直播
@@ -112,7 +112,17 @@ async def offline_check(live_url, spare_link, important, titleforgmail): # 離�
                     twitch = await get_twitch_client() # 獲取Twitch客戶端
                     streams = await get_twitch_streams(twitch, config.username) # 檢查Twitch直播狀態
                     if not streams: # 如果Twitch也離線
-                        logging.info("Stream offline status detected - initiating shutdown sequence...") # 記錄檢測到離線狀態
+                        logging.info("Stream offline status detected - initiating shutdown sequence... and play ending screen") # 記錄檢測到離線狀態
+                        if arg2 == "bkrtmp": # 如果使用備用RTMP
+                          if config.ytshort == "True": # 如果啟用YouTube短視頻
+                           os.system(f'start {config.ffmpeg} -fflags +genpts -re -i ending.mp4 -c:v libx264 -preset veryfast -c:a aac -filter_complex "[0:v]scale=1080:600,setsar=1[video];color=black:1080x1920[scaled];[scaled][video]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key}') # 使用ffmpeg處理短視頻直播
+                          if config.ytshort == "False": # 如果不啟用YouTube短視頻
+                           os.system(f'start {config.ffmpeg} -re -i ending.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key}') # 使用ffmpeg處理普通直播
+                        if arg2 == "defrtmp": # 如果使用默認RTMP
+                         if config.ytshort == "True": # 如果啟用YouTube短視頻
+                          os.system(f'start {config.ffmpeg} -fflags +genpts -re -i ending.mp4 -c:v libx264 -preset veryfast -c:a aac -filter_complex "[0:v]scale=1080:600,setsar=1[video];color=black:1080x1920[scaled];[scaled][video]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key_1}') # 使用ffmpeg處理短視頻直播
+                         if config.ytshort == "False": # 如果不啟用YouTube短視頻
+                          os.system(f'start {config.ffmpeg} -re -i ending.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key_1}') # 使用ffmpeg處理普通直播
                         if config.unliststream == "True": # 如果需要設置為公開
                            logging.info("Setting stream visibility to public...") # 記錄設置公開狀態
                            public_stream(live_url) # 設置YouTube直播為公開
