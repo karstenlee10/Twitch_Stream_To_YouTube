@@ -329,7 +329,7 @@ def get_gmail_service(): # 獲取Gmail API服務函數
               if config.brandacc == "True": # 如果是品牌賬戶
                 logging.info("Gmail token not found. Starting authentication flow...") # 記錄開始認證流程
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob') # 創建OAuth2流程
-                creds = flow.run_local_server(port=6971, brandacc="Nope") # 運行本地服務器獲取憑證
+                creds = flow.run_local_server(port=6971, brandacc="gmailbrand") # 運行本地服務器獲取憑證
                 with open(GMAIL_TOKEN_FILE, 'w') as token: # 保存Gmail憑證到文件
                    token.write(creds.to_json()) # 寫入憑證JSON數據
               if config.brandacc == "False": # 如果是一般用戶
@@ -346,7 +346,7 @@ def get_gmail_service(): # 獲取Gmail API服務函數
               if config.brandacc == "True": # 如果是品牌賬戶
                 logging.info("Gmail token not found. Starting authentication flow...") # 記錄開始Gmail認證流程
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob') # 創建Gmail認證流程
-                creds = flow.run_local_server(port=6971, brandacc="Nope") # 運行本地服務器獲取憑證
+                creds = flow.run_local_server(port=6971, brandacc="gmailbrand") # 運行本地服務器獲取憑證
                 with open(GMAIL_TOKEN_FILE, 'w') as token: # 打開Gmail令牌文件
                    token.write(creds.to_json()) # 保存憑證到文件
               if config.brandacc == "False": # 如果是一般用戶
@@ -551,13 +551,28 @@ def api_load(url, brandacc): # API加載函數
       time.sleep(3) # 等待頁面加載
       if brandacc == "Nope": # 如果是一般賬戶
           nameofaccount = f"//div[contains(text(),'{config.accountname}')]"
+      if brandacc == "gmailbrand": # 如果是一般GMAIL賬戶
+          nameofaccount = f"//div[contains(text(),'{config.accountname}')]"
       if brandacc == "havebrand": # 如果是品牌賬戶
           nameofaccount = f"//div[contains(text(),'{config.brandaccname}')]"
       button_element = notafrickdriver.find_element("xpath", nameofaccount) # 查找賬戶元素
       button_element.click() # 點擊賬戶元素
       time.sleep(3) # 等待操作完成
-      element = notafrickdriver.find_element("xpath", "(//button[@jsname='LgbsSe' and contains(@class, 'VfPpkd-LgbsSe-OWXEXe-INsAgc')])[2]") # 查找按鈕元素
-      element.click() # 點擊按鈕
+      if brandacc == "gmailbrand": # 如果是品牌賬戶
+        button_element = notafrickdriver.find_element("xpath", '//*[@id="yDmH0d"]/div[1]/div[1]/div[2]/div/div/div[3]/div/div[2]')
+        button_element.click()
+        time.sleep(3)
+        element = notafrickdriver.find_element("xpath", '/html/body/div[1]/div[1]/div[2]/c-wiz/div/div[3]/div/div/div[2]')
+        element.click()
+        time.sleep(1)
+        button_element = notafrickdriver.find_element("xpath", '//*[@id="yDmH0d"]/div[1]/div[1]/div[2]/div/div/div[2]/div/div/div[1]/form/span/section[1]/div/div/div/div[1]/div/div/div[3]/div/div/input')
+        button_element.click()
+        time.sleep(2)
+        button_element = notafrickdriver.find_element("xpath", '/html/body/div[1]/div[1]/div[2]/div/div/div[3]/div/div/div[2]')
+        button_element.click()
+      if brandacc == "Nope": # 如果是一般賬戶
+        element = notafrickdriver.find_element("xpath", "(//button[@jsname='LgbsSe' and contains(@class, 'VfPpkd-LgbsSe-OWXEXe-INsAgc')])[2]") # 查找按鈕元素
+        element.click() # 點擊按鈕
       subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"]) # 終止驅動程序進程
       logging.info("finish idk ---edit_tv---") # 記錄完成信息
       time.sleep(5) # 等待操作完成
