@@ -42,7 +42,6 @@ pip install selenium google-auth-oauthlib google-api-python-client psutil reques
 - 4. Add Scope by pasting:
 ```bash
 https://www.googleapis.com/auth/youtube.force-ssl
-https://www.googleapis.com/auth/userinfo.profile
 https://www.googleapis.com/auth/gmail.readonly
 ```
 - 5. ***Test user is your channel email***
