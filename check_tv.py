@@ -149,22 +149,23 @@ async def offline_check(live_url, spare_link, rtmp_server, titleforgmail): # 離
             await asyncio.sleep(15) # 發生錯誤時等待15秒後重試
 
 
-async def handle_youtube_status(state): # 處理YouTube狀態的輔助函數
+async def handle_youtube_status(state):
     if is_youtube_livestream_live(state['live_url']) == "True":
         state['countyt'] = 0
-        return
+        return True
         
     if is_youtube_livestream_live(state['live_url']) == "False":
         twitch = await get_twitch_client()
         streams = await get_twitch_streams(twitch, config.username)
         if not streams:
-            await handle_stream_offline()
+            await handle_stream_offline()  # Pass the state parameter
         if not await handle_youtube_status(state):
             await switch_stream_config(state)
             
     if is_youtube_livestream_live(state['live_url']) == "ERROR":
         logging.info("YouTube API verification failed - check credentials and connectivity...")
         state['countyt'] = 0
+        return True
 
 
 async def switch_stream_config(state, titleforgmail=None): # 切換直播配置的輔助函數
