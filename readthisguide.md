@@ -7,8 +7,8 @@
 
 ## 1. Clone this repository or download zip:
 ```bash
-git clone https://github.com/karstenlee10/Twitch_B2_Archive_To_YouTube.git
-cd Twitch_B2_Archive_To_YouTube
+git clone https://github.com/karstenlee10/Twitch_Stream_To_YouTube.git
+cd Twitch_Stream_To_YouTube
 ```
 
 ## 2. Download required executables:
@@ -26,13 +26,14 @@ pip install psutil
 pip install requests
 pip install beautifulsoup4
 pip install streamlink
-pip install twitchAPI
 pip install aiohttp
 ```
 
 ```bash
-pip install selenium google-auth-oauthlib google-api-python-client psutil requests beautifulsoup4 streamlink twitchAPI aiohttp
+pip install selenium google-auth-oauthlib google-api-python-client psutil requests beautifulsoup4 streamlink aiohttp
 ```
+
+## Tips: You can use GUI.py for more easier config settings
 
 ## 4. Set up Google API:
 - Go to [Google Cloud Console](https://console.cloud.google.com)
@@ -112,8 +113,8 @@ python check_tv.py KILL
 ```
 
 - Custom stream URL and mode(For Script Only)
-- example : check_tv.py THEYTLIVEID schedule/schsheepedule
-- (check_tv.py RgNO-U5tV2E schedule)
+- example : check_tv.py THEYTLIVEID defrtmp/bkrtmp
+- (check_tv.py RgNO-U5tV2E defrtmp)
 - ***(DON'T INPUT ANYTHING)***
 - ***(DONT USE)***:
 ```bash
@@ -123,7 +124,7 @@ python check_tv.py <arg1> <arg2>
 ## Logging
 
 The application creates several log files:
-- `tv.log`: Main application logs(check_tv.py)
+- `check_tv.log`: Main application logs(check_tv.py)
 - `relive_tv.log`: Streaming process logs(relive_tv.py)
 
 ## Troubleshooting
@@ -142,3 +143,10 @@ The application creates several log files:
 3. **Chrome Issues**:
    - Verify Chrome profile path with chrome://version paste after User Data/
    - And ***Don't open chrome when the script is started CLOSE ANY WINDOWS***
+  
+4. **The most common problems**:
+   - Delete all scheduled stream in your youtube studio before starting the script(or the script crashed)
+   - The Username of your google account manybe filped your name when in the login page
+   - Login to the account that you set in the config settings on Youtube Studio **DON'T CHANGE ACCOUNT IN THE MIDDLE OF THE SCRIPT ON THE PROFILE YOU CHOSE**
+   - Configs can't not have spaces in the line (like:myself[SPACE]) Check it before applying
+   - Sometime the auto regen google api token will be change so look at the updates and repaste the .py files(not include config_tv.py)
