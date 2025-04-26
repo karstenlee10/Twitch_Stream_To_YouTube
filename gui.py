@@ -87,7 +87,6 @@ class TwitchYoutubeApp(ctk.CTk):
         self.ffmpeg1_path_var = ctk.StringVar(value=config.ffmpeg1)
         self.apiexe_path_var = ctk.StringVar(value=config.apiexe)
         
-        self.ytshort_var = ctk.BooleanVar(value=config.ytshort == "True")
         self.unliststream_var = ctk.BooleanVar(value=config.unliststream == "True")
         self.disablechat_var = ctk.BooleanVar(value=config.disablechat == "True")
         self.brandacc_var = ctk.BooleanVar(value=config.brandacc == "True")
@@ -119,7 +118,7 @@ class TwitchYoutubeApp(ctk.CTk):
             
         # Boolean variables need special handling
         bool_variables = [
-            self.ytshort_var, self.unliststream_var, self.disablechat_var, self.brandacc_var
+            self.unliststream_var, self.disablechat_var, self.brandacc_var
         ]
         
         for var in bool_variables:
@@ -381,28 +380,20 @@ class TwitchYoutubeApp(ctk.CTk):
         # Configure faster scrolling
         self.configure_faster_scrolling(options_frame)
         
-        # YT Short
+        # Unlist Stream
         option_section = CTkFrame(options_frame)
         option_section.pack(fill="x", padx=15, pady=5)
         
-        CTkSwitch(option_section, text="YouTube Short Format", variable=self.ytshort_var).pack(anchor="w", pady=5)
-        CTkLabel(option_section, text="Formats video in 9:16 ratio for YouTube Shorts", 
-                justify="left", text_color="gray").pack(anchor="w", padx=25, pady=(0,5))
-        
-        # Unlist Stream
-        option_section2 = CTkFrame(options_frame)
-        option_section2.pack(fill="x", padx=15, pady=5)
-        
-        CTkSwitch(option_section2, text="Unlist Stream", variable=self.unliststream_var).pack(anchor="w", pady=5)
-        CTkLabel(option_section2, text="Stream will be unlisted, then public after completion", 
+        CTkSwitch(option_section, text="Unlist Stream", variable=self.unliststream_var).pack(anchor="w", pady=5)
+        CTkLabel(option_section, text="Stream will be unlisted, then public after completion", 
                 justify="left", text_color="gray").pack(anchor="w", padx=25, pady=(0,5))
         
         # Disable Chat
-        option_section3 = CTkFrame(options_frame)
-        option_section3.pack(fill="x", padx=15, pady=5)
+        option_section2 = CTkFrame(options_frame)
+        option_section2.pack(fill="x", padx=15, pady=5)
         
-        CTkSwitch(option_section3, text="Disable Live Chat", variable=self.disablechat_var).pack(anchor="w", pady=5)
-        CTkLabel(option_section3, text="Disables the YouTube live chat during streaming", 
+        CTkSwitch(option_section2, text="Disable Live Chat", variable=self.disablechat_var).pack(anchor="w", pady=5)
+        CTkLabel(option_section2, text="Disables the YouTube live chat during streaming", 
                 justify="left", text_color="gray").pack(anchor="w", padx=25, pady=(0,5))
         
         # Playlist Settings
@@ -605,12 +596,11 @@ class TwitchYoutubeApp(ctk.CTk):
                 
                 # ARCHIVE STREAMER USERNAME section
                 f.write("#ARCHIVE STREAMER USERNAME\n")
-                f.write(f"username = \"{self.twitch_username_var.get()}\" #twitch or bilibili username\n")
+                f.write(f"username = \"{self.twitch_username_var.get()}\" #twitch username\n")
                 f.write("##########################################################################\n")
                 
                 # ARCHIVE SETTINGS section
                 f.write("#ARCHIVE SETTINGS\n")
-                f.write(f"ytshort = \"{str(self.ytshort_var.get()).capitalize()}\" #not recommand\n")
                 f.write(f"unliststream = \"{str(self.unliststream_var.get()).capitalize()}\" #after stream will be public\n")
                 f.write(f"disablechat = \"{str(self.disablechat_var.get()).capitalize()}\"  #disable chat on live stream\n")
                 f.write(f"playlist = \"{self.playlist_var.get()}\"  # True or DOUBLE IF YOU WANT TO SAVE TO MULTIPLE PLAYLIST disable to False\n")
