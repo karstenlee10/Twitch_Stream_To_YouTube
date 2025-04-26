@@ -33,10 +33,7 @@ def api_this():
   logging.info('Starting API stream processing')
   t = time.localtime()
   current_time = time.strftime("%H:%M:%S", t)
-  if config.ytshort == "True":
-    command = live_link_url + ' best -o - | ' + config.ffmpeg1 + ' -fflags +genpts -re -i pipe:0 -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -filter_complex "[0:v]scale=1080:600,setsar=1[video];color=black:1080x1920[scaled];[scaled][video]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -c:v h264_qsv -c:a aac -b:a 128k -f flv rtmp://a.rtmp.youtube.com/live2/' + config.rtmp_key_1
-  if config.ytshort == "False":
-    command = live_link_url + ' best -o - | ' + config.ffmpeg1 + ' -re -i pipe:0 -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -f flv rtmp://a.rtmp.youtube.com/live2/' + config.rtmp_key_1
+  command = live_link_url + ' best -o - | ' + config.ffmpeg1 + ' -re -i pipe:0 -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -f flv rtmp://a.rtmp.youtube.com/live2/' + config.rtmp_key_1
   os.system(command)
   OMG = check_is_live()
   if OMG == "True":
@@ -50,10 +47,7 @@ def this():
   logging.info('Initializing stream processing')
   t = time.localtime()
   current_time = time.strftime("%H:%M:%S", t)
-  if config.ytshort == "True":
-    command = live_link_url + ' best -o - | ' + config.ffmpeg + ' -fflags +genpts -re -i pipe:0 -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -filter_complex "[0:v]scale=1080:600,setsar=1[video];color=black:1080x1920[scaled];[scaled][video]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -c:v h264_qsv -c:a aac -b:a 128k -f flv rtmp://a.rtmp.youtube.com/live2/' + config.rtmp_key
-  if config.ytshort == "False":
-    command = live_link_url + ' best -o - | ' + config.ffmpeg + ' -re -i pipe:0 -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -f flv rtmp://a.rtmp.youtube.com/live2/' + config.rtmp_key
+  command = live_link_url + ' best -o - | ' + config.ffmpeg + ' -re -i pipe:0 -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -f flv rtmp://a.rtmp.youtube.com/live2/' + config.rtmp_key
   os.system(command)
   OMG = check_is_live()
   if OMG == "True":
