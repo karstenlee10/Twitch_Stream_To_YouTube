@@ -1,927 +1,841 @@
-import subprocess # 導入子進程管理模塊
-import sys # 導入系統相關模塊
-import os # 導入操作系統模塊
-import time # 導入時間相關模塊
-import logging # 導入日誌記錄模塊
-import argparse # 導入命令行參數解析模塊
-from selenium import webdriver # 導入瀏覽器自動化模塊
-from selenium.webdriver.common.by import By # 導入元素定位方式
-from selenium.webdriver.support import expected_conditions as EC # 導入預期條件
-from selenium.webdriver.support.ui import WebDriverWait # 導入等待機制
-from selenium.common.exceptions import SessionNotCreatedException # 導入會話異常
-from selenium.webdriver.chrome.options import Options # 導入Chrome瀏覽器選項
-from google.oauth2.credentials import Credentials # 導入Google認證模塊
-from googleapiclient.discovery import build # 導入Google API構建工具
-import config_tv as config # 導入配置文件
-import psutil # 導入進程和系統監控模塊
-import requests # 導入HTTP請求模塊
-import enum # 導入枚舉類型模塊
-import unicodedata # 導入Unicode數據處理模塊
-import string # 導入字符串處理模塊
-import random # 導入隨機數生成模塊
-from datetime import datetime, timedelta, timezone # 導入日期時間處理模塊
-import streamlink # 導入流媒體處理模塊
-from twitchAPI.twitch import Twitch # 導入Twitch API模塊
-import asyncio # 導入異步IO模塊
-from google.auth.transport.requests import Request # 導入Google認證請求模塊
+import subprocess  # Importing subprocess module for running system commands
+import sys  # Importing sys module for system-specific parameters and functions
+import os  # Importing os module for interacting with the operating system
+import time  # Importing time module for time-related functions
+import logging  # Importing logging module for logging messages
+import argparse  # Importing argparse module for parsing command-line arguments
+from selenium import webdriver  # Importing webdriver from selenium for browser automation
+from selenium.webdriver.common.by import By  # Importing By for locating elements
+from selenium.webdriver.support import expected_conditions as EC  # Importing expected_conditions for waiting conditions
+from selenium.webdriver.support.ui import WebDriverWait  # Importing WebDriverWait for waiting for conditions
+from selenium.common.exceptions import SessionNotCreatedException  # Importing exception for session creation failure
+from selenium.webdriver.chrome.options import Options  # Importing Options for Chrome browser options
+from google.oauth2.credentials import Credentials  # Importing Credentials for Google OAuth2
+from googleapiclient.discovery import build  # Importing build for Google API client
+import config_tv as config  # Importing custom configuration module
+import psutil  # Importing psutil for system and process utilities
+import requests  # Importing requests for making HTTP requests
+import enum  # Importing enum for enumerations
+import unicodedata  # Importing unicodedata for Unicode character database
+import string  # Importing string module for string operations
+import random  # Importing random module for generating random numbers
+from datetime import datetime, timedelta, timezone  # Importing datetime for date and time operations
+import streamlink  # Importing streamlink for streaming video
+from google.auth.transport.requests import Request  # Importing Request for Google auth transport
 
-refresh_title = "True"
+refresh_title = "True"  # Setting refresh title flag to True
 
-token_url = f"https://id.twitch.tv/oauth2/token?client_id={config.client_id}&client_secret={config.client_secret}&grant_type=client_credentials" # Twitch認證URL
-APP_TOKEN_FILE = "client_secret.json" # Google應用憑證文件
-GMAIL_TOKEN_FILE = "gmail_token.json" # Gmail令牌文件
-USER_TOKEN_FILE = "user_token.json" # 用戶令牌文件
+token_url = f"https://id.twitch.tv/oauth2/token?client_id={config.client_id}&client_secret={config.client_secret}&grant_type=client_credentials"  # URL for obtaining Twitch token
+APP_TOKEN_FILE = "client_secret.json"  # File name for app token
+GMAIL_TOKEN_FILE = "gmail_token.json"  # File name for Gmail token
+USER_TOKEN_FILE = "user_token.json"  # File name for user token
 
-SCOPES_GMAIL = [ # Gmail API權限範圍
+SCOPES_GMAIL = [  # Scopes for Gmail API
     'https://www.googleapis.com/auth/gmail.readonly',
   ]
 
-SCOPES_BRAND = [ # YouTube品牌賬戶API權限範圍
+SCOPES_BRAND = [  # Scopes for YouTube API with brand account
     'https://www.googleapis.com/auth/youtube.force-ssl',
   ]
 
-SCOPES = [ # 一般用戶API權限範圍
+SCOPES = [  # Combined scopes for YouTube and Gmail APIs
     'https://www.googleapis.com/auth/youtube.force-ssl',
     'https://www.googleapis.com/auth/gmail.readonly',
   ]
 
-home_dir = os.path.expanduser("~") # 獲取用戶主目錄
+home_dir = os.path.expanduser("~")  # Getting the home directory path
 
-# 解析命令行參數
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="Twitch to YouTube直播歸檔系統")
-    parser.add_argument("yt_link", nargs="?", default=None, help="YouTube視頻ID")
-    parser.add_argument("rtmpkey", nargs="?", default=None, help="RTMP服務器類型 (defrtmp 或 bkrtmp)")
-    
-    # 解析已知參數，忽略未知參數
-    args, unknown = parser.parse_known_args()
-    
-    # 獲取原始命令行參數（用於兼容現有代碼）
-    arguments = sys.argv
-    
-    return args, arguments
+def parse_arguments():  # Function to parse command-line arguments
+    logging.info("function parse_arguments is called")
+    parser = argparse.ArgumentParser(description="Twitch to YouTube Live Archive System")  # Creating argument parser
+    parser.add_argument("yt_link", nargs="?", default=None, help="YouTube Video ID")  # Adding YouTube link argument
+    parser.add_argument("rtmpkey", nargs="?", default=None, help="RTMP Server Type (defrtmp or bkrtmp)")  # Adding RTMP key argument
+    args = parser.parse_known_args()  # Parsing known arguments
+    arguments = sys.argv  # Getting system arguments
+    return args, arguments  # Returning parsed arguments
 
 ###########################################offline_check###########################################
-async def offline_check(live_url, spare_link, rtmp_server, titleforgmail): # 離線檢測函數，監控直播狀態
-    # 初始化計數器和狀態變量
-    state = {
-        'countdownhours': 0,  # 計時器，記錄運行時間
-        'numberpart': 0,      # 備份流序號
-        'gmailcount': 0,      # Gmail檢查計數器
-        'countyt': 0,         # YouTube檢查計數器
-        'live_url': live_url, # 當前直播URL
-        'spare_link': spare_link, # 備用直播URL
-        'rtmp_server': rtmp_server # RTMP服務器類型
+def offline_check_functions(live_url, spare_link, rtmp_server, titleforgmail):  # Asynchronous function to check offline status
+    logging.info(f"function offline_check_functions is called with input arguments: live_url = {live_url}, spare_link = {spare_link}, rtmp_server = {rtmp_server}, titleforgmail = {titleforgmail}")
+    state = {  # Initializing state dictionary
+        'countdownhours': 0,  # Countdown hours
+        'numberpart': 0,  # Number part
+        'gmailcount': 0,  # Gmail count
+        'countyt': 0,  # Count YouTube
+        'live_url': live_url,  # Live URL
+        'spare_link': spare_link,  # Spare link
+        'rtmp_server': rtmp_server,  # RTMP server
+        'titleforgmail': titleforgmail  # Title for Gmail
     }
     
-    # 記錄初始化監控服務信息
-    logging.info(f"Initializing offline detection monitoring service... With {state['live_url']}, {state['spare_link']}, {state['rtmp_server']}, {titleforgmail}")
-    
-    async def handle_stream_offline(): # 處理直播離線的子函數
-        logging.info("Stream offline status detected - initiating shutdown sequence... and play ending screen") # 記錄檢測到離線狀態
-        rtmp_key = config.rtmp_key if state['rtmp_server'] == "bkrtmp" else config.rtmp_key_1
-        ffmpeg_cmd = get_ffmpeg_command(rtmp_key) # 獲取ffmpeg命令
-        os.system(ffmpeg_cmd) # 執行ffmpeg命令
-        
-        if config.unliststream == "True": # 如果需要設置為公開
-            logging.info("Setting stream visibility to public...") # 記錄設置公開狀態
-            public_stream(state['live_url']) # 設置YouTube直播為公開
-            
-        subprocess.run(["taskkill", "/f", "/im", config.apiexe]) # 關閉API進程
-        subprocess.Popen(["start", "python", "check_tv.py", state['spare_link'], state['rtmp_server']], shell=True) # 啟動備用直播
-        exit() # 退出當前進程
+    logging.info(f"Initializing offline detection monitoring service... With {state['live_url']}, {state['spare_link']}, {state['rtmp_server']}, {titleforgmail}")  # Logging initialization message
 
+    def handle_stream_offline(state):  # Asynchronous function to handle stream offline
+        logging.info(f"function handle_stream_offline is called with input arguments: state = {state}")  # Logging function call
+        logging.info("Stream offline status detected - initiating shutdown sequence... and play ending screen")  # Logging offline status
+        rtmp_key = config.rtmp_key if state['rtmp_server'] == "defrtmp" else config.rtmp_key_1  # Selecting RTMP key based on server
+        ffmpeg = config.ffmpeg if state['rtmp_server'] == "defrtmp" else config.ffmpeg1  # Selecting ffmpeg based on RTMP key
+        os.system(f'start {ffmpeg} -re -i ending.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp_key}')  # Executing ffmpeg command
+        if config.unliststream == "True":  # Checking if stream should be unlisted
+            logging.info("Setting stream visibility to public...")  # Logging visibility change
+            public_stream(state['live_url'])  # Making stream public
+        subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Killing API executable
+        subprocess.Popen(["start", "python", "check_tv.py", state['spare_link'], state['rtmp_server']], shell=True)  # Restarting script with spare link
+        exit()  # Exiting the script
     
-    async def handle_gmail_notification(): # 處理Gmail通知的子函數
-        logging.info("Third-party notification detected - switching to backup stream...") # 記錄檢測到第三方通知
-        await switch_stream_config(state, titleforgmail) # 切換直播配置
-        state['gmailcount'] = 0 # 重置Gmail檢查計數
+    def handle_youtube_status(state):  # Asynchronous function to handle YouTube status
+        logging.info(f"function handle_youtube_status is called with input arguments: state = {state}")  # Logging function call
+        feedback = is_youtube_livestream_live(state['live_url'])
+        if feedback == "ERROR":  # Checking if YouTube livestream status is error
+            logging.info("YouTube API verification failed - check credentials and connectivity...")  # Logging error
+            state['countyt'] = 0  # Resetting YouTube count
+            return True  # Returning True
+        if feedback:  # Checking if YouTube livestream is live
+            state['countyt'] = 0  # Resetting YouTube count
+            return True  # Returning True
+        else:  # Checking if YouTube livestream is not live
+            twitch = get_twitch_client()  # Getting Twitch client
+            streams = get_twitch_streams(twitch, config.username)  # Getting Twitch streams
+            if not streams:  # Checking if streams are empty
+                handle_stream_offline(state)
+        logging.info("Stream connection terminated - initiating reload sequence...")  # Logging termination
+        ffmpeg_exe = config.ffmpeg if state['rtmp_server'] == "defrtmp" else config.ffmpeg1  # Selecting ffmpeg executable
+        subprocess.run(["taskkill", "/f", "/im", ffmpeg_exe])  # Killing ffmpeg process
+        time.sleep(30)  # Waiting for 30 seconds
+        logging.info("Checking for stream")  # Logging check
+        if is_youtube_livestream_live(state['live_url']):  # Checking if YouTube livestream is live
+            logging.info("Stream is back online return to offline check") # Logging return to offline check
+        else:
+                logging.info("YouTube Connection Failed Start on backup stream")  # Logging error
+                switch_stream_config(state)  # Switching stream configuration
+        state['countyt'] = 0 # Resetting Check YouTube count
+        return True  # Returning True
 
-    
-    async def handle_youtube_offline(): # 處理YouTube離線的子函數
-        logging.info("Stream connection terminated - initiating reload sequence...") # 記錄直播連接中斷
-        ffmpeg_exe = config.ffmpeg if state['rtmp_server'] == "bkrtmp" else config.ffmpeg1
-        subprocess.run(["taskkill", "/f", "/im", ffmpeg_exe]) # 關閉對應的ffmpeg進程
-        
-        await asyncio.sleep(30) # 等待30秒
-        if await check_and_handle_stream_status(state): # 檢查並處理直播狀態
-            return True
-        return False
+    def switch_stream_config(state):  # Asynchronous function to switch stream configuration
+        logging.info(f"function switch_stream_config is called with input arguments: state = {state}")  # Logging function call
+        subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Killing API executable
+        titleforgmail = api_create_edit_schedule(state['numberpart'], state['rtmp_server'], "False", state['spare_link'])  # Creating/editing schedule
+        state['rtmp_server'] = "defrtmp" if state['rtmp_server'] == "bkrtmp" else "bkrtmp"  # Switching RTMP server
+        live_spare_url = api_create_edit_schedule("0", state['rtmp_server'], "True", "Null")  # Creating/editing schedule
+        subprocess.Popen(["start", config.apiexe], shell=True)  # Starting API executable
+        if config.unliststream == "True":  # Checking if stream should be unlisted
+            public_stream(state['live_url'])  # Making stream public        
+        state['numberpart'] += 1  # Incrementing number part
+        state['live_url'], state['spare_link'] = state['spare_link'], live_spare_url  # Swapping live and spare links
+        state['countdownhours'] = 0  # Resetting countdown hours
+        state['countyt'] = 0  # Resetting YouTube count
+        state['titleforgmail'] = titleforgmail  # Updating title for Gmail
 
-    
-    def get_ffmpeg_command(rtmp_key): # 獲取ffmpeg命令的輔助函數
-        if config.ytshort == "True":
-            return f'start {config.ffmpeg} -fflags +genpts -re -i ending.mp4 -c:v libx264 -preset veryfast -c:a aac -filter_complex "[0:v]scale=1080:600,setsar=1[video];color=black:1080x1920[scaled];[scaled][video]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2" -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp_key}'
-        return f'start {config.ffmpeg} -re -i ending.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp_key}'
+    def public_stream(live_id):  # Function to make a YouTube stream public
+        logging.info(f"function public_stream is called with input arguments: live_id = {live_id}")  # Logging function call
+        hitryagain = 0  # Initialize retry counter
+        while True:  # Infinite loop for retry mechanism
+            try:
+                service = get_service()  # Get the YouTube service client
+                request = service.videos().update(  # Create a request to update video status
+                    part='status',
+                    body={
+                        'id': live_id,  # Video ID to update
+                        'status': {
+                            'privacyStatus': 'public'  # Set privacy status to public
+                        }
+                    }
+                )
+                response = request.execute()  # Execute the request
+                return response['id']  # Return the video ID from the response
+                break  # Break the loop if successful
+            except Exception as e:  # Handle exceptions
+                if hitryagain == 3:  # Check if maximum retries reached
+                    logging.info(f"Error and stopping because of error that can't fix")  # Log error message
+                    if 'quotaExceeded' in str(e):  # Check for quota exceeded error
+                        logging.info(f"Error and stopping because of API limit")  # Log API limit message
+                        exit()  # Exit the program
+                hitryagain += 1  # Increment retry counter
+                logging.info(f"Error: {e}")  # Log the error
+                time.sleep(5)  # Wait before retrying
 
-    while True: # 持續監控循環
+    def find_gmail_title(state):  # Asynchronous function to find Gmail title
+        logging.info(f"function find_gmail_title is called with input arguments: state = {state}")  # Logging function call
+        while True:  # Infinite loop
+            try:
+                title = f"：{state['titleforgmail']}"  # Format title
+                service = get_gmail_service()  # Get Gmail service
+                now = datetime.now()  # Get current time
+                minutes_ago = now - timedelta(minutes=2)  # Calculate time 2 minutes ago
+                results = service.users().messages().list(userId='me', maxResults=2).execute()  # List messages
+                messages = results.get('messages', [])  # Get messages
+                if messages:  # Check if messages exist
+                    for message in messages:  # Iterate over messages
+                        msg = service.users().messages().get(userId='me', id=message['id']).execute()  # Get message details
+                        received_time = datetime.fromtimestamp(int(msg['internalDate']) / 1000)  # Get received time
+                        subject = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'subject'), '')  # Get subject
+                        if received_time >= minutes_ago and title in subject:  # Check if message is recent and title matches
+                            logging.info(f"Found email third party message: {subject}")  # Log found message
+                            return True  # Return True if message is found
+                return False  # Return False if no message is found
+            except Exception as e:  # Handle exceptions
+                logging.error(f"Error in find_gmail_title: {e}")  # Log error
+                time.sleep(5)  # Sleep for 5 seconds
+
+    def is_youtube_livestream_live(video_id):  # Function to check if YouTube livestream is live
+        logging.info(f"function is_youtube_livestream_live is called with input arguments: video_id = {video_id}")  # Logging function call
         try:
-            twitch = await get_twitch_client() # 獲取Twitch客戶端
-            streams = await get_twitch_streams(twitch, config.username) # 獲取指定用戶的直播流
-            
-            if not streams: # 如果直播流不存在
-                await handle_stream_offline() # 處理直播離線情況
-                
-            # 更新計數器
-            state['countdownhours'] += 1
-            state['gmailcount'] += 1
-            state['countyt'] += 1
-            
-            # 檢查Gmail通知
-            if state['gmailcount'] == 12: # 每60秒檢查一次Gmail通知
-                if await find_gmail_title(titleforgmail) == "True":
-                    await handle_gmail_notification()
-                else:
-                    state['gmailcount'] = 0
-                    
-            # 檢查YouTube直播狀態
-            if state['countyt'] == 6: # 每30秒檢查一次YouTube直播狀態
-                await handle_youtube_status(state)
-                
-            # 檢查是否需要定期切換直播
-            if state['countdownhours'] == 7871: # 約12小時後切換直播
-                await handle_scheduled_switch(state, titleforgmail)
-                
-            await asyncio.sleep(5) # 等待5秒後進行下一次檢查
-            
-        except Exception as e: # 捕獲異常
-            logging.error(f"Error in offline check: {str(e)}", exc_info=True) # 記錄錯誤信息
-            await asyncio.sleep(15) # 發生錯誤時等待15秒後重試
-
-
-async def handle_youtube_status(state):
-    if is_youtube_livestream_live(state['live_url']) == "True":
-        state['countyt'] = 0
-        return True
-        
-    if is_youtube_livestream_live(state['live_url']) == "False":
-        twitch = await get_twitch_client()
-        streams = await get_twitch_streams(twitch, config.username)
-        if not streams:
-            await handle_stream_offline()  # Pass the state parameter
-        if not await handle_youtube_status(state):
-            await switch_stream_config(state)
-            
-    if is_youtube_livestream_live(state['live_url']) == "ERROR":
-        logging.info("YouTube API verification failed - check credentials and connectivity...")
-        state['countyt'] = 0
-        return True
-
-
-async def switch_stream_config(state, titleforgmail=None): # 切換直播配置的輔助函數
-    subprocess.run(["taskkill", "/f", "/im", config.apiexe])
-    if titleforgmail:
-        titleforgmail = await api_create_edit_schedule(state['numberpart'], state['rtmp_server'], "False", state['spare_link'])
-    
-    state['rtmp_server'] = "defrtmp" if state['rtmp_server'] == "bkrtmp" else "bkrtmp"
-    live_spare_url = await api_create_edit_schedule("0", state['rtmp_server'], "True", "Null")
-    
-    subprocess.Popen(["start", config.apiexe], shell=True)
-    if config.unliststream == "True":
-        public_stream(state['live_url'])
-        
-    state['numberpart'] += 1
-    state['live_url'], state['spare_link'] = state['spare_link'], live_spare_url
-    state['countdownhours'] = 0
-    state['countyt'] = 0
-
-
-async def handle_scheduled_switch(state, titleforgmail): # 處理定期切換的輔助函數
-    logging.info("Stream duration limit near 12h reached - initiating scheduled reload...")
-    await switch_stream_config(state, titleforgmail)
-    logging.info(state['rtmp_server'])
-
-
-async def check_and_handle_stream_status(state): # 檢查並處理直播狀態的輔助函數
-    logging.info("Checking for stream")
-    if is_youtube_livestream_live(state['live_url']) == "True":
-        return True
-    return False
-
-
-def public_stream(live_url): # 設置YouTube直播為公開
-    logging.info("Setting stream visibility to public...") # 記錄設置公開狀態
-    youtube = build('youtube', 'v3', credentials=get_credentials()) # 建立YouTube API客戶端
+          streams = streamlink.streams(f"https://youtube.com/watch?v={video_id}")  # Get streams from YouTube
+          hls_stream = streams["best"]  # Get best quality stream
+          return True  # Return True if stream is available
+        except KeyError as e:  # Handle KeyError
+            return False  # Return False if stream is not available
+        except Exception as e:  # Handle exceptions
+          logging.error(f"Error checking YouTube livestream status: {e}")  # Log error
+          return "ERROR"  # Return ERROR if exception occurs
+          
+    while True:  # Infinite loop
+        try:
+            twitch = get_twitch_client()  # Getting Twitch client
+            streams = get_twitch_streams(twitch, config.username)  # Getting Twitch streams
+            if not streams:  # Checking if streams are empty
+                handle_stream_offline(state)  # Handling stream offline
+            state['countdownhours'] += 1  # Incrementing countdown hours
+            state['gmailcount'] += 1  # Incrementing Gmail count
+            state['countyt'] += 1  # Incrementing YouTube count
+            if state['gmailcount'] == 12:  # Checking if Gmail count is 12
+                if find_gmail_title(state):  # Finding Gmail title
+                    logging.info("Third-party notification detected - switching to backup stream...")  # Logging notification
+                    switch_stream_config(state)  # Switching stream configuration
+                state['gmailcount'] = 0  # Resetting Gmail count
+            if state['countyt'] == 6:  # Checking if YouTube count is 6
+                handle_youtube_status(state)  # Handling YouTube status
+            if state['countdownhours'] == 7871:  # Checking if countdown hours is 7871
+                logging.info("Stream duration limit near 12h reached - initiating scheduled reload...")  # Logging scheduled reload
+                switch_stream_config(state)  # Switching stream configuration
+            time.sleep(5)  # Sleeping for 5 seconds
+        except Exception as e:  # Catching exceptions
+            logging.error(f"Error in offline check: {str(e)}", exc_info=True)  # Logging error
+            time.sleep(15)  # Sleeping for 15 seconds
 ###########################################offline_check###########################################
 
+def get_twitch_client():
+    logging.info(f"function get_twitch_client is called")  # Logging function call
+    try:
+        token_response = requests.post(token_url)
+        token_response.raise_for_status()  # Ensure the request was successful
+        token_data = token_response.json()
+        access_token = token_data.get('access_token')
+        if not access_token:
+            raise ValueError("Access token not found in response")
+        return access_token
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error obtaining Twitch access token: {e}")
+        return None
+    except ValueError as ve:
+        logging.error(f"Error in response data: {ve}")
+        return None
 
-async def get_twitch_client(): # 獲取Twitch API客戶端
-    twitch = Twitch(config.client_id, config.client_secret) # 使用配置的客戶端ID和密鑰創建Twitch實例
-    await twitch.authenticate_app([]) # 進行應用程序認證
-        
-    return twitch # 返回認證後的客戶端實例
+def get_twitch_streams(access_token, username):
+    logging.info(f"function get_twitch_streams is called with input arguments: access_token = {access_token}, username = {username}")  # Logging function call
+    headers = {'Authorization': f'Bearer {access_token}', 'Client-ID': config.client_id}
+    streams_response = requests.get(f'https://api.twitch.tv/helix/streams?user_login={username}', headers=headers)
+    streams_data = streams_response.json()
+    if 'data' not in streams_data:
+        logging.error("'data' key not found in Twitch API response")
+        logging.error(f"Invalid Twitch API response: {streams_data}")
+        return None
+    return streams_data['data']
 
-
-async def get_twitch_streams(twitch, username): # 獲取指定用戶的Twitch直播流
-    streams = [stream async for stream in twitch.get_streams(user_login=[username])] # 獲取直播流
-    
-    return streams # 返回直播流列表
-
-
-async def get_twitch_stream_title(): # 獲取Twitch直播標題
-    MAX_RETRIES = 3 # 設置最大重試次數
-    RETRY_DELAY = 5 # 設置重試延遲時間（秒）
-    for attempt in range(MAX_RETRIES): # 嘗試獲取直播標題
+def get_twitch_stream_title():
+    logging.info(f"function get_twitch_stream_title is called")  # Logging function call
+    MAX_RETRIES = 3
+    RETRY_DELAY = 5
+    for attempt in range(MAX_RETRIES):
         try:
-            twitch = await get_twitch_client() # 獲取Twitch客戶端
-            streams = await get_twitch_streams(twitch, config.username) # 獲取直播流
-            if not streams: # 如果沒有直播流
-                logging.info(f"No streams found (attempt {attempt + 1}/{MAX_RETRIES})") # 記錄未找到直播
-                await asyncio.sleep(RETRY_DELAY) # 等待指定時間
-                continue 
-            return streams[0].title # 返回直播標題
-        except Exception as e: # 捕獲異常
-            logging.error(f"Error getting Twitch stream info (attempt {attempt + 1}/{MAX_RETRIES}): {e}") # 記錄錯誤信息
-            if attempt < MAX_RETRIES - 1: # 如果還有重試機會
-                await asyncio.sleep(RETRY_DELAY) # 等待後重試
+            twitch = get_twitch_client()
+            streams = get_twitch_streams(twitch, config.username)
+            if not streams:
+                logging.info(f"No streams found (attempt {attempt + 1}/{MAX_RETRIES})")
+                time.sleep(RETRY_DELAY)
+                continue
+            if streams:  # Check if streams is not empty
+             return streams[0]['title']
+        except Exception as e:
+            logging.error(f"Error getting Twitch stream info (attempt {attempt + 1}/{MAX_RETRIES}): {e}")
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(RETRY_DELAY)
             else:
-                logging.error("Max retries reached, returning fallback title") # 記錄達到最大重試次數
-                return f"Stream_{datetime.now().strftime('%Y-%m-%d')}" # 返回默認標題
+                logging.error("Max retries reached, returning fallback title")
+                return f"Stream_{datetime.now().strftime('%Y-%m-%d')}"
 
+class TwitchResponseStatus(enum.Enum):  # Enum class for Twitch response status
+    ONLINE = 0  # Online status
+    OFFLINE = 1  # Offline status
+    NOT_FOUND = 2  # Not found status
+    UNAUTHORIZED = 3  # Unauthorized status
+    ERROR = 4  # Error status
 
-async def initialize_and_monitor_stream(yt_link=None, rtmp_info=None): # 綜合函數：處理參數、等待直播開始並監控
+def check_process_running():  # Function to check if process is running
+    logging.info(f"function check_process_running is called")  # Logging function call
+    process_name = "countdriver.exe"  # Name of the process to check
+    logging.info("Checking for existing browser automation processes...")  # Logging checking processes
+    for process in psutil.process_iter(['pid', 'name']):  # Iterating over processes
+        if process.info['name'] == process_name:  # Checking if process name matches
+            logging.info("Browser automation process already running - waiting for completion...")  # Logging process running
+            time.sleep(15)  # Waiting before checking again
+            check_process_running()  # Recursively checking process
+    logging.info("No conflicting processes found - proceeding...")  # Logging no conflicting processes
+    return  # Returning from function
+
+def get_service():  # Function to get YouTube service
+    logging.info(f"function get_service is called")  # Logging function call
+    creds = None  # Initialize credentials to None
+    from google_auth_oauthlib.flow import InstalledAppFlow  # Import InstalledAppFlow for OAuth2
     try:
-        # 處理命令行參數
-        args, arguments = parse_arguments()  # 從parse_arguments函數獲取命令行參數
-        
-        if yt_link is None and rtmp_info is None:  # 如果沒有直接傳入參數，則從命令行獲取
-            if len(arguments) < 2:  # 檢查是否有足夠的參數（排除調試標誌）
-                logging.info("==================================================")  # 記錄分隔線
-                logging.info("NO ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")  # 記錄無參數信息
-                logging.info(f"ARCHIVE USER: {config.username}")  # 記錄歸檔用戶名
-                logging.info("==================================================")  # 記錄分隔線
-                
-                yt_link = "Null"  # 設置默認YouTube鏈接
-                rtmp_info = "Null"  # 設置默認RTMP服務器類型
+        if os.path.exists(USER_TOKEN_FILE):  # Check if user token file exists
+          if config.brandacc == "False":  # Check if brand account is False
+            creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES)  # Load credentials from user token file
+          if config.brandacc == "True":  # Check if brand account is True
+            creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES_BRAND)  # Load credentials for brand account
+        if not creds or not creds.valid:  # Check if credentials are invalid
+            if creds and creds.expired and creds.refresh_token:  # Check if credentials are expired and refreshable
+                creds.refresh(Request())  # Refresh credentials
             else:
-                yt_link = arguments[1]  # 獲取第一個參數
-                rtmp_info = arguments[2] if len(arguments) > 2 else None  # 獲取第二個參數，如果不存在則為None
-                
-                if yt_link == "KILL":  # 如果是終止命令
-                    logging.info("close all exe")  # 記錄關閉所有進程
-                    subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # 關閉API進程
-                    subprocess.run(["taskkill", "/f", "/im", config.ffmpeg])  # 關閉主要ffmpeg進程
-                    subprocess.run(["taskkill", "/f", "/im", config.ffmpeg1])  # 關閉備用ffmpeg進程
-                    subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # 關閉瀏覽器驅動進程
-                    exit()  # 退出程序
-                    
-                if len(arguments) < 3:  # 檢查是否有第二個參數
-                    logging.error("Missing required RTMP argument")  # 記錄缺少參數錯誤
-                    exit(1)  # 以錯誤狀態退出
-                    
-                # 驗證參數
-                if len(yt_link) != 11:  # 檢查yt_link是否為11個字符
-                    logging.error(f"Invalid argument for ARG1: {yt_link}. Must be 11 characters long YouTube Video ID")  # 記錄無效的yt_link參數錯誤
-                    exit(1)  # 以錯誤狀態退出
-                    
-                if rtmp_info not in ["defrtmp", "bkrtmp"]:  # 檢查RTMP參數是否有效
-                    logging.error(f"Invalid argument for ARG2: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'")  # 記錄無效參數錯誤
-                    exit(1)  # 以錯誤狀態退出
-                    
-                logging.info("==================================================")  # 記錄分隔線
-                logging.info("INPUT ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")  # 記錄參數信息
-                logging.info(f"ARG1: {yt_link} ARG2: {rtmp_info}")  # 記錄具體參數值
-                logging.info(f"ARCHIVE USER: {config.username}")  # 記錄歸檔用戶名
-                logging.info("==================================================")  # 記錄分隔線
-        
-        # 驗證RTMP服務器類型
-        if rtmp_info not in ["defrtmp", "bkrtmp", "Null"]:
-            logging.error(f"Invalid RTMP server type: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'")  # 記錄無效參數錯誤
-            exit(1)  # 以錯誤狀態退出
-            
-        # 初始化直播URL和RTMP服務器類型
-        live_url = None
-        rtmp_server = None
-        
-        if yt_link == "Null":  # 如果沒有提供YouTube鏈接
-            logging.info("Starting live API check to get initial stream URL")  # 記錄開始獲取初始URL
-            rtmp_server = "defrtmp"  # 設置默認RTMP服務器
-            try:
-                live_url = await api_create_edit_schedule("0", rtmp_server, "True", "Null")  # 創建新的直播計劃
-                logging.info(f"Successfully created new stream with URL: {live_url}")  # 記錄成功創建直播
-            except Exception as api_error:
-                logging.error(f"Failed to create stream via API: {str(api_error)}")  # 記錄API錯誤
-                raise  # 重新拋出異常
-        else:  # 如果提供了YouTube鏈接
-            live_url = yt_link  # 使用提供的鏈接
-            rtmp_server = rtmp_info  # 使用提供的RTMP服務器信息
-            logging.info(f"Using provided YouTube link: {live_url} with RTMP server: {rtmp_server}")  # 記錄使用提供的鏈接
-        
-        # 等待Twitch直播開始
-        logging.info("Waiting for stream to go live...")  # 記錄等待直播開始
-        while True:  # 持續檢查直播狀態，無限循環直到找到直播
-            try:
-                twitch = await get_twitch_client()  # 獲取Twitch客戶端
-                streams = await get_twitch_streams(twitch, config.username)  # 獲取直播流
-                if streams:  # 如果找到直播流
-                    stream = streams[0]  # 獲取第一個直播流
-                    logging.info(f"Stream is now live! Title From Twitch: {stream.title}")  # 記錄直播開始
-                    break  # 結束等待並繼續
-                else:  # 如果沒有直播流
-                    await asyncio.sleep(5)  # 等待5秒後重試
-            except Exception as e:  # 捕獲異常
-                logging.error(f"Error checking stream status: {str(e)}")  # 記錄錯誤信息
-                await asyncio.sleep(30)  # 發生錯誤時等待30秒後重試
-        
-        logging.info("Twitch stream detected - initializing monitoring process")  # 記錄加載開始
-        
-        # 開始監控直播
-        await start_check(live_url, rtmp_server)  # 開始檢查直播狀態
-    except Exception as e:  # 捕獲異常
-        logging.error(f"Error in initialize_and_monitor_stream: {str(e)}", exc_info=True)  # 記錄錯誤信息
-        logging.error("Critical error encountered - terminating script execution")  # 記錄嚴重錯誤
-        exit(1)  # 確保腳本以錯誤狀態退出
+              if config.brandacc == "False":  # Check if brand account is False
+                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
+                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+              if config.brandacc == "True":  # Check if brand account is True
+                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow for brand account
+                creds = flow.run_local_server(port=6971, brandacc="havebrand")  # Run local server for authentication
+              with open(USER_TOKEN_FILE, 'w') as token:  # Open user token file for writing
+                token.write(creds.to_json())  # Write credentials to file
+        return build('youtube', 'v3', credentials=creds)  # Return YouTube service
+    except Exception as e:  # Handle exceptions
+        if "invalid_grant" in str(e):  # Check if exception is invalid grant
+              if config.brandacc == "False":  # Check if brand account is False
+                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
+                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+              if config.brandacc == "True":  # Check if brand account is True
+                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow for brand account
+                creds = flow.run_local_server(port=6971, brandacc="havebrand")  # Run local server for authentication
+              with open(USER_TOKEN_FILE, 'w') as token:  # Open user token file for writing
+                token.write(creds.to_json())  # Write credentials to file
+              return build('youtube', 'v3', credentials=creds)  # Return YouTube service
+        else:
+          logging.error(f"Error in get_service: {e}")  # Log error
+          exit(1)  # Exit with error
 
-class TwitchResponseStatus(enum.Enum): # Twitch響應狀態枚舉類
-    ONLINE = 0 # 在線狀態
-    OFFLINE = 1 # 離線狀態
-    NOT_FOUND = 2 # 未找到狀態
-    UNAUTHORIZED = 3 # 未授權狀態
-    ERROR = 4 # 錯誤狀態
-
-
-def check_process_running(): # 檢查進程是否運行函數
-    process_name = "countdriver.exe" # 要檢查的進程名稱
-    logging.info("Checking for existing browser automation processes...") # 記錄開始檢查瀏覽器自動化進程
-    for process in psutil.process_iter(['pid', 'name']): # 遍歷所有進程
-        if process.info['name'] == process_name: # 如果找到目標進程
-            logging.info("Browser automation process already running - waiting for completion...") # 記錄進程已在運行
-            time.sleep(15) # 等待15秒
-            check_process_running() # 遞歸檢查
-    logging.info("No conflicting processes found - proceeding...") # 記錄未找到衝突進程
-    return # 返回繼續執行
-
-def get_service(): # 獲取Google API服務函數
-    creds = None # 初始化憑證變量
-    from google_auth_oauthlib.flow import InstalledAppFlow # 導入OAuth2流程模塊
+def get_gmail_service():  # Function to get Gmail service
+    logging.info(f"function get_gmail_service is called")  # Logging function call
+    creds = None  # Initialize credentials to None
+    from google_auth_oauthlib.flow import InstalledAppFlow  # Import InstalledAppFlow for OAuth2
     try:
-        if os.path.exists(USER_TOKEN_FILE): # 如果用戶令牌文件存在
-          # 從保存的文件加載用戶憑證
-          if config.brandacc == "False":    
-            creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES) # 加載一般用戶憑證
-          if config.brandacc == "True":
-            creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES_BRAND) # 加載品牌賬戶憑證
-            
-        if not creds or not creds.valid: # 如果憑證不存在或無效
-            if creds and creds.expired and creds.refresh_token: # 如果憑證過期且可以刷新
-                creds.refresh(Request()) # 刷新憑證
-            else: # 如果需要重新授權
-              if config.brandacc == "False": # 如果是一般用戶
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob') # 創建OAuth2流程
-                creds = flow.run_local_server(port=6971, brandacc="Nope") # 運行本地服務器獲取憑證
-              if config.brandacc == "True": # 如果是品牌賬戶
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob') # 創建OAuth2流程
-                creds = flow.run_local_server(port=6971, brandacc="havebrand") # 運行本地服務器獲取憑證
-              with open(USER_TOKEN_FILE, 'w') as token: # 保存憑證到文件
-                token.write(creds.to_json()) # 寫入憑證JSON數據
-                
-        return build('youtube', 'v3', credentials=creds) # 返回YouTube API服務實例
-    except Exception as e: # 捕獲異常
-        if "invalid_grant" in str(e): # 如果是無效授權錯誤
-              if config.brandacc == "False": # 如果是一般用戶
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob') # 創建OAuth2流程
-                creds = flow.run_local_server(port=6971, brandacc="Nope") # 運行本地服務器獲取憑證
-              if config.brandacc == "True": # 如果是品牌賬戶
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob') # 創建OAuth2流程
-                creds = flow.run_local_server(port=6971, brandacc="havebrand") # 運行本地服務器獲取憑證
-              with open(USER_TOKEN_FILE, 'w') as token: # 保存憑證到文件
-                token.write(creds.to_json()) # 寫入憑證JSON數據
-              return build('youtube', 'v3', credentials=creds) # 返回YouTube API服務實例
-        else: # 如果是其他錯誤
-          logging.error(f"Error in get_service: {e}") # 記錄錯誤信息
-          exit(1) # 退出程序
+        if config.brandacc == "True":  # Check if brand account is True
+          if os.path.exists(GMAIL_TOKEN_FILE):  # Check if Gmail token file exists
+            creds = Credentials.from_authorized_user_file(GMAIL_TOKEN_FILE, SCOPES_GMAIL)  # Load credentials from Gmail token file
+        if config.brandacc == "False":  # Check if brand account is False
+          if os.path.exists(USER_TOKEN_FILE):  # Check if user token file exists
+            creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES)  # Load credentials from user token file
+        if not creds or not creds.valid:  # Check if credentials are invalid
+            if creds and creds.expired and creds.refresh_token:  # Check if credentials are expired and refreshable
+                creds.refresh(Request())  # Refresh credentials
+            else:
+              if config.brandacc == "True":  # Check if brand account is True
+                logging.info("Gmail token not found. Starting authentication flow...")  # Log info
+                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
+                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                with open(GMAIL_TOKEN_FILE, 'w') as token:  # Open Gmail token file for writing
+                   token.write(creds.to_json())  # Write credentials to file
+              if config.brandacc == "False":  # Check if brand account is False
+                logging.info("Gmail token not found. Start...")  # Log info
+                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
+                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                with open(USER_TOKEN_FILE, 'w') as token:  # Open user token file for writing
+                   token.write(creds.to_json())  # Write credentials to file
+        return build('gmail', 'v1', credentials=creds)  # Return Gmail service
+    except Exception as e:  # Handle exceptions
+        if "invalid_grant" in str(e):  # Check if exception is invalid grant
+              if config.brandacc == "True":  # Check if brand account is True
+                logging.info("Gmail token not found. Starting authentication flow...")  # Log info
+                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
+                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                with open(GMAIL_TOKEN_FILE, 'w') as token:  # Open Gmail token file for writing
+                   token.write(creds.to_json())  # Write credentials to file
+              if config.brandacc == "False":  # Check if brand account is False
+                logging.info("Gmail token not found. Starting authentication flow...")  # Log info
+                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
+                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                with open(USER_TOKEN_FILE, 'w') as token:  # Open user token file for writing
+                   token.write(creds.to_json())  # Write credentials to file
+              return build('gmail', 'v1', credentials=creds)  # Return Gmail service
+        else:
+          logging.error(f"Error in get_gmail_service: {e}")  # Log error
+          exit(1)  # Exit with error
 
-def get_gmail_service(): # 獲取Gmail API服務函數
-    creds = None # 初始化憑證變量
-    from google_auth_oauthlib.flow import InstalledAppFlow # 導入OAuth2流程模塊
+def edit_live_stream(video_id, new_title, new_description):  # Function to edit live stream
+  logging.info(f"function edit_live_stream is called with video_id: {video_id}, new_title: {new_title}, new_description: {new_description}")  # Logging function call
+  hitryagain = 0  # Initialize retry counter
+  while True:  # Infinite loop
     try:
-        if config.brandacc == "True": # 如果是品牌賬戶
-          if os.path.exists(GMAIL_TOKEN_FILE): # 如果Gmail令牌文件存在
-            creds = Credentials.from_authorized_user_file(GMAIL_TOKEN_FILE, SCOPES_GMAIL) # 加載Gmail憑證
-        if config.brandacc == "False": # 如果是一般用戶
-          if os.path.exists(USER_TOKEN_FILE): # 如果用戶令牌文件存在
-            creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES) # 加載用戶憑證
-            
-        if not creds or not creds.valid: # 如果憑證不存在或無效
-            if creds and creds.expired and creds.refresh_token: # 如果憑證過期且可以刷新
-                creds.refresh(Request()) # 刷新憑證
-            else: # 如果需要重新授權
-              if config.brandacc == "True": # 如果是品牌賬戶
-                logging.info("Gmail token not found. Starting authentication flow...") # 記錄開始認證流程
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob') # 創建OAuth2流程
-                creds = flow.run_local_server(port=6971, brandacc="Nope") # 運行本地服務器獲取憑證
-                with open(GMAIL_TOKEN_FILE, 'w') as token: # 保存Gmail憑證到文件
-                   token.write(creds.to_json()) # 寫入憑證JSON數據
-              if config.brandacc == "False": # 如果是一般用戶
-                logging.info("Gmail token not found. Start...") # 記錄開始認證流程
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob') # 創建OAuth2流程
-                creds = flow.run_local_server(port=6971, brandacc="Nope") # 運行本地服務器獲取憑證
-                with open(USER_TOKEN_FILE, 'w') as token: # 保存用戶憑證到文件
-                   token.write(creds.to_json()) # 寫入憑證JSON數據
-                
-        return build('gmail', 'v1', credentials=creds) # 返回Gmail API服務實例
-        
-    except Exception as e: # 捕獲異常
-        if "invalid_grant" in str(e): # 如果是無效授權錯誤
-              if config.brandacc == "True": # 如果是品牌賬戶
-                logging.info("Gmail token not found. Starting authentication flow...") # 記錄開始Gmail認證流程
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob') # 創建Gmail認證流程
-                creds = flow.run_local_server(port=6971, brandacc="Nope") # 運行本地服務器獲取憑證
-                with open(GMAIL_TOKEN_FILE, 'w') as token: # 打開Gmail令牌文件
-                   token.write(creds.to_json()) # 保存憑證到文件
-              if config.brandacc == "False": # 如果是一般用戶
-                logging.info("Gmail token not found. Starting authentication flow...") # 記錄開始Gmail認證流程
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob') # 創建一般用戶認證流程
-                creds = flow.run_local_server(port=6971, brandacc="Nope") # 運行本地服務器獲取憑證
-                with open(USER_TOKEN_FILE, 'w') as token: # 打開用戶令牌文件
-                   token.write(creds.to_json()) # 保存憑證到文件      
-              return build('gmail', 'v1', credentials=creds) # 返回Gmail API服務實例
-        else: # 如果是其他錯誤
-          logging.error(f"Error in get_gmail_service: {e}") # 記錄Gmail服務錯誤
-          exit(1) # 退出程序
-
-def is_youtube_livestream_live(video_id): # 檢查YouTube直播狀態的函數
-    try: # 嘗試獲取直播流
-      streams = streamlink.streams(f"https://youtube.com/watch?v={video_id}") # 獲取指定視頻ID的直播流
-      hls_stream = streams["best"] # 獲取最佳質量的流
-      return "True" # 返回直播在線狀態
-    except KeyError as e: # 如果找不到直播流
-        return "False" # 返回直播離線狀態
-    except Exception as e: # 捕獲其他異常
-      logging.error(f"Error checking YouTube livestream status: {e}") # 記錄錯誤信息
-      return "ERROR" # 返回錯誤狀態
-
-async def find_gmail_title(title): # 在Gmail中查找特定標題的異步函數
-    while True: # 持續檢查循環
-        try: # 嘗試查找標題
-            title1 = f"：{title}" # 構建完整標題字符串
-            service = get_gmail_service() # 獲取Gmail服務實例
-            # 獲取當前時間和前2分鐘的時間
-            now = datetime.now() # 獲取當前時間
-            minutes_ago = now - timedelta(minutes=2) # 計算2分鐘前的時間
-            # 獲取最新的2條消息
-            results = service.users().messages().list(userId='me', maxResults=2).execute() # 獲取郵件列表
-            messages = results.get('messages', []) # 提取郵件信息
-            # 處理最新的消息
-            if messages: # 如果有郵件
-                for message in messages: # 遍歷每條郵件
-                    msg = service.users().messages().get(userId='me', id=message['id']).execute() # 獲取完整郵件內容
-                    # 將internalDate轉換為datetime對象
-                    received_time = datetime.fromtimestamp(int(msg['internalDate']) / 1000) # 轉換郵件接收時間
-                    # 獲取郵件主題行
-                    subject = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'subject'), '') # 提取郵件主題
-                    # 檢查郵件是否在最近2分鐘內收到，且標題包含指定文字
-                    if received_time >= minutes_ago and title1 in subject: # 檢查時間和標題匹配
-                        logging.info(f"Found message: {subject}") # 記錄找到匹配的郵件
-                        return "True" # 返回找到標題
-            return "False" # 返回未找到標題
-        except Exception as e: # 捕獲異常
-            logging.error(f"Error in find_gmail_title: {e}") # 記錄錯誤信息
-            await asyncio.sleep(5)  # 等待5秒後重試
-
-def edit_live_stream(video_id, new_title, new_description): # 編輯直播流信息的函數
-  hitryagain = 0 # 重試計數器
-  while True: # 持續嘗試循環
-    try: # 嘗試更新直播信息
-       service = get_service() # 獲取YouTube服務實例
-       category_id = '24' # 設置視頻分類ID
+       service = get_service()  # Get YouTube service
+       category_id = '24'  # Set category ID
            
-       request = service.videos().update( # 創建更新請求
-             part="snippet", # 更新視頻詳情部分
+       request = service.videos().update(  # Create update request
+             part="snippet",
              body={
-                 "id": video_id, # 設置視頻ID
+                 "id": video_id,
                  "snippet": {
-                     "title": new_title,  # 設置新標題
-                     "description": new_description,  # 設置新描述
-                     "categoryId": category_id # 設置分類ID
+                     "title": new_title,
+                     "description": new_description,
+                     "categoryId": category_id
             }
         }
     )
-       response = request.execute() # 執行更新請求
-       return response['id'] # 返回視頻ID
-       break # 跳出循環
-    except Exception as e: # 捕獲異常
-     if hitryagain == 3: # 如果重試次數達到3次
-      logging.info(f"Error and stoping because of error that can't fix") # 記錄無法修復的錯誤
-      if 'quotaExceeded' in str(e): # 如果是配額超限錯誤
-        logging.info(f"Error and stoping because of api limited") # 記錄API限制錯誤
-        exit() # 退出程序
-     hitryagain += 1 # 增加重試計數
-     logging.info(f"Error: {e}") # 記錄錯誤信息
-     time.sleep(5) # 等待5秒後重試
+       response = request.execute()  # Execute request
+       return response['id']  # Return video ID
+       break  # Break loop
+    except Exception as e:  # Handle exceptions
+     if hitryagain == 3:  # Check if retry limit is reached
+      logging.info(f"Error and stoping because of error that can't fix")  # Log error
+      if 'quotaExceeded' in str(e):  # Check if quota is exceeded
+        logging.info(f"Error and stoping because of api limited")  # Log quota exceeded
+        exit()  # Exit with error
+     hitryagain += 1  # Increment retry counter
+     logging.info(f"Error: {e}")  # Log error
+     time.sleep(5)  # Sleep for 5 seconds
 
-def public_stream(live_id): # 將YouTube直播設為公開的函數
-  hitryagain = 0 # 重試計數器初始化為0
-  while True: # 持續嘗試循環
-    try: # 嘗試執行以下操作
-       service = get_service() # 獲取YouTube API服務實例
-       request = service.videos().update( # 創建更新視頻狀態的請求
-           part='status', # 指定要更新的部分為狀態
-           body={ # 請求主體
-               'id': live_id, # 設置視頻ID
-               'status': { # 狀態設置
-                   'privacyStatus': 'public' # 將隱私狀態設為公開
+def public_stream(live_id):  # Function to make stream public
+  logging.info(f"function public_stream is called with live_id: {live_id}")  # Logging function call
+  hitryagain = 0  # Initialize retry counter
+  while True:  # Infinite loop
+    try:
+       service = get_service()  # Get YouTube service
+       request = service.videos().update(  # Create update request
+           part='status',
+           body={
+               'id': live_id,
+               'status': {
+                   'privacyStatus': 'public'
                }
            }
        )
-       response = request.execute() # 執行API請求
-       return response['id'] # 返回視頻ID
-       break # 跳出循環
-    except Exception as e: # 捕獲可能發生的異常
-     if hitryagain == 3: # 如果重試次數達到3次
-      logging.info(f"Error and stoping because of error that can't fix") # 記錄無法修復的錯誤
-      if 'quotaExceeded' in str(e): # 如果是API配額超限錯誤
-        logging.info(f"Error and stoping because of api limited") # 記錄API限制錯誤
-        exit() # 退出程序
-     hitryagain += 1 # 增加重試計數
-     logging.info(f"Error: {e}") # 記錄錯誤信息
-     time.sleep(5) # 等待5秒後重試
+       response = request.execute()  # Execute request
+       return response['id']  # Return video ID
+       break  # Break loop
+    except Exception as e:  # Handle exceptions
+     if hitryagain == 3:  # Check if retry limit is reached
+      logging.info(f"Error and stoping because of error that can't fix")  # Log error
+      if 'quotaExceeded' in str(e):  # Check if quota is exceeded
+        logging.info(f"Error and stoping because of api limited")  # Log quota exceeded
+        exit()  # Exit with error
+     hitryagain += 1  # Increment retry counter
+     logging.info(f"Error: {e}")  # Log error
+     time.sleep(5)  # Sleep for 5 seconds
 
-def create_live_stream(title, description, kmself):
-    logging.info(f"{title}, {description}, {kmself}") # 創建直播流的函數
-    hitryagain = 0 # 重試計數器
-    while True: # 持續嘗試循環
-        try: # 嘗試創建直播
-            service = get_service() # 獲取YouTube服務實例
-            scheduled_start_time = datetime.now(timezone.utc).isoformat() # 獲取UTC時間作為計劃開始時間
+def create_live_stream(title, description, kmself):  # Function to create live stream
+    logging.info(f"function create_live_stream is called with title: {title}, description: {description}, kmself: {kmself}")  # Logging function call
+    hitryagain = 0  # Initialize retry counter
+    while True:  # Infinite loop
+        try:
+            service = get_service()  # Get YouTube service
+            scheduled_start_time = datetime.now(timezone.utc).isoformat()  # Get current time in ISO format
                 
-            request = service.liveBroadcasts().insert( # 創建直播廣播請求
-                part="snippet,status,contentDetails", # 設置請求部分
+            request = service.liveBroadcasts().insert(  # Create insert request
+                part="snippet,status,contentDetails",
                 body={
-                    "snippet": { # 視頻基本信息
-                        "title": title, # 設置標題
-                        "description": description, # 設置描述
-                        "scheduledStartTime": scheduled_start_time, # 設置開始時間
+                    "snippet": {
+                        "title": title,
+                        "description": description,
+                        "scheduledStartTime": scheduled_start_time,
                     },
-                    "status": { # 視頻狀態設置
-                        "privacyStatus": kmself, # 設置隱私狀態
-                        "selfDeclaredMadeForKids": False # 設置非兒童內容
+                    "status": {
+                        "privacyStatus": kmself,
+                        "selfDeclaredMadeForKids": False
                     },
-                    "contentDetails": { # 內容詳情設置
-                        "enableAutoStart": True, # 啟用自動開始
-                        "enableAutoStop": True, # 啟用自動停止
-                        "latencyPrecision": "ultraLow" # 設置超低延遲
+                    "contentDetails": {
+                        "enableAutoStart": True,
+                        "enableAutoStop": True,
+                        "latencyPrecision": "ultraLow"
                     }
                 }
             )
-            response = request.execute() # 執行創建請求
-            video_id = response['id'] # 獲取視頻ID
+            response = request.execute()  # Execute request
+            video_id = response['id']  # Get video ID
             
-            # 如果配置了播放列表則添加到播放列表
-            if config.playlist == "True" or config.playlist == "DOUBLE": # 檢查是否需要添加到播放列表
-                try: # 嘗試添加到第一個播放列表
-                    playlist_request = service.playlistItems().insert( # 創建添加到播放列表請求
-                        part="snippet", # 設置請求部分
+            if config.playlist == "True" or config.playlist == "DOUBLE":  # Check if playlist is enabled
+                try:
+                    playlist_request = service.playlistItems().insert(  # Create playlist insert request
+                        part="snippet",
                         body={
                             "snippet": {
-                                "playlistId": config.playlist_id0, # 設置播放列表ID
+                                "playlistId": config.playlist_id0,
                                 "resourceId": {
-                                    "kind": "youtube#video", # 設置資源類型
-                                    "videoId": video_id # 設置視頻ID
+                                    "kind": "youtube#video",
+                                    "videoId": video_id
                                 }
                             }
                         }
                     )
-                    playlist_request.execute() # 執行添加請求
-                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id0}") # 記錄成功添加到播放列表
-                except Exception as playlist_error: # 捕獲播放列表錯誤
-                    logging.error(f"Failed to add video to playlist: {playlist_error}") # 記錄添加失敗
-            if config.playlist == "DOUBLE": # 如果需要添加到第二個播放列表
-                try: # 嘗試添加到第二個播放列表
-                    playlist_request = service.playlistItems().insert( # 創建添加到播放列表請求
-                        part="snippet", # 設置請求部分
+                    playlist_request.execute()  # Execute playlist request
+                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id0}")  # Log success
+                except Exception as playlist_error:  # Handle exceptions
+                    logging.error(f"Failed to add video to playlist: {playlist_error}")  # Log error
+            if config.playlist == "DOUBLE":  # Check if double playlist is enabled
+                try:
+                    playlist_request = service.playlistItems().insert(  # Create playlist insert request
+                        part="snippet",
                         body={
                             "snippet": {
-                                "playlistId": config.playlist_id1, # 設置第二個播放列表ID
+                                "playlistId": config.playlist_id1,
                                 "resourceId": {
-                                    "kind": "youtube#video", # 設置資源類型
-                                    "videoId": video_id # 設置視頻ID
+                                    "kind": "youtube#video",
+                                    "videoId": video_id
                                 }
                             }
                         }
                     )
-                    playlist_request.execute() # 執行添加請求
-                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id1}") # 記錄成功添加到第二個播放列表
-                except Exception as playlist_error: # 捕獲播放列表錯誤
-                    logging.error(f"Failed to add video to playlist: {playlist_error}") # 記錄添加失敗
-            return video_id # 返回視頻ID
-        except Exception as e: # 捕獲異常
-          if hitryagain == 3: # 如果重試次數達到3次
-           logging.info(f"Error and stoping because of error that can't fix") # 記錄無法修復的錯誤
-           if 'quotaExceeded' in str(e): # 如果是配額超限錯誤
-            logging.info(f"Error and stoping because of api limited") # 記錄API限制錯誤
-            exit() # 退出程序
-          hitryagain += 1 # 增加重試計數
-          logging.info(f"Error: {e}") # 記錄錯誤信息
-          time.sleep(5) # 等待5秒後重試
+                    playlist_request.execute()  # Execute playlist request
+                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id1}")  # Log success
+                except Exception as playlist_error:  # Handle exceptions
+                    logging.error(f"Failed to add video to playlist: {playlist_error}")  # Log error
+            return video_id  # Return video ID
+        except Exception as e:  # Handle exceptions
+          if hitryagain == 3:  # Check if retry limit is reached
+           logging.info(f"Error and stoping because of error that can't fix")  # Log error
+           if 'quotaExceeded' in str(e):  # Check if quota is exceeded
+            logging.info(f"Error and stoping because of api limited")  # Log quota exceeded
+            exit()  # Exit with error
+          hitryagain += 1  # Increment retry counter
+          logging.info(f"Error: {e}")  # Log error
+          time.sleep(5)  # Sleep for 5 seconds
 
-def api_load(url, brandacc): # API加載函數
-      logging.basicConfig(filename="tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S') # 配置日誌記錄
-      logging.getLogger().addHandler(logging.StreamHandler()) # 添加控制台輸出處理器
-      logging.info("create api keying ---edit_tv---") # 記錄開始創建API密鑰
-      home_dir = os.path.expanduser("~") # 獲取用戶主目錄
-      logging.info("run with countdriver.exe and check") # 記錄運行驅動程序
-      check_process_running() # 檢查進程是否運行
-      subprocess.Popen(["start", "countdriver.exe"], shell=True) # 啟動驅動程序進程
-      options = Options()
-      chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data") # 設置Chrome用戶數據目錄
-      options.add_argument(f"user-data-dir={chrome_user_data_dir}") # 添加用戶數據目錄參數
-      options.add_argument(f"profile-directory={config.Chrome_Profile}") # 添加配置文件目錄參數
-      notafrickdriver = webdriver.Chrome(options=options) # 創建Chrome瀏覽器實例
-      notafrickdriver.get(url) # 訪問指定URL
-      time.sleep(3) # 等待頁面加載
-      if brandacc == "Nope": # 如果是一般賬戶
-          nameofaccount = f"//div[contains(text(),'{config.accountname}')]"
-      if brandacc == "havebrand": # 如果是品牌賬戶
-          nameofaccount = f"//div[contains(text(),'{config.brandaccname}')]"
-      button_element = notafrickdriver.find_element("xpath", nameofaccount) # 查找賬戶元素
-      button_element.click() # 點擊賬戶元素
-      time.sleep(3) # 等待操作完成
-      element = notafrickdriver.find_element("xpath", "(//button[@jsname='LgbsSe' and contains(@class, 'VfPpkd-LgbsSe-OWXEXe-INsAgc')])[2]") # 查找按鈕元素
-      element.click() # 點擊按鈕
-      subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"]) # 終止驅動程序進程
-      logging.info("finish idk ---edit_tv---") # 記錄完成信息
-      time.sleep(5) # 等待操作完成
-      notafrickdriver.quit() # 關閉瀏覽器實例
+def api_load(url, brandacc):  # Function to load API
+      logging.info(f"function api_load is called with url: {url}, brandacc: {brandacc}")  # Logging function call
+      logging.basicConfig(filename="tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # Configure logging
+      logging.getLogger().addHandler(logging.StreamHandler())  # Add stream handler to logger
+      logging.info("create api keying ---edit_tv---")  # Log info
+      home_dir = os.path.expanduser("~")  # Get home directory
+      logging.info("run with countdriver.exe and check")  # Log info
+      check_process_running()  # Check if process is running
+      subprocess.Popen(["start", "countdriver.exe"], shell=True)  # Start countdriver.exe
+      options = Options()  # Create Chrome options
+      chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")  # Get Chrome user data directory
+      options.add_argument(f"user-data-dir={chrome_user_data_dir}")  # Add user data directory to options
+      options.add_argument(f"profile-directory={config.Chrome_Profile}")  # Add profile directory to options
+      driver = webdriver.Chrome(options=options)  # Create Chrome driver
+      driver.get(url)  # Open URL in Chrome
+      time.sleep(3)  # Sleep for 3 seconds
+      if brandacc == "Nope":  # Check if brand account is Nope
+          nameofaccount = f"//div[contains(text(),'{config.accountname}')]"  # Get account name
+      if brandacc == "havebrand":  # Check if brand account is havebrand
+          nameofaccount = f"//div[contains(text(),'{config.brandaccname}')]"  # Get brand account name
+      button_element = driver.find_element("xpath", nameofaccount)  # Find account button
+      button_element.click()  # Click account button
+      time.sleep(3)  # Sleep for 3 seconds
+      element = driver.find_element("xpath", "(//button[@jsname='LgbsSe' and contains(@class, 'VfPpkd-LgbsSe-OWXEXe-INsAgc')])[2]")  # Find button element
+      element.click()  # Click button element
+      subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill countdriver.exe
+      logging.info("finish idk ---edit_tv---")  # Log info
+      time.sleep(5)  # Sleep for 5 seconds
+      driver.quit()  # Quit Chrome driver
 
-def edit_rtmp_key(driver, rtmp_key_select): # 編輯RTMP密鑰的函數
- countfuckingshit = 0 # 錯誤計數器
- while True: # 持續嘗試循環
-  try: # 嘗試編輯RTMP密鑰
-    driver.find_element(By.XPATH, "//tp-yt-iron-icon[@icon='yt-icons:arrow-drop-down']").click() # 點擊下拉菜單
-    time.sleep(3) # 等待菜單顯示
-    if rtmp_key_select == "bkrtmp": # 如果使用備用RTMP
-        xpath = "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname1 + " (')]]"
-        element2 = driver.find_element(By.XPATH, xpath) # 查找備用RTMP元素
-        element2.click() # 點擊選擇備用RTMP
-        time.sleep(7) # 等待操作完成
-    if rtmp_key_select == "defrtmp": # 如果使用默認RTMP
-        xpath = "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname + " (')]]"
-        element3 = driver.find_element(By.XPATH, xpath) # 查找默認RTMP元素
-        element3.click() # 點擊選擇默認RTMP
-        time.sleep(7) # 等待操作完成
-    if config.disablechat == "True": # 如果需要禁用聊天
-        driver.find_element(By.XPATH, "//ytcp-button[@id='edit-button']").click() # 點擊編輯按鈕
-        time.sleep(3) # 等待編輯界面
-        driver.find_element(By.XPATH, "//li[@id='customization']").click() # 點擊自定義選項
-        time.sleep(2) # 等待選項加載
-        driver.find_element(By.XPATH, "//*[@id='chat-enabled-checkbox']").click() # 點擊聊天開關
-        time.sleep(1) # 等待狀態更新
-        driver.find_element(By.XPATH, "//ytcp-button[@id='save-button']").click() # 保存設置
-    time.sleep(10) # 等待所有操作完成
-    logging.info("RTMP key configuration updated successfully...") # 記錄更新成功
-    driver.quit() # 關閉瀏覽器
-    subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"]) # 終止驅動程序
-  except Exception as e: # 捕獲異常
-        logging.error(f"Error in edit_rtmp_key: {str(e)}") # 記錄詳細錯誤信息
-        driver.refresh() # 重新整理瀏覽器頁面
-        time.sleep(15) # 等待15秒
-        countfuckingshit += 1 # 增加錯誤計數器
-        if countfuckingshit == 3: # 如果錯誤次數達到3次
-          logging.info("edit rtmp key fail shutdown script") # 記錄RTMP密鑰編輯失敗,關閉腳本
-          subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"]) # 強制終止驅動程序
-          exit() # 退出程序
-  finally:
-    break # 跳出循環
+def edit_rtmp_key(driver, rtmp_key_select):  # Function to edit RTMP key using Selenium WebDriver
+    logging.info(f"function edit_rtmp_key is called with driver: {driver}, rtmp_key_select: {rtmp_key_select}")  # Logging function call
+    countfuckingshit = 0  # Counter for retry attempts
+    while True:  # Infinite loop for retrying
+        try:
+            driver.find_element(By.XPATH, "//tp-yt-iron-icon[@icon='yt-icons:arrow-drop-down']").click()  # Clicking dropdown icon
+            time.sleep(3)  # Waiting for 3 seconds
+            if rtmp_key_select == "bkrtmp":  # Checking if RTMP key is "bkrtmp"
+                xpath = "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname1 + " (')]]"  # XPath for "bkrtmp"
+                element2 = driver.find_element(By.XPATH, xpath)  # Finding element for "bkrtmp"
+                element2.click()  # Clicking the element
+                time.sleep(7)  # Waiting for 7 seconds
+            if rtmp_key_select == "defrtmp":  # Checking if RTMP key is "defrtmp"
+                xpath = "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname + " (')]]"  # XPath for "defrtmp"
+                element3 = driver.find_element(By.XPATH, xpath)  # Finding element for "defrtmp"
+                element3.click()  # Clicking the element
+                time.sleep(7)  # Waiting for 7 seconds
+            if config.disablechat == "True":  # Checking if chat should be disabled
+                driver.find_element(By.XPATH, "//ytcp-button[@id='edit-button']").click()  # Clicking edit button
+                time.sleep(3)  # Waiting for 3 seconds
+                driver.find_element(By.XPATH, "//li[@id='customization']").click()  # Clicking customization tab
+                time.sleep(2)  # Waiting for 2 seconds
+                driver.find_element(By.XPATH, "//*[@id='chat-enabled-checkbox']").click()  # Clicking chat-enabled checkbox
+                time.sleep(1)  # Waiting for 1 second
+                driver.find_element(By.XPATH, "//ytcp-button[@id='save-button']").click()  # Clicking save button
+            time.sleep(10)  # Waiting for 10 seconds
+            logging.info("RTMP key configuration updated successfully...")  # Logging success message
+            driver.quit()  # Quitting the driver
+            subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Killing countdriver process
+        except Exception as e:  # Handling exceptions
+            logging.error(f"Error in edit_rtmp_key: {str(e)}")  # Logging error message
+            driver.refresh()  # Refreshing the driver
+            time.sleep(15)  # Waiting for 15 seconds
+            countfuckingshit += 1  # Incrementing retry counter
+            if countfuckingshit == 3:  # Checking if retry limit is reached
+                logging.info("edit rtmp key fail shutdown script")  # Logging failure message
+                subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Killing countdriver process
+                exit()  # Exiting the script
+        finally:
+            break  # Breaking the loop
 
-def check_is_live_api(url, ffmpeg, rtmp_server): # 檢查直播API是否正常運作的函數
-      logging.info("Waiting for 40sec live on YouTube") # 記錄等待檢查
-      time.sleep(40) # 等待40秒
-      new_url = f"https://youtube.com/watch?v={live_url}"
-      count_error = 0 # 初始化錯誤計數器
-      MAX_RETRIES = 3  # 設置最大重試次數
-      text = "this" if rtmp_server == "bkrtmp" else "api_this"
-      while True: # 持續檢查循環
-            try: # 嘗試獲取直播流
-                  streams = streamlink.streams(new_url) # 獲取直播流
-                  hls_stream = streams["best"] # 獲取最佳品質的流
-                  logging.info('It is live now') # 記錄直播開始
-                  break # 跳出循環
-            except KeyError as e: # 捕獲密鑰錯誤
-                  logging.error(f'Stream not available: {str(e)}') # 記錄流不可用錯誤
-                  logging.info('The stream is messed up. Trying again...') # 記錄重試信息
-                  time.sleep(2) # 等待2秒
-                  subprocess.run(["taskkill", "/f", "/im", ffmpeg]) # 終止ffmpeg進程
-                  subprocess.Popen(["start", "python", "relive_tv.py", text], shell=True) # 重啟直播程序
-                  time.sleep(35) # 等待35秒
-                  count_error += 1 # 增加錯誤計數
-            if count_error >= MAX_RETRIES: # 如果超過最大重試次數
-                  logging.info("Retry limit exceeded. Shutting down.") # 記錄超過重試限制
-                  subprocess.Popen(["start", "python", "check_tv.py", "KILL"], shell=True) # 啟動關閉程序
-                  exit() # 退出程序
+def check_is_live_api(url, ffmpeg, rtmp_server):  # Function to check if stream is live using API
+    logging.info(f"function check_is_live_api is called with url: {url}, ffmpeg: {ffmpeg}, rtmp_server: {rtmp_server}")  # Logging function call
+    logging.info("Waiting for 40sec live on YouTube")  # Logging wait message
+    time.sleep(40)  # Waiting for 40 seconds
+    new_url = f"https://youtube.com/watch?v={url}"  # Constructing new URL
+    count_error = 0  # Initializing error counter
+    MAX_RETRIES = 3  # Maximum number of retries
+    text = "this" if rtmp_server == "defrtmp" else "api_this"  # Setting text based on RTMP server
+    while True:  # Infinite loop for retrying
+        try:
+            streams = streamlink.streams(new_url)  # Getting streams from URL
+            hls_stream = streams["best"]  # Selecting best stream
+            logging.info('It is live now')  # Logging live status
+            break  # Breaking the loop
+        except KeyError as e:  # Handling KeyError exceptions
+            logging.error(f'Stream not available: {str(e)}')  # Logging error message
+            logging.info('The stream is messed up. Trying again...')  # Logging retry message
+            time.sleep(2)  # Waiting for 2 seconds
+            subprocess.run(["taskkill", "/f", "/im", ffmpeg])  # Killing ffmpeg process
+            subprocess.Popen(["start", "python", "relive_tv.py", text], shell=True)  # Restarting relive_tv script
+            time.sleep(35)  # Waiting for 35 seconds
+            count_error += 1  # Incrementing error counter
+        if count_error >= MAX_RETRIES:  # Checking if retry limit is reached
+            logging.info("Retry limit exceeded. Shutting down.")  # Logging shutdown message
+            subprocess.Popen(["start", "python", "check_tv.py", "KILL"], shell=True)  # Restarting check_tv script with KILL
+            exit()  # Exiting the script
 
-async def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url): # 創建和編輯直播計劃的異步函數
-    filename = None # 初始化文件名變量
-    description = None # 初始化描述變量
-    
-    if is_reload == "False" or is_reload == "EDIT": # 如果不是重載模式或是編輯模式
-        # 獲取Twitch直播標題
-        stream_title = await get_twitch_stream_title()
-        
-        # 處理標題格式
-        clean_title = ''.join('' if unicodedata.category(c) == 'So' else c for c in stream_title)
-        clean_title = clean_title.replace("<", "").replace(">", "")
-        
-        # 構建檔案名稱
-        if part_number == "0": # 如果是從selwebdriver調用（無分段）
-            filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}"
-        else: # 如果是分段模式
-            part_num = int(part_number) + 1
-            filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')} | PART{part_num}"
-        
-        # 處理檔案名稱長度
-        if len(filename) > 100:
-            # 計算最大標題長度
-            if part_number == "0": # 無分段模式
-                max_title_len = 100 - len(config.username) - len(datetime.now().strftime("%Y-%m-%d")) - len(" | " * 2)
-            else: # 分段模式
-                max_title_len = 100 - len(config.username) - len(datetime.now().strftime("%Y-%m-%d")) - len(" | " * 3) - len(f"part {part_num}")
-            
-            clean_title = clean_title[:max_title_len-3] + "..."
-            
-            # 重新構建文件名
-            if part_number == "0": # 無分段模式
-                filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}"
-            else: # 分段模式
-                filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')} | part {part_num}"
-            
-        if len(filename) > 100: # 如果文件名仍然過長
-            if part_number == "0": # 無分段模式
-                filename = f"{config.username} | {datetime.now().strftime('%Y-%m-%d')}"
-            else: # 分段模式
-                filename = f"{config.username} | {datetime.now().strftime('%Y-%m-%d')} | part {part_num}"
-            
-        # 設置描述（請勿移除水印）
-        description = f"Original broadcast from https://twitch.tv/{config.username} [Stream Title: {clean_title}] Archived using open-source tools: https://bit.ly/archivescript Service by Karsten Lee, Join Karsten Lee's Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v"
-
-    try:
-        # 處理重載模式
-        if is_reload == "True":
-            filename = f"{config.username} (WAITING FOR STREAMER)"
-            description = f"WAITING FOR {config.username}, THIS OPEN-SOURCE ARCHIVE SCRIPT IS CREATED BY KARSTEN LEE, PROJECT: https://is.gd/archivescript , Join Karsten Lee's Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v"
-            
-        # 創建新直播
-        if stream_url == "Null":
-            logging.info('Initiating API request for stream creation...')
-            privacy_status = "public" if config.unliststream == "False" else "unlisted"
-            stream_url = create_live_stream(filename, description, privacy_status)
-            
-            # 記錄直播創建信息
-            logging.info("==================================================")
-            if config.playlist == "True":
-                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url} AND ADD TO PLAYLIST: {config.playlist_id0}")
-            elif config.playlist == "DOUBLE":
-                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url} AND ADD TO PLAYLIST: {config.playlist_id0} AND {config.playlist_id1}")
+def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url):  # Asynchronous function to create/edit schedule via API
+    logging.info(f"function api_create_edit_schedule is called with part_number: {part_number}, rtmp_server: {rtmp_server}, is_reload: {is_reload}, stream_url: {stream_url}")  # Logging function call
+    filename = None  # Initializing filename
+    description = None  # Initializing description
+    if is_reload == "False" or is_reload == "EDIT":  # Checking if reload is False or EDIT
+        stream_title = get_twitch_stream_title()  # Getting Twitch stream title
+        clean_title = ''.join('' if unicodedata.category(c) == 'So' else c for c in stream_title)  # Cleaning title
+        clean_title = clean_title.replace("<", "").replace(">", "")  # Removing angle brackets
+        if part_number == "0":  # Checking if part number is 0
+            filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}"  # Constructing filename
+        else:
+            part_num = int(part_number) + 1  # Incrementing part number
+            filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')} | PART{part_num}"  # Constructing filename with part number
+        if len(filename) > 100:  # Checking if filename exceeds 100 characters
+            if part_number == "0":  # Checking if part number is 0
+                max_title_len = 100 - len(config.username) - len(datetime.now().strftime("%Y-%m-%d")) - len(" | " * 2)  # Calculating max title length
             else:
-                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url}")
-            logging.info("==================================================")
-            
-            # 設置RTMP和聊天配置
-            await setup_stream_settings(stream_url, rtmp_server)
-            
-        if is_reload == "EDIT":
-                # 更新現有直播
-                logging.info("Updating stream metadata and title...")
-                edit_live_stream(stream_url, filename, description)
-                return filename
-
-        if is_reload == "True":
-                return stream_url
-
-            # 如果是從selwebdriver調用（非重載模式且有直播URL），檢查直播狀態
-        if is_reload == "False":
-                await initialize_stream_relay(stream_url, rtmp_server) # 初始化直播轉發
-                if rtmp_server == "bkrtmp":
-                    check_is_live_api(stream_url, config.ffmpeg1, "api_this")
-                if rtmp_server == "defrtmp":
-                    check_is_live_api(stream_url, config.ffmpeg, "this")
-        
-    except Exception as e:
-        logging.error(f"Critical error encountered during execution: {e}")
-        exit()
-
-async def setup_stream_settings(stream_url, rtmp_server):
-    # 設置瀏覽器配置
-    check_process_running()
-    subprocess.Popen(["start", "countdriver.exe"], shell=True)
-    options = Options()
-    chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")
-    options.add_argument(f"user-data-dir={chrome_user_data_dir}")
-    options.add_argument(f"profile-directory={config.Chrome_Profile}")
-    
-    # 啟動瀏覽器並配置設置
-    driver = None  # 初始化driver變數
+                max_title_len = 100 - len(config.username) - len(datetime.now().strftime("%Y-%m-%d")) - len(" | " * 3) - len(f"part {part_num}")  # Calculating max title length with part number
+            clean_title = clean_title[:max_title_len-3] + "..."  # Truncating title
+            if part_number == "0":  # Checking if part number is 0
+                filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}"  # Constructing truncated filename
+            else:
+                filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')} | part {part_num}"  # Constructing truncated filename with part number
+        if len(filename) > 100:  # Checking if filename still exceeds 100 characters
+            if part_number == "0":  # Checking if part number is 0
+                filename = f"{config.username} | {datetime.now().strftime('%Y-%m-%d')}"  # Constructing minimal filename
+            else:
+                filename = f"{config.username} | {datetime.now().strftime('%Y-%m-%d')} | part {part_num}"  # Constructing minimal filename with part number
+        # DON'T REMOVE THIS WATERMARK
+        description = f"Original broadcast from https://twitch.tv/{config.username} [Stream Title: {clean_title}] Archived using open-source tools: https://bit.ly/archivescript Service by Karsten Lee, Join My Community Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v"  # Constructing description
     try:
-        driver = webdriver.Chrome(options=options)
-        url_to_live = f"https://studio.youtube.com/video/{stream_url}/livestreaming"
-        driver.get(url_to_live)
-        await asyncio.sleep(5)
-        driver.refresh()
-        await asyncio.sleep(30)
-        
-        logging.info("Configuring RTMP key and chat settings...")
-        edit_rtmp_key(driver, rtmp_server)
-        
+        if is_reload == "True":  # Checking if reload is True
+            filename = f"{config.username} (WAITING FOR STREAMER)"  # Constructing waiting filename
+            description = f"WAITING FOR {config.username}, THIS OPEN-SOURCE ARCHIVE SCRIPT IS CREATED BY KARSTEN LEE, PROJECT: https://is.gd/archivescript , Join Karsten Lee's Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v"  # Constructing waiting description
+        if stream_url == "Null":  # Checking if stream URL is Null
+            logging.info('Initiating API request for stream creation...')  # Logging API request initiation
+            privacy_status = "public" if config.unliststream == "False" else "unlisted"  # Setting privacy status
+            stream_url = create_live_stream(filename, description, privacy_status)  # Creating live stream
+            logging.info("==================================================")  # Logging separator
+            if config.playlist == "True":  # Checking if playlist is True
+                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url} AND ADD TO PLAYLIST: {config.playlist_id0}")  # Logging playlist addition
+            elif config.playlist == "DOUBLE":  # Checking if playlist is DOUBLE
+                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url} AND ADD TO PLAYLIST: {config.playlist_id0} AND {config.playlist_id1}")  # Logging double playlist addition
+            else:
+                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url}")  # Logging stream creation
+            logging.info("==================================================")  # Logging separator
+            setup_stream_settings(stream_url, rtmp_server)  # Setting up stream settings
+        if is_reload == "EDIT":  # Checking if reload is EDIT
+            logging.info("Updating stream metadata and title...")  # Logging metadata update
+            edit_live_stream(stream_url, filename, description)  # Editing live stream
+            return filename  # Returning filename
+        if is_reload == "True":  # Checking if reload is True
+            return stream_url  # Returning stream URL
+        if is_reload == "False":  # Checking if reload is False
+            logging.info("Start stream relay")
+            initialize_stream_relay(stream_url, rtmp_server)  # Initializing stream relay
+            edit_live_stream(stream_url, filename, description)  # Editing live stream
+            return filename  # Returning filename
+    except Exception as e:  # Handling exceptions
+        logging.error(f"Critical error encountered during execution: {e}")  # Logging critical error
+        exit()  # Exiting the script
+
+def setup_stream_settings(stream_url, rtmp_server):  # Asynchronous function to set up stream settings
+    logging.info(f"function setup_stream_settings is called with stream_url: {stream_url}, rtmp_server: {rtmp_server}")  # Logging function call
+    check_process_running()  # Checking if process is running
+    subprocess.Popen(["start", "countdriver.exe"], shell=True)  # Starting countdriver process
+    options = Options()  # Creating Chrome options
+    chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")  # Setting Chrome user data directory
+    options.add_argument(f"user-data-dir={chrome_user_data_dir}")  # Adding user data directory to options
+    options.add_argument(f"profile-directory={config.Chrome_Profile}")  # Adding profile directory to options
+    driver = None  # Initializing driver
+    try:
+        driver = webdriver.Chrome(options=options)  # Creating Chrome WebDriver
+        url_to_live = f"https://studio.youtube.com/video/{stream_url}/livestreaming"  # Constructing URL to live stream
+        driver.get(url_to_live)  # Navigating to URL
+        time.sleep(5)  # Waiting for 5 seconds
+        driver.refresh()  # Refreshing the page
+        time.sleep(30)  # Waiting for 30 seconds
+        logging.info("Configuring RTMP key and chat settings...")  # Logging configuration message
+        edit_rtmp_key(driver, rtmp_server)  # Editing RTMP key
+    except SessionNotCreatedException as e:
+        logging.error(f"Session not created: {e} KILL ALL CHROME PROCESS AND TRY AGAIN")
+        subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  # Killing CHROME PROCESS
+        time.sleep(3)
+        driver = webdriver.Chrome(options=options)  # Creating Chrome WebDriver
+        url_to_live = f"https://studio.youtube.com/video/{stream_url}/livestreaming"  # Constructing URL to live stream
+        driver.get(url_to_live)  # Navigating to URL
+        time.sleep(5)  # Waiting for 5 seconds
+        driver.refresh()  # Refreshing the page
+        time.sleep(30)  # Waiting for 30 seconds
+        logging.info("Configuring RTMP key and chat settings...")  # Logging configuration message
+        edit_rtmp_key(driver, rtmp_server)  # Editing RTMP key
     finally:
-        if driver:  # 確保driver已初始化才調用quit方法
-            driver.quit()
-        subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])
+        if driver:  # Checking if driver is initialized
+            driver.quit()  # Quitting the driver
+        subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Killing countdriver process
 
-async def initialize_stream_relay(stream_url, rtmp_server):
-    # 啟動直播轉發
-    rtmp_server1 = "this" if rtmp_server == "bkrtmp" else "api_this"
-    subprocess.Popen(["start", "python", "relive_tv.py", rtmp_server1], shell=True)
-    
-    ffmpeg_exe = config.ffmpeg if rtmp_server == "bkrtmp" else config.ffmpeg1
-    check_is_live_api(stream_url, ffmpeg_exe, rtmp_server1)
-    
-    # 切換到黑屏
-    subprocess.run(["taskkill", "/f", "/im", ffmpeg_exe])
-    
-    # 啟動黑屏直播
-    rtmp_key = config.rtmp_key if rtmp_server == "bkrtmp" else config.rtmp_key_1
-    if config.ytshort == "True":
-        # 使用subprocess啟動新進程執行短視頻格式的ffmpeg命令
-        subprocess.Popen([config.ffmpeg, "-fflags", "+genpts", "-re", "-i", "blackscreen.mp4", 
-                         "-c:v", "libx264", "-preset", "veryfast", "-c:a", "aac",
-                         "-filter_complex", "[0:v]scale=1080:600,setsar=1[video];color=black:1080x1920[scaled];[scaled][video]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2",
-                         "-f", "flv", f"rtmp://a.rtmp.youtube.com/live2/{rtmp_key}"])
-    else:
-        # 使用subprocess啟動新進程執行標準格式的ffmpeg命令
-        subprocess.Popen([config.ffmpeg, "-re", "-i", "blackscreen.mp4", 
-                         "-c", "copy", "-f", "flv", 
-                         f"rtmp://a.rtmp.youtube.com/live2/{rtmp_key}"])
+def initialize_stream_relay(stream_url, rtmp_server):  # Asynchronous function to initialize stream relay
+    logging.info(f"function initialize_stream_relay is called with stream_url: {stream_url}, rtmp_server: {rtmp_server}")  # Logging function call
+    rtmp_relive = "this" if rtmp_server == "defrtmp" else "api_this"  # Setting RTMP server for relay
+    subprocess.Popen(["start", "python", "relive_tv.py", rtmp_relive], shell=True)  # Starting relive_tv script
+    ffmpeg_exe = config.ffmpeg if rtmp_server == "defrtmp" else config.ffmpeg1  # Selecting ffmpeg executable
+    ffmpeg_1exe = config.ffmpeg1 if rtmp_server == "defrtmp" else config.ffmpeg  # Selecting ffmpeg executable
+    check_is_live_api(stream_url, ffmpeg_exe, rtmp_server)  # Checking live API
+    subprocess.run(["taskkill", "/f", "/im", ffmpeg_1exe])  # Killing ffmpeg process
+    rtmp_key = config.rtmp_key if rtmp_server == "bkrtmp" else config.rtmp_key_1  # Selecting RTMP key
+    os.system(f'start {ffmpeg_1exe} -re -i blackscreen.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp_key}')  # Starting ffmpeg for normal stream
 
-def fetch_access_token(): # 獲取訪問令牌的函數
-        token_response = requests.post(token_url, timeout=15) # 發送POST請求獲取令牌
-        token_response.raise_for_status() # 檢查響應狀態
-        token = token_response.json() # 解析JSON響應
-        return token["access_token"] # 返回訪問令牌牌
-
-# checkarg函數已合併到initialize_and_monitor_stream函數中
-
-async def start_check(live_url, rtmp_server): # 開始檢查直播狀態
-    logging.info("Starting stream monitoring process...") # 記錄開始監控進程
-    
-    # 驗證參數
-    if not live_url:
-        logging.error("Missing live URL - cannot start monitoring") # 記錄錯誤
-        exit(1) # 以錯誤狀態退出
-        
-    if rtmp_server not in ["defrtmp", "bkrtmp"]:
-        logging.error(f"Invalid RTMP server type: {rtmp_server}") # 記錄錯誤
-        exit(1) # 以錯誤狀態退出
-    
-    # 啟動API進程
-    logging.info("Launching streaming API process...") # 記錄啟動API進程
+def start_check(live_url, rtmp_server):  # Asynchronous function to start stream check
+    logging.info(f"function start_check is called with live_url: {live_url}, rtmp_server: {rtmp_server}")  # Logging function call
+    live_spare_url = None  # Initializing spare URL
+    logging.info("Starting stream monitoring process...")  # Logging start message
+    if not live_url:  # Checking if live URL is missing
+        logging.error("Missing live URL - cannot start monitoring")  # Logging error message
+        exit(1)  # Exiting with error code
+    if rtmp_server not in ["defrtmp", "bkrtmp"]:  # Checking if RTMP server is invalid
+        logging.error(f"Invalid RTMP server type: {rtmp_server}")  # Logging error message
+        exit(1)  # Exiting with error code
+    logging.info("Launching streaming API process...")  # Logging API launch message
     try:
-        subprocess.Popen(["start", config.apiexe], shell=True) # 啟動API程序
-    except Exception as e:
-        logging.error(f"Failed to start API process: {str(e)}") # 記錄錯誤
-        exit(1) # 以錯誤狀態退出
-    
+        subprocess.Popen(["start", config.apiexe], shell=True)  # Starting API executable
+    except Exception as e:  # Handling exceptions
+        logging.error(f"Failed to start API process: {str(e)}")  # Logging error message
+        exit(1)  # Exiting with error code
     try:
-        if rtmp_server == "bkrtmp": # 如果使用備用RTMP
-            logging.info("Starting scheduled stream relay...") # 記錄開始計劃的流轉發
-            subprocess.Popen(["start", "python", "relive_tv.py", "api_this"], shell=True) # 啟動備用轉發
-            rtmp_server = "defrtmp" # 設置輸入端口為默認RTMP
-        elif rtmp_server == "defrtmp": # 如果使用默認RTMP
-            logging.info("Starting alternate stream relay...") # 記錄開始替代流轉發
-            subprocess.Popen(["start", "python", "relive_tv.py", "this"], shell=True) # 啟動主要轉發
-            rtmp_server = "bkrtmp" # 設置輸入端口為備用RTMP
-    except Exception as e:
-        logging.error(f"Failed to start relay process: {str(e)}") # 記錄錯誤
-        exit(1) # 以錯誤狀態退出
-    
-    logging.info(f"Stream URL configured: {live_url}") # 記錄配置的直播URL
-    logging.info("Stream relay process started successfully") # 記錄轉發進程啟動成功
-    
-    # 獲取Gmail標題For Third Party Detection
-    url_live = live_url
+     if rtmp_server == "bkrtmp":  # Checking if RTMP server is "bkrtmp"
+       logging.info("Starting with backup stream rtmp... and check")  # Logging relay start message
+       subprocess.Popen(["start", "python", "relive_tv.py", "api_this"], shell=True)  # Starting relive_tv script for "bkrtmp"
+       check_is_live_api(live_url, config.ffmpeg1, rtmp_server) # Checking the stream using the streamlink
+       rtmp_server = "defrtmp"  # Switching RTMP server
+     elif rtmp_server == "defrtmp":  # Checking if RTMP server is "defrtmp"
+       logging.info("Starting with default stream rtmp... and check")  # Logging relay start message
+       subprocess.Popen(["start", "python", "relive_tv.py", "this"], shell=True)  # Starting relive_tv script for "defrtmp"
+       check_is_live_api(live_url, config.ffmpeg, rtmp_server) # Checking the stream using the streamlink
+       rtmp_server = "bkrtmp"  # Switching RTMP server
+    except Exception as e:  # Handling exceptions
+        logging.error(f"Failed to start relay process: {str(e)}")  # Logging error message
+        exit(1)  # Exiting with error code
+    logging.info("Stream relay process started successfully")  # Logging success message
     try:
-        titleforgmail = await api_create_edit_schedule("0", rtmp_server, "EDIT", live_url) # 獲取Gmail標題
-        logging.info('edit finished continue the stream') # 記錄編輯完成    
-        logging.info(f"Successfully retrieved stream title: {titleforgmail}") # 記錄成功獲取標題
-    except UnboundLocalError: # 捕獲未綁定局部變量錯誤
-        logging.warning("Encountered UnboundLocalError when getting title - continuing with default") # 記錄警告
-    except Exception as e:
-        logging.error(f"Error getting stream title: {str(e)} - continuing with default") # 記錄錯誤
-    
-    # 創建備用直播計劃
-    live_spare_url = None
+        titleforgmail = api_create_edit_schedule("0", rtmp_server, "EDIT", live_url)  # Creating/editing schedule
+        logging.info('edit finished continue the stream')  # Logging edit completion
+        logging.info(f"Successfully retrieved stream title: {titleforgmail}")  # Logging retrieved title
+    except UnboundLocalError:  # Handling UnboundLocalError
+        logging.warning("Encountered UnboundLocalError when getting title - continuing with default")  # Logging warning
+    except Exception as e:  # Handling exceptions
+        logging.error(f"Error getting stream title: {str(e)} - continuing with default")  # Logging error message
     try:
-        logging.info("Loading backup stream configuration...") # 記錄加載備用配置
-        live_spare_url = await api_create_edit_schedule("0", rtmp_server, "True", "Null") # 創建備用直播計劃
-        logging.info(f"Backup stream URL configured: {live_spare_url}") # 記錄備用直播URL
-    except Exception as e:
-        logging.error(f"Failed to create backup stream: {str(e)}") # 記錄錯誤
-        # 即使沒有備用直播，也繼續主直播監控
-    
-    logging.info("Starting offline detection and countdown timer...") # 記錄開始等待離線並計時
-    await offline_check(live_url, live_spare_url, rtmp_server, titleforgmail) # 開始離線檢查
+        logging.info("Loading backup stream configuration...")  # Logging backup configuration
+        live_spare_url = api_create_edit_schedule("0", rtmp_server, "True", "Null")  # Creating backup schedule
+        logging.info(f"Backup stream URL configured: {live_spare_url}")  # Logging backup URL
+    except Exception as e:  # Catching any exceptions that occur
+        logging.error(f"Failed to create backup stream: {str(e)}")  # Logging error message with exception details
+    logging.info("Starting offline detection and countdown timer...")  # Logging the start of offline detection and countdown timer
+    offline_check_functions(live_url, live_spare_url, rtmp_server, titleforgmail)  # Initiating offline check functions with provided parameters
 
-if __name__ == "__main__": # 主程序入口
-    logging.basicConfig(filename="check_tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S') # 配置日誌
-    logging.getLogger().addHandler(logging.StreamHandler()) # 添加控制台日誌處理器
-    asyncio.run(initialize_and_monitor_stream()) # 運行初始化和監控流程
-    exit() # 退出程序
+def initialize_and_monitor_stream(yt_link=None, rtmp_info=None):  # Asynchronous function to initialize and monitor stream
+    logging.info(f"function initialize_and_monitor_stream is called with yt_link: {yt_link}, rtmp_info: {rtmp_info}")  # Logging function call
+    try:
+        args, arguments = parse_arguments()  # Parsing command-line arguments
+        if yt_link is None and rtmp_info is None:  # Checking if YouTube link and RTMP info are not provided
+            if len(arguments) < 2:  # Checking if insufficient arguments are provided
+                logging.info("==================================================")  # Logging separator
+                logging.info("NO ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")  # Logging no argument available
+                logging.info(f"ARCHIVE USER: {config.username}")  # Logging archive user
+                logging.info("==================================================")  # Logging separator
+                yt_link = "Null"  # Setting YouTube link to Null
+                rtmp_info = "Null"  # Setting RTMP info to Null
+            else:
+                yt_link = arguments[1]  # Setting YouTube link from arguments
+                rtmp_info = arguments[2] if len(arguments) > 2 else None  # Setting RTMP info from arguments
+                if yt_link == "KILL":  # Checking if KILL command is given
+                    logging.info("close all exe")  # Logging close all executables
+                    subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Killing API executable
+                    subprocess.run(["taskkill", "/f", "/im", config.ffmpeg])  # Killing ffmpeg process
+                    subprocess.run(["taskkill", "/f", "/im", config.ffmpeg1])  # Killing ffmpeg1 process
+                    subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Killing countdriver process
+                    exit()  # Exiting the script
+                if len(arguments) < 3:  # Checking if RTMP argument is missing
+                    logging.error("Missing required RTMP argument")  # Logging missing RTMP argument
+                    exit(1)  # Exiting with error code
+                if len(yt_link) != 11:  # Checking if YouTube link is invalid
+                    logging.error(f"Invalid argument for ARG1: {yt_link}. Must be 11 characters long YouTube Video ID")  # Logging invalid YouTube link
+                    exit(1)  # Exiting with error code
+                if rtmp_info not in ["defrtmp", "bkrtmp"]:  # Checking if RTMP info is invalid
+                    logging.error(f"Invalid argument for ARG2: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'")  # Logging invalid RTMP info
+                    exit(1)  # Exiting with error code
+                logging.info("==================================================")  # Logging separator
+                logging.info("INPUT ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")  # Logging input argument available
+                logging.info(f"ARG1: {yt_link} ARG2: {rtmp_info}")  # Logging arguments
+                logging.info(f"ARCHIVE USER: {config.username}")  # Logging archive user
+                logging.info("==================================================")  # Logging separator
+        if rtmp_info not in ["defrtmp", "bkrtmp", "Null"]:  # Checking if RTMP server type is invalid
+            logging.error(f"Invalid RTMP server type: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'")  # Logging invalid RTMP server type
+            exit(1)  # Exiting with error code
+        live_url = None  # Initializing live URL
+        rtmp_server = None  # Initializing RTMP server
+        if yt_link == "Null":  # Checking if YouTube link is Null
+            logging.info("Starting live API check to get initial stream URL")  # Logging starting live API check
+            rtmp_server = "defrtmp"  # Setting RTMP server to default
+            try:
+                live_url = api_create_edit_schedule("0", rtmp_server, "True", "Null")  # Creating/editing schedule via API
+                logging.info(f"Successfully created new stream with URL: {live_url}")  # Logging successful stream creation
+            except Exception as api_error:  # Handling API exceptions
+                logging.error(f"Failed to create stream via API: {str(api_error)}")  # Logging API error
+                raise  # Raising exception
+        else:
+            live_url = yt_link  # Setting live URL to YouTube link
+            rtmp_server = rtmp_info  # Setting RTMP server to RTMP info
+            logging.info(f"Using provided YouTube link: {live_url} with RTMP server: {rtmp_server}")  # Logging provided YouTube link and RTMP server
+        logging.info("Waiting for stream to go live...")  # Logging waiting for stream
+        while True:  # Infinite loop
+            try:
+                twitch = get_twitch_client()  # Getting Twitch client
+                streams = get_twitch_streams(twitch, config.username)  # Getting Twitch streams
+                if streams:  # Checking if streams are available
+                    stream = streams[0]  # Getting the first stream
+                    logging.info(f"Stream is now live! Title From Twitch: {stream['title']}")  # Logging stream is live
+                    break  # Breaking the loop
+                else:
+                    time.sleep(5)  # Waiting before retrying
+            except Exception as e:  # Handling exceptions
+                logging.error(f"Error checking stream status: {str(e)}")  # Logging error
+                time.sleep(30)  # Waiting before retrying
+        logging.info("Twitch stream detected - initializing monitoring process")  # Logging Twitch stream detected
+        start_check(live_url, rtmp_server)  # Starting check
+    except Exception as e:  # Handling exceptions
+        logging.error(f"Error in initialize_and_monitor_stream: {str(e)}", exc_info=True)  # Logging error
+        logging.error("Critical error encountered - terminating script execution")  # Logging critical error
+        exit(1)  # Exiting with error code
+
+if __name__ == "__main__":  # Checking if the script is run directly
+    logging.basicConfig(filename="check_tv.log", level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')  # Configuring logging settings
+    logging.getLogger().addHandler(logging.StreamHandler())  # Adding stream handler to logger
+    initialize_and_monitor_stream()  # Running the function to initialize and monitor stream
+    exit()  # Exiting the script
