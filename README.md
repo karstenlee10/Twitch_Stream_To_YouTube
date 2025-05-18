@@ -4,7 +4,9 @@
 
 The code is designed to run as a continuous service, monitoring streams and handling various failure scenarios automatically. It's particularly useful for maintaining 24/7 rebroadcast streams from Twitch to YouTube while handling various edge cases and failures automatically.
 
-<h2>😡THE SCRIPT IS NOT RUNING GOOD(CHROME ERROR WHEN IN NEW VERSION [I THINK])😡</h2>
+<h2>😄THE SCRIPT IS RUNING GOOD BUT YOU WILL NEED TO DOWNGRADE YOUR CHROME VERSION [130.0.6723.70] (DON'T TRUST UNOFFICAL WEBSITE DOWNLOAD IT AT YOUR OWN RISK)😄</h2>
+
+[DOWNLOAD OLD CHROME](https://azodl.blogspot.com/2015/04/google-chrome.html)
 
 <h2>🛡️ License:</h2>
 
