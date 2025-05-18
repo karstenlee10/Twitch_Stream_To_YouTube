@@ -6,7 +6,8 @@ The code is designed to run as a continuous service, monitoring streams and hand
 
 <h2>😄THE SCRIPT IS RUNING GOOD BUT YOU WILL NEED TO DOWNGRADE YOUR CHROME VERSION [130.0.6723.70] (DON'T TRUST UNOFFICAL WEBSITE DOWNLOAD IT AT YOUR OWN RISK)😄</h2>
 
-[DOWNLOAD OLD CHROME](https://azodl.blogspot.com/2015/04/google-chrome.html)
+[DOWNLOAD OLD CHROME AT YOUR OWN RISK]()
+Orginal From: https://azodl.blogspot.com/2015/04/google-chrome.html
 
 <h2>🛡️ License:</h2>
 
