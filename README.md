@@ -8,7 +8,7 @@ The code is designed to run as a continuous service, monitoring streams and hand
 
 [DOWNLOAD OLD CHROME AT YOUR OWN RISK](https://drive.google.com/file/d/1v26IzTqlI6sCwjARNMqje7xrMhNu7kW0/view?usp=sharing)
 
-Need to unistall your orginal chrome first and remove "Update" and "Google Update" in "C:\Program Files (x86)\Google"
+Need to unistall your orginal chrome(keep brower data) first and remove "Update" and "Google Update" in "C:\Program Files (x86)\Google"
 and stop it from updating(security issue at your own risk)
 
 Orginal From: https://azodl.blogspot.com/2015/04/google-chrome.html
