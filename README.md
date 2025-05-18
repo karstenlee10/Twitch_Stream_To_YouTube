@@ -6,7 +6,11 @@ The code is designed to run as a continuous service, monitoring streams and hand
 
 <h2>😄THE SCRIPT IS RUNING GOOD BUT YOU WILL NEED TO DOWNGRADE YOUR CHROME VERSION [130.0.6723.70] (DON'T TRUST UNOFFICAL WEBSITE DOWNLOAD IT AT YOUR OWN RISK)😄</h2>
 
-[DOWNLOAD OLD CHROME AT YOUR OWN RISK]()
+[DOWNLOAD OLD CHROME AT YOUR OWN RISK](https://drive.google.com/file/d/1v26IzTqlI6sCwjARNMqje7xrMhNu7kW0/view?usp=sharing)
+
+Need to unistall your orginal chrome first and remove "Update" and "Google Update" in "C:\Program Files (x86)\Google"
+and stop it from updating(security issue at your own risk)
+
 Orginal From: https://azodl.blogspot.com/2015/04/google-chrome.html
 
 <h2>🛡️ License:</h2>
