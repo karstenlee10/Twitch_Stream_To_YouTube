@@ -14,23 +14,13 @@ cd Twitch_Stream_To_YouTube
 ## 2. Download required executables:
 - Download lastest [Chrome](https://chrome.google.com) and login to your channel email
 - Download lastest [Python](https://www.python.org/downloads/) and select run as admin and add to path
+<!-- i don't think you need to install streamlink since it comes with a package -->
 - Download lastest [Streamlink](https://github.com/streamlink/windows-builds/releases) and keep press next in the installation
 - Download lastest [ffmpeg](https://www.gyan.dev/ffmpeg/builds/) and place two `ffmpeg.exe` in the project directory (rename according to your config_tv.py settings)
 
 ## 3. Install required lastest Python packages:
 ```bash
-pip install selenium
-pip install google-auth-oauthlib
-pip install google-api-python-client
-pip install psutil
-pip install requests
-pip install beautifulsoup4
-pip install streamlink
-pip install aiohttp
-```
-
-```bash
-pip install selenium google-auth-oauthlib google-api-python-client psutil requests beautifulsoup4 streamlink aiohttp
+uv sync
 ```
 
 ## Tips: You can use GUI.py for more easier config settings

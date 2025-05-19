@@ -2,9 +2,12 @@ import os
 import sys
 import logging
 import time
+
 import psutil
-import config_tv as config
 import streamlink
+
+import config_tv as config
+
 
 arguments = sys.argv
 apiexe = "taskkill /f /im " + config.apiexe
