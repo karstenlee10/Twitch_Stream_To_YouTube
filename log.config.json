@@ -34,6 +34,12 @@
         "stderr",
         "file"
       ]
+    },
+    "selenium.webdriver.remote.remote_connection": {
+      "level": "WARNING"
+    },
+    "urllib3.connectionpool": {
+      "level": "WARNING"
     }
   }
 }
