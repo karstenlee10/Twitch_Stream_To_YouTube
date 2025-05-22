@@ -334,10 +334,10 @@ def get_service():  # Function to get YouTube service
             else:
               if config.brandacc == "False":  # Check if brand account is False
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
-                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                creds = flow.run_local_server(port=6971)  # Run local server for authentication
               if config.brandacc == "True":  # Check if brand account is True
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow for brand account
-                creds = flow.run_local_server(port=6971, brandacc="havebrand")  # Run local server for authentication
+                creds = flow.run_local_server(port=6971, has_brand=True)  # Run local server for authentication
               with open(USER_TOKEN_FILE, 'w') as token:  # Open user token file for writing
                 token.write(creds.to_json())  # Write credentials to file
         return build('youtube', 'v3', credentials=creds)  # Return YouTube service
@@ -345,10 +345,10 @@ def get_service():  # Function to get YouTube service
         if "invalid_grant" in str(e):  # Check if exception is invalid grant
               if config.brandacc == "False":  # Check if brand account is False
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
-                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                creds = flow.run_local_server(port=6971)  # Run local server for authentication
               if config.brandacc == "True":  # Check if brand account is True
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow for brand account
-                creds = flow.run_local_server(port=6971, brandacc="havebrand")  # Run local server for authentication
+                creds = flow.run_local_server(port=6971, has_brand=True)  # Run local server for authentication
               with open(USER_TOKEN_FILE, 'w') as token:  # Open user token file for writing
                 token.write(creds.to_json())  # Write credentials to file
               return build('youtube', 'v3', credentials=creds)  # Return YouTube service
@@ -373,13 +373,13 @@ def get_gmail_service():  # Function to get Gmail service
               if config.brandacc == "True":  # Check if brand account is True
                 logger.info("Gmail token not found. Starting authentication flow...")  # Log info
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
-                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                creds = flow.run_local_server(port=6971)  # Run local server for authentication
                 with open(GMAIL_TOKEN_FILE, 'w') as token:  # Open Gmail token file for writing
                    token.write(creds.to_json())  # Write credentials to file
               if config.brandacc == "False":  # Check if brand account is False
                 logger.info("Gmail token not found. Start...")  # Log info
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
-                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                creds = flow.run_local_server(port=6971)  # Run local server for authentication
                 with open(USER_TOKEN_FILE, 'w') as token:  # Open user token file for writing
                    token.write(creds.to_json())  # Write credentials to file
         return build('gmail', 'v1', credentials=creds)  # Return Gmail service
@@ -388,13 +388,13 @@ def get_gmail_service():  # Function to get Gmail service
               if config.brandacc == "True":  # Check if brand account is True
                 logger.info("Gmail token not found. Starting authentication flow...")  # Log info
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
-                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                creds = flow.run_local_server(port=6971)  # Run local server for authentication
                 with open(GMAIL_TOKEN_FILE, 'w') as token:  # Open Gmail token file for writing
                    token.write(creds.to_json())  # Write credentials to file
               if config.brandacc == "False":  # Check if brand account is False
                 logger.info("Gmail token not found. Starting authentication flow...")  # Log info
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
-                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                creds = flow.run_local_server(port=6971)  # Run local server for authentication
                 with open(USER_TOKEN_FILE, 'w') as token:  # Open user token file for writing
                    token.write(creds.to_json())  # Write credentials to file
               return build('gmail', 'v1', credentials=creds)  # Return Gmail service

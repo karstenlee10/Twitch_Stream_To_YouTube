@@ -55,7 +55,9 @@ import json
 import logging
 import sys
 import multiprocessing
+
 sys.path.append(script_location)
+from coordinator import load_api
 import check_tv
 
 try:
@@ -373,18 +375,6 @@ class InstalledAppFlow(Flow):
         "The authentication flow has completed. You may close this window."
     )
 
-    def call_api_load(auth_url, brandacc):
-      ####################################################################################################
-      ####################################################################################################
-      ####################################################################################################
-      check_tv.api_load(auth_url, brandacc)
-      ####################################################################################################
-      ####################################################################################################
-      ####################################################################################################
-      ####################################################################################################
-      ####################################################################################################
-      ####################################################################################################
-
     def run_local_server(
         self,
         host="localhost",
@@ -397,7 +387,7 @@ class InstalledAppFlow(Flow):
         timeout_seconds=None,
         token_audience=None,
         browser=None,
-        brandacc=None,
+        has_brand: bool = False,
         **kwargs
     ):
         """Run the flow using the server strategy.
@@ -463,7 +453,7 @@ class InstalledAppFlow(Flow):
 
         if authorization_prompt_message:
             print(authorization_prompt_message.format(url=auth_url))
-            p = multiprocessing.Process(target=InstalledAppFlow.call_api_load, args=(auth_url, brandacc))
+            p = multiprocessing.Process(target=load_api, args=(auth_url, has_brand))
             p.start()
             
 
