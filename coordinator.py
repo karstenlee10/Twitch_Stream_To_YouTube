@@ -76,3 +76,13 @@ class Coordinator(metaclass=SingletonMeta):
 
             time.sleep(5)  # Sleep for 5 seconds
             driver.quit()  # Quit Chrome driver
+
+    def setup_stream_settings(self, stream_url: str, rtmp_server) -> None:
+        with self._lock:
+            driver = _build_driver()
+            url_to_live = f"https://studio.youtube.com/video/{stream_url}/livestreaming"  # Constructing URL to live stream
+            driver.get(url_to_live)  # Navigating to URL
+            time.sleep(5)  # Waiting for 5 seconds
+            driver.refresh()  # Refreshing the page
+            time.sleep(30)  # Waiting for 30 seconds
+            logging.info("Configuring RTMP key and chat settings...") 

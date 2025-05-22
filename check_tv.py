@@ -308,16 +308,6 @@ class TwitchResponseStatus(enum.Enum):  # Enum class for Twitch response status
     UNAUTHORIZED = 3  # Unauthorized status
     ERROR = 4  # Error status
 
-def check_process_running():  # Function to check if process is running
-    process_name = "countdriver.exe"  # Name of the process to check
-    logger.info("Checking for existing browser automation processes...")  # Logging checking processes
-    for process in psutil.process_iter(['pid', 'name']):  # Iterating over processes
-        if process.info['name'] == process_name:  # Checking if process name matches
-            logger.info("Browser automation process already running - waiting for completion...")  # Logging process running
-            time.sleep(15)  # Waiting before checking again
-            check_process_running()  # Recursively checking process
-    logger.info("No conflicting processes found - proceeding...")  # Logging no conflicting processes
-    return  # Returning from function
 
 def get_service():  # Function to get YouTube service
     creds = None  # Initialize credentials to None
@@ -536,32 +526,6 @@ def create_live_stream(title, description, kmself):  # Function to create live s
           logger.info(f"Error: {e}")  # Log error
           time.sleep(5)  # Sleep for 5 seconds
 
-def api_load(url, brandacc):  # Function to load API
-      logger.info("create api keying ---edit_tv---")  # Log info
-      home_dir = os.path.expanduser("~")  # Get home directory
-      logger.info("run with countdriver.exe and check")  # Log info
-      check_process_running()  # Check if process is running
-      subprocess.Popen(["start", "countdriver.exe"], shell=True)  # Start countdriver.exe
-      options = Options()  # Create Chrome options
-      chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")  # Get Chrome user data directory
-      options.add_argument(f"user-data-dir={chrome_user_data_dir}")  # Add user data directory to options
-      options.add_argument(f"profile-directory={config.Chrome_Profile}")  # Add profile directory to options
-      driver = webdriver.Chrome(options=options)  # Create Chrome driver
-      driver.get(url)  # Open URL in Chrome
-      time.sleep(3)  # Sleep for 3 seconds
-      if brandacc == "Nope":  # Check if brand account is Nope
-          nameofaccount = f"//div[contains(text(),'{config.accountname}')]"  # Get account name
-      if brandacc == "havebrand":  # Check if brand account is havebrand
-          nameofaccount = f"//div[contains(text(),'{config.brandaccname}')]"  # Get brand account name
-      button_element = driver.find_element("xpath", nameofaccount)  # Find account button
-      button_element.click()  # Click account button
-      time.sleep(3)  # Sleep for 3 seconds
-      element = driver.find_element("xpath", "(//button[@jsname='LgbsSe' and contains(@class, 'VfPpkd-LgbsSe-OWXEXe-INsAgc')])[2]")  # Find button element
-      element.click()  # Click button element
-      subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill countdriver.exe
-      logger.info("finish idk ---edit_tv---")  # Log info
-      time.sleep(5)  # Sleep for 5 seconds
-      driver.quit()  # Quit Chrome driver
 
 def edit_rtmp_key(driver, rtmp_key_select):  # Function to edit RTMP key using Selenium WebDriver
     countfuckingshit = 0  # Counter for retry attempts
