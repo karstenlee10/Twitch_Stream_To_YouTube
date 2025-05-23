@@ -23,14 +23,6 @@ except ImportError:
 ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
 
-# Configure logging
-logging.basicConfig(filename="tv.log", level=logging.INFO, 
-                   format='%(asctime)s %(message)s', 
-                   datefmt='%Y-%m-%d %H:%M:%S')
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-logging.getLogger().addHandler(console_handler)
-
 # Global variables
 running_process = None
 archiving_active = False
@@ -541,7 +533,7 @@ class TwitchYoutubeApp(ctk.CTk):
         
     def setup_log_capture(self):
         """Capture logs and display them in the GUI"""
-        class GUILogHandler(logging.Handler):
+        class GUILogHandler():
             def __init__(self, callback):
                 super().__init__()
                 self.callback = callback
@@ -549,11 +541,6 @@ class TwitchYoutubeApp(ctk.CTk):
             def emit(self, record):
                 log_entry = self.format(record)
                 self.callback(log_entry)
-                
-        # Create and add our custom handler
-        gui_handler = GUILogHandler(self.add_log_entry)
-        gui_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        logging.getLogger().addHandler(gui_handler)
     
     def add_log_entry(self, message):
         """Add a log entry to the GUI log display"""
