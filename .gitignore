@@ -1,0 +1,6 @@
+uv.lock
+
+__pycache__/
+
+logs/*
+!logs/mhm.txt
