@@ -1,11 +1,12 @@
-import logging
 import multiprocessing
 import os
 import sys
 import subprocess
 import threading
 import time
-
+from logger_config import gui_logger as logging # Importing logging module for logging messages
+import asyncio
+import config_tv as config
 try:
     import customtkinter as ctk
     from customtkinter import CTkFont, CTkLabel, CTkButton, CTkEntry, CTkSwitch, CTkFrame, CTkTextbox, CTkScrollableFrame
@@ -20,8 +21,6 @@ except ImportError:
     from tkinter import filedialog, messagebox
 
 from check_tv import initialize_and_monitor_stream
-import config_tv as config
-
 # Set appearance mode and default theme
 ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
@@ -88,6 +87,8 @@ class TwitchYoutubeApp(ctk.CTk):
         
         self.playlist_choices = ["False", "True", "DOUBLE"]
         self.playlist_var = ctk.StringVar(value=config.playlist)
+        
+        self.thumbnail_var = ctk.BooleanVar(value=False)
         
         # Scrolling speed multiplier
         self.scroll_speed = 3
@@ -391,6 +392,15 @@ class TwitchYoutubeApp(ctk.CTk):
         CTkLabel(option_section2, text="Disables the YouTube live chat during streaming", 
                 justify="left", text_color="gray").pack(anchor="w", padx=25, pady=(0,5))
         
+        # Thumbnail Upload
+        option_section3 = CTkFrame(options_frame)
+        option_section3.pack(fill="x", padx=15, pady=5)
+        
+        self.thumbnail_var = ctk.BooleanVar(value=config.thumbnail == "True")
+        CTkSwitch(option_section3, text="Upload Custom Thumbnails", variable=self.thumbnail_var).pack(anchor="w", pady=5)
+        CTkLabel(option_section3, text="Uploads custom thumbnails for streams", 
+                justify="left", text_color="gray").pack(anchor="w", padx=25, pady=(0,5))
+        
         # Playlist Settings
         playlist_section = CTkFrame(options_frame)
         playlist_section.pack(fill="x", padx=15, pady=(25,5))
@@ -536,7 +546,7 @@ class TwitchYoutubeApp(ctk.CTk):
         
     def setup_log_capture(self):
         """Capture logs and display them in the GUI"""
-        class GUILogHandler(logging.Handler):
+        class GUILogHandler():
             def __init__(self, callback):
                 super().__init__()
                 self.callback = callback
@@ -544,11 +554,6 @@ class TwitchYoutubeApp(ctk.CTk):
             def emit(self, record):
                 log_entry = self.format(record)
                 self.callback(log_entry)
-                
-        # Create and add our custom handler
-        gui_handler = GUILogHandler(self.add_log_entry)
-        gui_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        logging.getLogger().addHandler(gui_handler)
     
     def add_log_entry(self, message):
         """Add a log entry to the GUI log display"""
@@ -601,6 +606,7 @@ class TwitchYoutubeApp(ctk.CTk):
                 f.write(f"playlist = \"{self.playlist_var.get()}\"  # True or DOUBLE IF YOU WANT TO SAVE TO MULTIPLE PLAYLIST disable to False\n")
                 f.write(f"playlist_id0 = \"{self.playlist_id0_var.get()}\"  # Replace with your First YouTube playlist ID\n")
                 f.write(f"playlist_id1 = \"{self.playlist_id1_var.get()}\"  # Replace with your actual second YouTube playlist ID\n")
+                f.write(f"thumbnail = \"{str(self.thumbnail_var.get()).capitalize()}\"  # Whether to upload custom thumbnails for streams\n")
                 f.write("##########################################################################\n")
                 
                 # YOUTUBE STUDIO RTMP SETTINGS section
