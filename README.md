@@ -69,6 +69,8 @@ read the guide
 
 <h2>🍰 Contribution:</h2>
 
+[L5CS](https://github.com/l5cs) has helped this Project
+
 Make an issue when there a bug
   
 <h2>💻 Built with</h2>
