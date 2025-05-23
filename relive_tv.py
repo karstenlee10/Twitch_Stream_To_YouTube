@@ -2,7 +2,6 @@ import os
 import sys
 import time
 
-import psutil
 import streamlink
 
 import config_tv as config
@@ -18,12 +17,6 @@ def check_is_live():
     try:
         streams = streamlink.streams("https://www.twitch.tv/" + config.username)
         hls_stream = streams["best"]
-        process_name = config.apiexe
-        for process in psutil.process_iter(['pid', 'name']):
-          if process.info['name'] == process_name:
-            logger.info('API process is still running')
-            return "True"
-        logger.info('API process has terminated')
         return "False"
     except KeyError:
         trytimes += 1
@@ -61,9 +54,8 @@ def this():
     os.system(apiexe)
 
 
-arg1 = arguments[1]
-if arg1 == "api_this":
-  api_this()
-if arg1 == "this":
-  this()
-exit()
+def restream(mode: str) -> None:
+  if mode == "api_this":
+    api_this()
+  elif mode == "this":
+    this()

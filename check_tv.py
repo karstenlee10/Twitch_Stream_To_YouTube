@@ -1,25 +1,21 @@
-import argparse  # Importing argparse module for parsing command-line arguments
 from datetime import datetime, timedelta, timezone  # Importing datetime for date and time operations
 import enum  # Importing enum for enumerations
+import multiprocessing
 import os  # Importing os module for interacting with the operating system
 import subprocess  # Importing subprocess module for running system commands
-import sys  # Importing sys module for system-specific parameters and functions
 import time  # Importing time module for time-related functions
 import unicodedata  # Importing unicodedata for Unicode character database
 
 from google.auth.transport.requests import Request  # Importing Request for Google auth transport
 from google.oauth2.credentials import Credentials  # Importing Credentials for Google OAuth2
 from googleapiclient.discovery import build  # Importing build for Google API client
-from selenium import webdriver  # Importing webdriver from selenium for browser automation
-from selenium.common.exceptions import SessionNotCreatedException  # Importing exception for session creation failure
-from selenium.webdriver.chrome.options import Options  # Importing Options for Chrome browser options
-from selenium.webdriver.chrome.webdriver import WebDriver
-from selenium.webdriver.common.by import By  # Importing By for locating elements
 import requests  # Importing requests for making HTTP requests
 import streamlink  # Importing streamlink for streaming video
 
 import config_tv as config  # Importing custom configuration module
+from coordinator import Coordinator
 from logger import logger
+from relive_tv import restream
 
 
 refresh_title = "True"  # Setting refresh title flag to True
@@ -44,13 +40,13 @@ SCOPES = [  # Combined scopes for YouTube and Gmail APIs
 
 home_dir = os.path.expanduser("~")  # Getting the home directory path
 
-def parse_arguments():  # Function to parse command-line arguments
+""" def parse_arguments():  # Function to parse command-line arguments
     parser = argparse.ArgumentParser(description="Twitch to YouTube Archive Script")  # Creating argument parser
     parser.add_argument("yt_link", nargs="?", default=None, help="YouTube Video ID")  # Adding YouTube link argument
     parser.add_argument("rtmpkey", nargs="?", default=None, help="RTMP Server Type (defrtmp or bkrtmp)")  # Adding RTMP key argument
     args = parser.parse_known_args()  # Parsing known arguments
     arguments = sys.argv  # Getting system arguments
-    return args, arguments  # Returning parsed arguments
+    return args, arguments  # Returning parsed arguments """
 
 ###########################################offline_check###########################################
 def offline_check_functions(live_url, spare_link, rtmp_server, titleforgmail):  # Asynchronous function to check offline status
@@ -88,7 +84,7 @@ def offline_check_functions(live_url, spare_link, rtmp_server, titleforgmail):  
             logger.info("Setting stream visibility to public...")  # Logging visibility change
             public_stream(state['live_url'])  # Making stream public
         subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Killing API executable
-        subprocess.Popen(["start", "python", "check_tv.py", state['spare_link'], state['rtmp_server']], shell=True)  # Restarting script with spare link
+        multiprocessing.Process(target=initialize_and_monitor_stream, args=(state['spare_link'], state['rtmp_server'])).start()  # Restarting script with spare link
         exit()  # Exiting the script
     
     def handle_youtube_status(state):  # Asynchronous function to handle YouTube status
@@ -547,12 +543,12 @@ def check_is_live_api(url, ffmpeg, rtmp_server):  # Function to check if stream 
             logger.info('The stream is messed up. Trying again...')  # Logging retry message
             time.sleep(2)  # Waiting for 2 seconds
             subprocess.run(["taskkill", "/f", "/im", ffmpeg])  # Killing ffmpeg process
-            subprocess.Popen(["start", "python", "relive_tv.py", text], shell=True)  # Restarting relive_tv script
+            multiprocessing.Process(target=restream, args=(text,)).start()  # Restarting relive_tv script
             time.sleep(35)  # Waiting for 35 seconds
             count_error += 1  # Incrementing error counter
         if count_error >= MAX_RETRIES:  # Checking if retry limit is reached
             logger.info("Retry limit exceeded. Shutting down.")  # Logging shutdown message
-            subprocess.Popen(["start", "python", "check_tv.py", "KILL"], shell=True)  # Restarting check_tv script with KILL
+            multiprocessing.Process(target=initialize_and_monitor_stream, args=("KILL",)).start()  # Restarting check_tv script with KILL
             exit()  # Exiting the script
 
 def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url):  # Asynchronous function to create/edit schedule via API
@@ -587,7 +583,7 @@ def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url):  
             else:
                 logger.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url}")  # Logging stream creation
             logger.info("==================================================")  # Logging separator
-            setup_stream_settings(stream_url, rtmp_server)  # Setting up stream settings
+            Coordinator().setup_stream_settings(stream_url, rtmp_server)  # Setting up stream settings
         if is_reload == "EDIT":  # Checking if reload is EDIT
             logger.info("Updating stream metadata and title...")  # Logging metadata update
             edit_live_stream(stream_url, filename, description)  # Editing live stream
@@ -607,9 +603,12 @@ def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url):  
 def initialize_stream_relay(stream_url, rtmp_server):  # Asynchronous function to initialize stream relay
     if rtmp_server == "defrtmp":
         rtmp_relive = "this"
-    if rtmp_server == "bkrtmp":
+    elif rtmp_server == "bkrtmp":
         rtmp_relive = "api_this"  # Setting RTMP server for relay
-    subprocess.Popen(["start", "python", "relive_tv.py", rtmp_relive], shell=True)  # Starting relive_tv script
+    else:
+        # TODO: refactor this
+        raise ValueError(f"invalid rtmp_server {rtmp_server}")
+    multiprocessing.Process(target=restream, args=(rtmp_relive,)).start() # Starting relive_tv script
     if rtmp_server == "defrtmp":
         ffmpeg_exe = config.ffmpeg
         ffmpeg_1exe = config.ffmpeg1
@@ -644,11 +643,11 @@ def start_check(live_url, rtmp_server):  # Asynchronous function to start stream
     try:
      if rtmp_server == "bkrtmp":  # Checking if RTMP server is "bkrtmp"
        logger.info("Starting with backup stream rtmp... and check")  # Logging relay start message
-       subprocess.Popen(["start", "python", "relive_tv.py", "api_this"], shell=True)  # Starting relive_tv script for "bkrtmp"
+       multiprocessing.Process(target=restream, args=("api_this",)).start()  # Starting relive_tv script for "bkrtmp"
        check_is_live_api(live_url, config.ffmpeg1, rtmp_server) # Checking the stream using the streamlink
      elif rtmp_server == "defrtmp":  # Checking if RTMP server is "defrtmp"
        logger.info("Starting with default stream rtmp... and check")  # Logging relay start message
-       subprocess.Popen(["start", "python", "relive_tv.py", "this"], shell=True)  # Starting relive_tv script for "defrtmp"
+       multiprocessing.Process(target=restream, args=("this",)).start()  # Starting relive_tv script for "defrtmp"
        check_is_live_api(live_url, config.ffmpeg, rtmp_server) # Checking the stream using the streamlink
     except Exception as e:  # Handling exceptions
         logger.error(f"Failed to start relay process: {str(e)}")  # Logging error message
@@ -673,79 +672,61 @@ def start_check(live_url, rtmp_server):  # Asynchronous function to start stream
     logger.info("Starting offline detection and countdown timer...")  # Logging the start of offline detection and countdown timer
     offline_check_functions(live_url, live_spare_url, rtmp_server, titleforgmail)  # Initiating offline check functions with provided parameters
 
-def initialize_and_monitor_stream(yt_link=None, rtmp_info=None):  # Asynchronous function to initialize and monitor stream
-    try:
-        args, arguments = parse_arguments()  # Parsing command-line arguments
-        if yt_link is None and rtmp_info is None:  # Checking if YouTube link and RTMP info are not provided
-            if len(arguments) < 2:  # Checking if insufficient arguments are provided
-                logger.info("==================================================")  # Logging separator
-                logger.info("NO ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")  # Logging no argument available
-                logger.info(f"ARCHIVE USER: {config.username}")  # Logging archive user
-                logger.info("==================================================")  # Logging separator
-                yt_link = "Null"  # Setting YouTube link to Null
-                rtmp_info = "Null"  # Setting RTMP info to Null
-            else:
-                yt_link = arguments[1]  # Setting YouTube link from arguments
-                rtmp_info = arguments[2] if len(arguments) > 2 else None  # Setting RTMP info from arguments
-                if yt_link == "KILL":  # Checking if KILL command is given
-                    logger.info("close all exe")  # Logging close all executables
-                    subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Killing API executable
-                    subprocess.run(["taskkill", "/f", "/im", config.ffmpeg])  # Killing ffmpeg process
-                    subprocess.run(["taskkill", "/f", "/im", config.ffmpeg1])  # Killing ffmpeg1 process
-                    subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Killing countdriver process
-                    exit()  # Exiting the script
-                if len(arguments) < 3:  # Checking if RTMP argument is missing
-                    logger.error("Missing required RTMP argument")  # Logging missing RTMP argument
-                    exit(1)  # Exiting with error code
-                if len(yt_link) != 11:  # Checking if YouTube link is invalid
-                    logger.error(f"Invalid argument for ARG1: {yt_link}. Must be 11 characters long YouTube Video ID")  # Logging invalid YouTube link
-                    exit(1)  # Exiting with error code
-                if rtmp_info not in ["defrtmp", "bkrtmp"]:  # Checking if RTMP info is invalid
-                    logger.error(f"Invalid argument for ARG2: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'")  # Logging invalid RTMP info
-                    exit(1)  # Exiting with error code
-                logger.info("==================================================")  # Logging separator
-                logger.info("INPUT ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")  # Logging input argument available
-                logger.info(f"ARG1: {yt_link} ARG2: {rtmp_info}")  # Logging arguments
-                logger.info(f"ARCHIVE USER: {config.username}")  # Logging archive user
-                logger.info("==================================================")  # Logging separator
-        if rtmp_info not in ["defrtmp", "bkrtmp", "Null"]:  # Checking if RTMP server type is invalid
-            logger.error(f"Invalid RTMP server type: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'")  # Logging invalid RTMP server type
-            exit(1)  # Exiting with error code
-        live_url = None  # Initializing live URL
-        rtmp_server = None  # Initializing RTMP server
-        if yt_link == "Null":  # Checking if YouTube link is Null
-            logger.info("Starting live API check to get initial stream URL")  # Logging starting live API check
-            rtmp_server = "defrtmp"  # Setting RTMP server to default
-            try:
-                live_url = api_create_edit_schedule(0, rtmp_server, "True", "Null")  # Creating/editing schedule via API
-                logger.info(f"Successfully created new stream with URL: {live_url}")  # Logging successful stream creation
-            except Exception as api_error:  # Handling API exceptions
-                logger.error(f"Failed to create stream via API: {str(api_error)}")  # Logging API error
-                raise  # Raising exception
-        else:
-            live_url = yt_link  # Setting live URL to YouTube link
-            rtmp_server = rtmp_info  # Setting RTMP server to RTMP info
-            logger.info(f"Using provided YouTube link: {live_url} with RTMP server: {rtmp_server}")  # Logging provided YouTube link and RTMP server
-        logger.info("Waiting for stream to go live...")  # Logging waiting for stream
-        while True:  # Infinite loop
-            try:
-                streams = get_twitch_streams()  # Getting Twitch streams and client
-                if streams:  # Checking if streams are available
-                    stream = streams[0]  # Getting the first stream
-                    logger.info(f"Stream is now live! Title From Twitch: {stream['title']}")  # Logging stream is live
-                    break  # Breaking the loop
-                else:
-                    time.sleep(10)  # Waiting before retrying
-            except Exception as e:  # Handling exceptions
-                logger.error(f"Error checking stream status: {str(e)}")  # Logging error
-                time.sleep(30)  # Waiting before retrying
-        logger.info("Twitch stream detected - initializing monitoring process")  # Logging Twitch stream detected
-        start_check(live_url, rtmp_server)  # Starting check
-    except Exception as e:  # Handling exceptions
-        logger.error(f"Error in initialize_and_monitor_stream: {str(e)}", exc_info=True)  # Logging error
-        logger.error("Critical error encountered - terminating script execution")  # Logging critical error
+def initialize_and_monitor_stream(yt_link: str | None = None, rtmp_info: str | None = None) -> None:  # Asynchronous function to initialize and monitor stream
+    if yt_link is None:
+        logger.info("==================================================")  # Logging separator
+        logger.info("NO ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")  # Logging no argument available
+        logger.info(f"ARCHIVE USER: {config.username}")  # Logging archive user
+        logger.info("==================================================")  # Logging separator
+    if yt_link == "KILL":  # Checking if KILL command is given
+        logger.info("close all exe")  # Logging close all executables
+        subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Killing API executable
+        subprocess.run(["taskkill", "/f", "/im", config.ffmpeg])  # Killing ffmpeg process
+        subprocess.run(["taskkill", "/f", "/im", config.ffmpeg1])  # Killing ffmpeg1 process
+        exit()  # Exiting the script
+    elif yt_link is not None and len(yt_link) != 11:  # Checking if YouTube link is invalid
+        logger.error(f"Invalid argument for ARG1: {yt_link}. Must be 11 characters long YouTube Video ID")  # Logging invalid YouTube link
         exit(1)  # Exiting with error code
+    logger.info("==================================================")  # Logging separator
+    logger.info("INPUT ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")  # Logging input argument available
+    logger.info(f"ARG1: {yt_link} ARG2: {rtmp_info}")  # Logging arguments
+    logger.info(f"ARCHIVE USER: {config.username}")  # Logging archive user
+    logger.info("==================================================")  # Logging separator
+    if rtmp_info not in ("defrtmp", "bkrtmp"):  # Checking if RTMP info is invalid
+        logger.error(f"Invalid argument for ARG2: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'")  # Logging invalid RTMP info
+        exit(1)  # Exiting with error code
+    live_url = None  # Initializing live URL
+    rtmp_server = None  # Initializing RTMP server
+    if yt_link is None:
+        logger.info("Starting live API check to get initial stream URL")  # Logging starting live API check
+        rtmp_server = "defrtmp"  # Setting RTMP server to default
+        try:
+            live_url = api_create_edit_schedule(0, rtmp_server, "True", "Null")  # Creating/editing schedule via API
+            logger.info(f"Successfully created new stream with URL: {live_url}")  # Logging successful stream creation
+        except Exception as api_error:  # Handling API exceptions
+            logger.error(f"Failed to create stream via API: {str(api_error)}")  # Logging API error
+            raise  # Raising exception
+    else:
+        live_url = yt_link  # Setting live URL to YouTube link
+        rtmp_server = rtmp_info  # Setting RTMP server to RTMP info
+        logger.info(f"Using provided YouTube link: {live_url} with RTMP server: {rtmp_server}")  # Logging provided YouTube link and RTMP server
+    logger.info("Waiting for stream to go live...")  # Logging waiting for stream
+    while True:  # Infinite loop
+        try:
+            streams = get_twitch_streams()  # Getting Twitch streams and client
+            if streams:  # Checking if streams are available
+                stream = streams[0]  # Getting the first stream
+                logger.info(f"Stream is now live! Title From Twitch: {stream['title']}")  # Logging stream is live
+                break  # Breaking the loop
+            else:
+                time.sleep(10)  # Waiting before retrying
+        except Exception as e:  # Handling exceptions
+            logger.error(f"Error checking stream status: {str(e)}")  # Logging error
+            time.sleep(30)  # Waiting before retrying
+    logger.info("Twitch stream detected - initializing monitoring process")  # Logging Twitch stream detected
+    start_check(live_url, rtmp_server)  # Starting check
 
-if __name__ == "__main__":  # Checking if the script is run directly
+
+""" if __name__ == "__main__":  # Checking if the script is run directly
     initialize_and_monitor_stream()  # Running the function to initialize and monitor stream
-    exit()  # Exiting the script
+    exit()  # Exiting the script """

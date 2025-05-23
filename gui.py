@@ -1,4 +1,5 @@
 import logging
+import multiprocessing
 import os
 import sys
 import subprocess
@@ -18,6 +19,7 @@ except ImportError:
     from PIL import Image, ImageTk
     from tkinter import filedialog, messagebox
 
+from check_tv import initialize_and_monitor_stream
 import config_tv as config
 
 # Set appearance mode and default theme
@@ -681,17 +683,15 @@ class TwitchYoutubeApp(ctk.CTk):
         try:
             # Run check_tv.py
             self.add_log_entry("Launching check_tv.py...")
-            running_process = subprocess.Popen([sys.executable, "check_tv.py"], 
-                                              stdout=subprocess.PIPE, 
-                                              stderr=subprocess.STDOUT,
-                                              universal_newlines=True)
-            
-            # Read output
-            for line in running_process.stdout:
-                self.add_log_entry(line.strip())
+            running_process = multiprocessing.Process(
+                target=initialize_and_monitor_stream
+            )
+            running_process.start()
+            # what is even the point in spawning if we block to wait for it to end anyway?
+            running_process.join()
                 
             # Wait for process to complete and get exit code
-            return_code = running_process.wait()
+            return_code = running_process.exitcode
             
             # Check if process exited with an error
             if return_code != 0:

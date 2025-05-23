@@ -79,7 +79,6 @@ def _edit_rtmp_key(
             logger.info(
                 "RTMP key configuration updated successfully..."
             )  # Logging success message
-            driver.quit()  # Quitting the driver
         except Exception as e:  # Handling exceptions
             logger.error(f"Error in edit_rtmp_key: {str(e)}")  # Logging error message
             driver.refresh()  # Refreshing the driver
