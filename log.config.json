@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  "formatters": {
+    "simple": {
+      "format": "%(levelname)s: %(message)s"
+    },
+    "detailed": {
+      "format": "[%(levelname)s|%(module)s|L%(lineno)d] %(asctime)s: %(message)s",
+      "datefmt": "%Y-%m-%dT%H:%M:%S%z"
+    }
+  },
+  "handlers": {
+    "stderr": {
+      "class": "logging.StreamHandler",
+      "level": "WARNING",
+      "formatter": "simple",
+      "stream": "ext://sys.stderr"
+    },
+    "file": {
+      "class": "logging.handlers.RotatingFileHandler",
+      "level": "DEBUG",
+      "formatter": "detailed",
+      "filename": "logs/tv.log",
+      "maxBytes": 100000,
+      "backupCount": 20,
+      "encoding": "utf-8"
+    }
+  },
+  "loggers": {
+    "root": {
+      "level": "DEBUG",
+      "handlers": [
+        "stderr",
+        "file"
+      ]
+    },
+    "selenium.webdriver.remote.remote_connection": {
+      "level": "WARNING"
+    },
+    "urllib3.connectionpool": {
+      "level": "WARNING"
+    }
+  }
+}
