@@ -13,8 +13,8 @@ from googleapiclient.discovery import build  # Importing build for Google API cl
 from selenium import webdriver  # Importing webdriver from selenium for browser automation
 from selenium.common.exceptions import SessionNotCreatedException  # Importing exception for session creation failure
 from selenium.webdriver.chrome.options import Options  # Importing Options for Chrome browser options
+from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By  # Importing By for locating elements
-import psutil  # Importing psutil for system and process utilities
 import requests  # Importing requests for making HTTP requests
 import streamlink  # Importing streamlink for streaming video
 
@@ -526,47 +526,6 @@ def create_live_stream(title, description, kmself):  # Function to create live s
           logger.info(f"Error: {e}")  # Log error
           time.sleep(5)  # Sleep for 5 seconds
 
-
-def edit_rtmp_key(driver, rtmp_key_select):  # Function to edit RTMP key using Selenium WebDriver
-    countfuckingshit = 0  # Counter for retry attempts
-    while True:  # Infinite loop for retrying
-        try:
-            driver.find_element(By.XPATH, "//tp-yt-iron-icon[@icon='yt-icons:arrow-drop-down']").click()  # Clicking dropdown icon
-            time.sleep(3)  # Waiting for 3 seconds
-            if rtmp_key_select == "bkrtmp":  # Checking if RTMP key is "bkrtmp"
-                xpath = "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname1 + " (')]]"  # XPath for "bkrtmp"
-                element2 = driver.find_element(By.XPATH, xpath)  # Finding element for "bkrtmp"
-                element2.click()  # Clicking the element
-                time.sleep(7)  # Waiting for 7 seconds
-            if rtmp_key_select == "defrtmp":  # Checking if RTMP key is "defrtmp"
-                xpath = "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname + " (')]]"  # XPath for "defrtmp"
-                element3 = driver.find_element(By.XPATH, xpath)  # Finding element for "defrtmp"
-                element3.click()  # Clicking the element
-                time.sleep(7)  # Waiting for 7 seconds
-            if config.disablechat == "True":  # Checking if chat should be disabled
-                driver.find_element(By.XPATH, "//ytcp-button[@id='edit-button']").click()  # Clicking edit button
-                time.sleep(3)  # Waiting for 3 seconds
-                driver.find_element(By.XPATH, "//li[@id='customization']").click()  # Clicking customization tab
-                time.sleep(2)  # Waiting for 2 seconds
-                driver.find_element(By.XPATH, "//*[@id='chat-enabled-checkbox']").click()  # Clicking chat-enabled checkbox
-                time.sleep(1)  # Waiting for 1 second
-                driver.find_element(By.XPATH, "//ytcp-button[@id='save-button']").click()  # Clicking save button
-            time.sleep(10)  # Waiting for 10 seconds
-            logger.info("RTMP key configuration updated successfully...")  # Logging success message
-            driver.quit()  # Quitting the driver
-            subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Killing countdriver process
-        except Exception as e:  # Handling exceptions
-            logger.error(f"Error in edit_rtmp_key: {str(e)}")  # Logging error message
-            driver.refresh()  # Refreshing the driver
-            time.sleep(15)  # Waiting for 15 seconds
-            countfuckingshit += 1  # Incrementing retry counter
-            if countfuckingshit == 3:  # Checking if retry limit is reached
-                logger.info("edit rtmp key fail shutdown script")  # Logging failure message
-                subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Killing countdriver process
-                exit()  # Exiting the script
-        finally:
-            break  # Breaking the loop
-
 def check_is_live_api(url, ffmpeg, rtmp_server):  # Function to check if stream is live using API
     logger.info("Waiting for 40sec live on YouTube")  # Logging wait message
     time.sleep(40)  # Waiting for 40 seconds
@@ -644,41 +603,6 @@ def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url):  
         logger.error(f"Critical error encountered during execution: {e}")  # Logging critical error
         exit()  # Exiting the script
 
-def setup_stream_settings(stream_url, rtmp_server):  # Asynchronous function to set up stream settings
-    check_process_running()  # Checking if process is running
-    subprocess.Popen(["start", "countdriver.exe"], shell=True)  # Starting countdriver process
-    options = Options()  # Creating Chrome options
-    chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")  # Setting Chrome user data directory
-    options.add_argument(f"user-data-dir={chrome_user_data_dir}")  # Adding user data directory to options
-    options.add_argument(f"profile-directory={config.Chrome_Profile}")  # Adding profile directory to options
-    driver = None  # Initializing driver
-    while True:  # Infinite loop
-       try:
-        time.sleep(3)
-        driver = webdriver.Chrome(options=options)  # Creating Chrome WebDriver
-        url_to_live = f"https://studio.youtube.com/video/{stream_url}/livestreaming"  # Constructing URL to live stream
-        driver.get(url_to_live)  # Navigating to URL
-        time.sleep(5)  # Waiting for 5 seconds
-        driver.refresh()  # Refreshing the page
-        time.sleep(30)  # Waiting for 30 seconds
-        logger.info("Configuring RTMP key and chat settings...")  # Logging configuration message
-        edit_rtmp_key(driver, rtmp_server)  # Editing RTMP key
-       except SessionNotCreatedException as e:
-           if "DevToolsActivePort file doesn't exist" in str(e):
-               logger.error(f"Chrome WebDriver failed to start: [{e}] DevToolsActivePort file doesn't exist. Terminating all Chrome processes and retry.")
-           else:
-               logger.error(f"Session not created: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN")
-           subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  # Killing CHROME PROCESS
-           time.sleep(5)
-       except Exception as e:
-           logger.error(f"Unexpected error: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN")
-           subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  # Killing CHROME PROCESS
-           time.sleep(5)
-       finally:
-           if driver:  # Checking if driver is initialized
-               driver.quit()  # Quitting the driver
-           subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Killing countdriver process
-           break  # Breaking the loop
 
 def initialize_stream_relay(stream_url, rtmp_server):  # Asynchronous function to initialize stream relay
     if rtmp_server == "defrtmp":
