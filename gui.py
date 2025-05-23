@@ -1,10 +1,11 @@
-import logging
 import os
 import sys
 import subprocess
 import threading
 import time
-
+from logger_config import gui_logger as logging # Importing logging module for logging messages
+import asyncio
+import config_tv as config
 try:
     import customtkinter as ctk
     from customtkinter import CTkFont, CTkLabel, CTkButton, CTkEntry, CTkSwitch, CTkFrame, CTkTextbox, CTkScrollableFrame
@@ -18,11 +19,17 @@ except ImportError:
     from PIL import Image, ImageTk
     from tkinter import filedialog, messagebox
 
-import config_tv as config
-
 # Set appearance mode and default theme
 ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
+
+# Configure logging
+logging.basicConfig(filename="tv.log", level=logging.INFO, 
+                   format='%(asctime)s %(message)s', 
+                   datefmt='%Y-%m-%d %H:%M:%S')
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+logging.getLogger().addHandler(console_handler)
 
 # Global variables
 running_process = None
