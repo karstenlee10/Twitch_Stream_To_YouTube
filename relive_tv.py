@@ -1,12 +1,13 @@
 import os
 import sys
-from logger_config import check_tv_logger as logging # Importing logging module for logging messages
 import time
+
 import psutil
-import config_tv as config
 import streamlink
-#sys.path.append('D:/active/twitch_token')
-#import token_key
+
+import config_tv as config
+from logger_config import relive_tv_logger as logging # Importing logging module for logging messages
+
 
 arguments = sys.argv
 apiexe = f"taskkill /f /im {config.apiexe}"

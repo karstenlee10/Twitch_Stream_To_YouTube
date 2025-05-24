@@ -1,23 +1,16 @@
 import os
-import sys
 import subprocess
+import sys
 import threading
 import time
-from logger_config import gui_logger as logging # Importing logging module for logging messages
-import asyncio
+
+import customtkinter as ctk
+from customtkinter import CTkLabel, CTkButton, CTkEntry, CTkSwitch, CTkFrame, CTkTextbox, CTkScrollableFrame
+from tkinter import filedialog, messagebox
+
 import config_tv as config
-try:
-    import customtkinter as ctk
-    from customtkinter import CTkFont, CTkLabel, CTkButton, CTkEntry, CTkSwitch, CTkFrame, CTkTextbox, CTkScrollableFrame
-    from PIL import Image, ImageTk
-    from tkinter import filedialog, messagebox
-except ImportError:
-    print("Installing required packages...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "customtkinter", "pillow"])
-    import customtkinter as ctk
-    from customtkinter import CTkFont, CTkLabel, CTkButton, CTkEntry, CTkSwitch, CTkFrame, CTkTextbox, CTkScrollableFrame
-    from PIL import Image, ImageTk
-    from tkinter import filedialog, messagebox
+from logger_config import gui_logger as logging # Importing logging module for logging messages
+
 
 # Set appearance mode and default theme
 ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"

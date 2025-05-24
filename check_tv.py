@@ -1,29 +1,30 @@
+import argparse  # Importing argparse module for parsing command-line arguments
+from datetime import datetime, timedelta, timezone  # Importing datetime for date and time operations
+import enum  # Importing enum for enumerations
+import os  # Importing os module for interacting with the operating system
+import requests  # Importing requests for making HTTP requests
 import subprocess  # Importing subprocess module for running system commands
 import sys  # Importing sys module for system-specific parameters and functions
-import os  # Importing os module for interacting with the operating system
 import time  # Importing time module for time-related functions
-from logger_config import check_tv_logger as logging # Importing logging module for logging messages
-import argparse  # Importing argparse module for parsing command-line arguments
+import unicodedata  # Importing unicodedata for Unicode character database
+import urllib.request
+
+from google.auth.transport.requests import Request  # Importing Request for Google auth transport
+from google.oauth2.credentials import Credentials  # Importing Credentials for Google OAuth2
+from googleapiclient.discovery import build  # Importing build for Google API client
+from PIL import Image, ImageDraw, ImageFont  # Importing PIL for image manipulation
+import psutil  # Importing psutil for system and process utilities
 from selenium import webdriver  # Importing webdriver from selenium for browser automation
 from selenium.webdriver.common.by import By  # Importing By for locating elements
 from selenium.webdriver.support import expected_conditions as EC  # Importing expected_conditions for waiting conditions
 from selenium.webdriver.support.ui import WebDriverWait  # Importing WebDriverWait for waiting for conditions
 from selenium.common.exceptions import SessionNotCreatedException, TimeoutException  # Importing exceptions for session creation failure and timeouts
 from selenium.webdriver.chrome.options import Options  # Importing Options for Chrome browser options
-from google.oauth2.credentials import Credentials  # Importing Credentials for Google OAuth2
-from googleapiclient.discovery import build  # Importing build for Google API client
-import config_tv as config  # Importing custom configuration module
-import psutil  # Importing psutil for system and process utilities
-import requests  # Importing requests for making HTTP requests
-import enum  # Importing enum for enumerations
-import unicodedata  # Importing unicodedata for Unicode character database
-import string  # Importing string module for string operations
-import random  # Importing random module for generating random numbers
-from datetime import datetime, timedelta, timezone  # Importing datetime for date and time operations
 import streamlink  # Importing streamlink for streaming video
-from google.auth.transport.requests import Request  # Importing Request for Google auth transport
-from PIL import Image, ImageDraw, ImageFont  # Importing PIL for image manipulation
-import urllib.request
+
+import config_tv as config  # Importing custom configuration module
+from logger_config import check_tv_logger as logging # Importing logging module for logging messages
+
 
 refresh_title = "True"  # Setting refresh title flag to True
 
