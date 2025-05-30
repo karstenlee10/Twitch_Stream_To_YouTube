@@ -4,6 +4,8 @@
 
 The code is designed to run as a continuous service, monitoring streams and handling various failure scenarios automatically. It's particularly useful for maintaining 24/7 rebroadcast streams from Twitch to YouTube while handling various edge cases and failures automatically.
 
+<h2>Detail Wiki of this Project: https://deepwiki.com/karstenlee10/Twitch_Stream_To_YouTube</h2>
+
 <h2>😄THE SCRIPT IS RUNING GOOD BUT YOU WILL NEED TO DOWNGRADE YOUR CHROME VERSION [130.0.6723.70] (DON'T TRUST UNOFFICAL WEBSITE DOWNLOAD IT AT YOUR OWN RISK)😄</h2>
 
 [DOWNLOAD OLD CHROME AT YOUR OWN RISK](https://drive.google.com/file/d/1v26IzTqlI6sCwjARNMqje7xrMhNu7kW0/view?usp=sharing)
