@@ -1,16 +1,23 @@
 import os
-import subprocess
 import sys
+import subprocess
 import threading
 import time
-
-import customtkinter as ctk
-from customtkinter import CTkLabel, CTkButton, CTkEntry, CTkSwitch, CTkFrame, CTkTextbox, CTkScrollableFrame
-from tkinter import filedialog, messagebox
-
-import config_tv as config
 from logger_config import gui_logger as logging # Importing logging module for logging messages
-
+import asyncio
+import config_tv as config
+try:
+    import customtkinter as ctk
+    from customtkinter import CTkFont, CTkLabel, CTkButton, CTkEntry, CTkSwitch, CTkFrame, CTkTextbox, CTkScrollableFrame
+    from PIL import Image, ImageTk
+    from tkinter import filedialog, messagebox
+except ImportError:
+    print("Installing required packages...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "customtkinter", "pillow"])
+    import customtkinter as ctk
+    from customtkinter import CTkFont, CTkLabel, CTkButton, CTkEntry, CTkSwitch, CTkFrame, CTkTextbox, CTkScrollableFrame
+    from PIL import Image, ImageTk
+    from tkinter import filedialog, messagebox
 
 # Set appearance mode and default theme
 ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
@@ -75,6 +82,7 @@ class TwitchYoutubeApp(ctk.CTk):
         self.unliststream_var = ctk.BooleanVar(value=config.unliststream == "True")
         self.disablechat_var = ctk.BooleanVar(value=config.disablechat == "True")
         self.brandacc_var = ctk.BooleanVar(value=config.brandacc == "True")
+        self.use_api_var = ctk.BooleanVar(value=config.Use_API == "True" if hasattr(config, 'Use_API') else True)
         
         self.playlist_choices = ["False", "True", "DOUBLE"]
         self.playlist_var = ctk.StringVar(value=config.playlist)
@@ -105,7 +113,7 @@ class TwitchYoutubeApp(ctk.CTk):
             
         # Boolean variables need special handling
         bool_variables = [
-            self.unliststream_var, self.disablechat_var, self.brandacc_var
+            self.unliststream_var, self.disablechat_var, self.brandacc_var, self.use_api_var
         ]
         
         for var in bool_variables:
@@ -392,6 +400,14 @@ class TwitchYoutubeApp(ctk.CTk):
         CTkLabel(option_section3, text="Uploads custom thumbnails for streams", 
                 justify="left", text_color="gray").pack(anchor="w", padx=25, pady=(0,5))
         
+        # Use API
+        option_section4 = CTkFrame(options_frame)
+        option_section4.pack(fill="x", padx=15, pady=5)
+        
+        CTkSwitch(option_section4, text="Use API Mode", variable=self.use_api_var).pack(anchor="w", pady=5)
+        CTkLabel(option_section4, text="Uses YouTube API for stream management (requires API credentials)", 
+                justify="left", text_color="gray").pack(anchor="w", padx=25, pady=(0,5))
+        
         # Playlist Settings
         playlist_section = CTkFrame(options_frame)
         playlist_section.pack(fill="x", padx=15, pady=(25,5))
@@ -615,9 +631,10 @@ class TwitchYoutubeApp(ctk.CTk):
                 
                 # API SETTINGS section
                 f.write("#API SETTINGS\n")
+                f.write(f"Use_API = \"{str(self.use_api_var.get()).capitalize()}\"  #True is USE ANY API for stream management, False is USE BROWSER for stream management\n")
                 f.write(f"accountname = \"{self.accountname_var.get()}\" #google account name(not brand acc have email) when login to google api\n")
                 f.write(f"brandacc = \"{str(self.brandacc_var.get()).capitalize()}\" #do you use the brand acc as the archive channel\n")
-                f.write(f"brandaccname = \"{self.brandaccname_var.get() or 'Null'}\" #if you have brand acc copy the google account name when login to google api\n")
+                f.write(f"brandaccname = \"{self.brandaccname_var.get()}\" #if you have brand acc copy the google account name when login to google api\n")
                 f.write("#TWITCH API SETTINGS\n")
                 f.write(f"client_id = \"{self.client_id_var.get()}\" #twitch api client id\n")
                 f.write(f"client_secret = \"{self.client_secret_var.get()}\" #twitch api client sercet\n")
