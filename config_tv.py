@@ -20,6 +20,7 @@ rtmp_key_1 = "" #second yt rtmp key
 Chrome_Profile = "" #chrome profile folder name
 ##########################################################################
 #API SETTINGS
+Use_API = "True" #False is Don't Use any API
 accountname = "" #google account name(not brand acc have email) when login to google api
 brandacc = "False" #do you use the brand acc as the archive channel
 brandaccname = "Null" #if you have brand acc copy the google account name when login to google api
