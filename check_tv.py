@@ -423,7 +423,7 @@ def offline_check_functions(live_url, spare_link, rtmp_server, titleforgmail):  
     def find_gmail_title(state):  # Asynchronous function to find Gmail title
         while True:  # Infinite loop
             try:
-                title = f"：{state['titleforgmail']}"  # Format title
+                title = f"{state['titleforgmail']}"  # Format title
                 service = get_gmail_service()  # Get Gmail service
                 now = datetime.now()  # Get current time
                 minutes_ago = now - timedelta(minutes=2)  # Calculate time 2 minutes ago
@@ -434,8 +434,9 @@ def offline_check_functions(live_url, spare_link, rtmp_server, titleforgmail):  
                         msg = service.users().messages().get(userId='me', id=message['id']).execute()  # Get message details
                         received_time = datetime.fromtimestamp(int(msg['internalDate']) / 1000)  # Get received time
                         subject = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'subject'), '')  # Get subject
-                        if received_time >= minutes_ago and title in subject:  # Check if message is recent and title matches
-                            logging.info(f"Found email third party message: {subject}")  # Log found message
+                        sender = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'from'), '')  # Get sender
+                        if received_time >= minutes_ago and title in subject and "no-reply@youtube.com" in sender:  # Check if message is recent, title matches, and from YouTube
+                            logging.info(f"Found email from YouTube: {subject}")  # Log found message
                             return True  # Return True if message is found
                 return False  # Return False if no message is found
             except Exception as e:  # Handle exceptions
