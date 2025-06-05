@@ -1114,7 +1114,7 @@ def non_api_create_live_stream(filename, description, rtmp_server):
                        if config.disablechat == "True":  # Checking if chat should be disabled
                            # If chat is disabled in config, click the disable chat checkbox
                            disable_chat_checkbox = WebDriverWait(driver, 30).until(
-                                   EC.element_to_be_clickable((By.XPATH, '/html/body/ytls-broadcast-create-dialog/tp-yt-paper-dialog/div/div[3]/div/ytls-advanced-settings/div/ytcp-form-live-chat/div[3]/div[1]/div[1]/ytcp-form-checkbox/ytcp-checkbox-lit/div/div[1]/div/div'))
+                                   EC.element_to_be_clickable((By.XPATH, '/html/body/ytls-broadcast-edit-dialog/ytcp-dialog/tp-yt-paper-dialog/div[2]/div/ytcp-navigation/div[2]/tp-yt-iron-pages/ytls-advanced-settings/div/ytcp-form-live-chat/div[3]/div[1]/div[1]/ytcp-form-checkbox/ytcp-checkbox-lit/div/div[1]/div'))
                                )
                            disable_chat_checkbox.click()
                            time.sleep(2)
@@ -1122,7 +1122,7 @@ def non_api_create_live_stream(filename, description, rtmp_server):
                        if config.disablechat == "False":
                            # Click the disable chat replay checkbox
                            disable_chat_replay = WebDriverWait(driver, 30).until(
-                               EC.element_to_be_clickable((By.XPATH, '/html/body/ytls-broadcast-create-dialog/tp-yt-paper-dialog/div/div[3]/div/ytls-advanced-settings/div/ytcp-form-live-chat/div[3]/div[2]/div[1]/ytcp-form-checkbox/ytcp-checkbox-lit/div/div[1]/div/div'))
+                               EC.element_to_be_clickable((By.XPATH, '/html/body/ytls-broadcast-edit-dialog/ytcp-dialog/tp-yt-paper-dialog/div[2]/div/ytcp-navigation/div[2]/tp-yt-iron-pages/ytls-advanced-settings/div/ytcp-form-live-chat/div[3]/div[2]/div[1]/ytcp-form-checkbox/ytcp-checkbox-lit/div/div[1]/div'))
                            )
                            disable_chat_replay.click()
                            time.sleep(2)
@@ -1445,7 +1445,7 @@ def setup_stream_settings(stream_url, rtmp_server):  # Asynchronous function to 
                 time.sleep(3)  # Waiting for 3 seconds
                 driver.find_element(By.XPATH, "//li[@id='customization']").click()  # Clicking customization tab
                 time.sleep(2)  # Waiting for 2 seconds
-                driver.find_element(By.XPATH, "//*[@id='chat-enabled-checkbox']").click()  # Clicking chat-enabled checkbox
+                driver.find_element(By.XPATH, "/html/body/ytls-broadcast-edit-dialog/ytcp-dialog/tp-yt-paper-dialog/div[2]/div/ytcp-navigation/div[2]/tp-yt-iron-pages/ytls-advanced-settings/div/ytcp-form-live-chat/div[3]/div[1]/div[1]/ytcp-form-checkbox/ytcp-checkbox-lit/div/div[1]/div").click()  # Clicking chat-enabled checkbox
                 time.sleep(1)  # Waiting for 1 second
                 driver.find_element(By.XPATH, "//ytcp-button[@id='save-button']").click()  # Clicking save button
             if config.disablechat == "False":  # Checking if chat should be replayable
@@ -1453,7 +1453,7 @@ def setup_stream_settings(stream_url, rtmp_server):  # Asynchronous function to 
                 time.sleep(3)  # Waiting for 3 seconds
                 driver.find_element(By.XPATH, "//li[@id='customization']").click()  # Clicking customization tab
                 time.sleep(2)  # Waiting for 2 seconds
-                driver.find_element(By.XPATH, "//ytcp-checkbox-lit/div/div[1]").click()  # Clicking chat-enabled checkbox
+                driver.find_element(By.XPATH, "/html/body/ytls-broadcast-edit-dialog/ytcp-dialog/tp-yt-paper-dialog/div[2]/div/ytcp-navigation/div[2]/tp-yt-iron-pages/ytls-advanced-settings/div/ytcp-form-live-chat/div[3]/div[2]/div[1]/ytcp-form-checkbox/ytcp-checkbox-lit/div/div[1]/div").click()  # Clicking chat-enabled checkbox
                 time.sleep(1)  # Waiting for 1 second
                 driver.find_element(By.XPATH, "//ytcp-button[@id='save-button']").click()  # Clicking save button
             while True:
