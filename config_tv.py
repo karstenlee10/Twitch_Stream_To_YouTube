@@ -2,7 +2,8 @@
 username = "" #twitch or bilibili username
 ##########################################################################
 #ARCHIVE SETTINGS
-ytshort = "False" #not recommand
+playvideo = "True" #if true will play ending screen and error screen
+livestreamautostop = "False" #if true than youtube will auto stop stream
 unliststream = "False" #after stream will be public
 disablechat = "True"  #disable chat on live stream
 playlist = "False"  # True or DOUBLE IF YOU WANT TO SAVE TO MULTIPLE PLAYLIST disable to False
@@ -20,7 +21,6 @@ rtmp_key_1 = "" #second yt rtmp key
 Chrome_Profile = "" #chrome profile folder name
 ##########################################################################
 #API SETTINGS
-Use_API = "True" #False is Don't Use any API
 accountname = "" #google account name(not brand acc have email) when login to google api
 brandacc = "False" #do you use the brand acc as the archive channel
 brandaccname = "Null" #if you have brand acc copy the google account name when login to google api
