@@ -3,9 +3,6 @@ import sys  # Importing sys module for system-specific parameters and functions
 import os  # Importing os module for interacting with the operating system
 import time  # Importing time module for time-related functions
 from logger_config import check_tv_logger as logging # Importing logging module for logging messages
-from pym3u8downloader import M3U8Downloader  # Importing M3U8Downloader from pym3u8downloader module
-import pym3u8downloader
-import argparse  # Importing argparse module for parsing command-line arguments
 from selenium import webdriver  # Importing webdriver from selenium for browser automation
 from selenium.webdriver.common.by import By  # Importing By for locating elements
 from selenium.webdriver.common.keys import Keys
@@ -19,10 +16,7 @@ import config_tv as config  # Importing custom configuration module
 import psutil  # Importing psutil for system and process utilities
 import requests  # Importing requests for making HTTP requests
 import enum  # Importing enum for enumerations
-import m3u8  # Importing m3u8 for parsing m3u8 files
 import unicodedata  # Importing unicodedata for Unicode character database
-import string  # Importing string module for string operations
-import random  # Importing random module for generating random numbers
 from datetime import datetime, timedelta, timezone  # Importing datetime for date and time operations
 import streamlink  # Importing streamlink for streaming video
 from google.auth.transport.requests import Request  # Importing Request for Google auth transport
@@ -751,10 +745,12 @@ def get_youtube_stream_title(video_id):
             logging.info(f"Error and stoping because of api limited")  # Log quota exceeded
             exit()  # Exit with error
           if try_count == 3:  # Check if retry limit is reached
-           logging.info(f"Error and stoping because of error that can't fix")  # Log error
+            logging.info(f"Error and stoping because of error that can't fix")  # Log error
+            exit()  # Exit with error
           try_count += 1  # Increment retry counter
           logging.info(f"Error: {e}")  # Log error
           time.sleep(5)  # Sleep for 5 seconds
+
 def create_live_stream(title, description, kmself):  # Function to create live stream
     hitryagain = 0  # Initialize retry counter
     while True:  # Infinite loop
@@ -827,6 +823,7 @@ def create_live_stream(title, description, kmself):  # Function to create live s
             exit()  # Exit with error
           if hitryagain == 3:  # Check if retry limit is reached
            logging.info(f"Error and stoping because of error that can't fix")  # Log error
+           exit()  # Exit with error
           hitryagain += 1  # Increment retry counter
           logging.info(f"Error: {e}")  # Log error
           time.sleep(5)  # Sleep for 5 seconds
