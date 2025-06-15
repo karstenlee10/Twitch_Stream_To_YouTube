@@ -3,6 +3,8 @@ import sys  # Importing sys module for system-specific parameters and functions
 import os  # Importing os module for interacting with the operating system
 import time  # Importing time module for time-related functions
 from logger_config import check_tv_logger as logging # Importing logging module for logging messages
+from pym3u8downloader import M3U8Downloader  # Importing M3U8Downloader from pym3u8downloader module
+import pym3u8downloader
 import argparse  # Importing argparse module for parsing command-line arguments
 from selenium import webdriver  # Importing webdriver from selenium for browser automation
 from selenium.webdriver.common.by import By  # Importing By for locating elements
@@ -17,6 +19,7 @@ import config_tv as config  # Importing custom configuration module
 import psutil  # Importing psutil for system and process utilities
 import requests  # Importing requests for making HTTP requests
 import enum  # Importing enum for enumerations
+import m3u8  # Importing m3u8 for parsing m3u8 files
 import unicodedata  # Importing unicodedata for Unicode character database
 import string  # Importing string module for string operations
 import random  # Importing random module for generating random numbers
@@ -73,7 +76,7 @@ FONT_MAP = {
 }
 
 ###########################################offline_check###########################################
-def offline_check_functions(live_url, spare_link, rtmp_server, titleforgmail):  # Asynchronous function to check offline status
+def offline_check_functions(live_url, spare_link, rtmp_server):  # Asynchronous function to check offline status
     state = {  # Initializing state dictionary
         'countdownhours': 0,  # Countdown hours
         'numberpart': 0,  # Number part
@@ -82,17 +85,14 @@ def offline_check_functions(live_url, spare_link, rtmp_server, titleforgmail):  
         'live_url': live_url,  # Live URL
         'spare_link': spare_link,  # Spare link
         'rtmp_server': rtmp_server,  # RTMP server
-        'titleforgmail': titleforgmail,  # Title for Gmail
         'refresh_title': 0,
         'check_title_count': 0
     }
     
-    logging.info(f"Initializing offline detection monitoring service... With {state['live_url']}, {state['spare_link']}, {state['rtmp_server']}, {titleforgmail}")  # Logging initialization message
-    if state['titleforgmail'] == "Disable":  # Checking if title is Disable
-        logging.info("Gmail title and Twitch title checking will be Disable this time. continue at your own risk")  # Logging title disable message
-        state['gmailcount'] = 5
-        state['check_title_count'] = 44
-        
+    logging.info(f"Initializing offline detection monitoring service... With {state['live_url']}, {state['spare_link']}, {state['rtmp_server']}")  # Logging initialization message
+    if config.livestreamautostop == "False":
+        state['countyt'] = 4
+
     def ending_stream(stream_url):  # Function to handle stream ending
        check_process_running()  # Checking if process is running
        subprocess.Popen(["start", "countdriver.exe"], shell=True)  # Starting countdriver process
@@ -201,7 +201,7 @@ def offline_check_functions(live_url, spare_link, rtmp_server, titleforgmail):  
         subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Killing API executable
         subprocess.Popen(["start", "python", "check_tv.py", state['spare_link'], state['rtmp_server']], shell=True)  # Restarting script with spare link
         exit()  # Exiting the script
-    
+
     def handle_youtube_status(state):  # Asynchronous function to handle YouTube status
       while True:
         feedback = is_youtube_livestream_live(state['live_url'])
@@ -320,7 +320,7 @@ def offline_check_functions(live_url, spare_link, rtmp_server, titleforgmail):  
               return True  # Return True if stream is available
            except KeyError as e:  # Handle KeyError
               TRY += 1
-              time.sleep(2)
+              time.sleep(5)
               if TRY == 3:
                logging.info(f"try 3 times is still offline")  # Log error
                return False  # Return False if stream is not available
@@ -353,7 +353,6 @@ def offline_check_functions(live_url, spare_link, rtmp_server, titleforgmail):  
                state['gmailcount'] = 5
                state['check_title_count'] = 44
 
-
     while True:  # Infinite loop
         try:
               streams = get_twitch_streams()  # Getting Twitch streams and client
@@ -361,7 +360,8 @@ def offline_check_functions(live_url, spare_link, rtmp_server, titleforgmail):  
                 handle_stream_offline(state)  # Handling stream offline
               state['countdownhours'] += 1  # Incrementing countdown hours
               state['gmailcount'] += 1  # Incrementing Gmail count
-              state['countyt'] += 1  # Incrementing YouTube count
+              if config.livestreamautostop == "True":
+                state['countyt'] += 1  # Incrementing YouTube count
               state['check_title_count'] += 1  # Incrementing check title count
               if state['check_title_count'] == 43:  # Checking if check title count is 43
                   refresh_stream_title(state)  # Refreshing stream title
@@ -730,6 +730,31 @@ def edit_live_stream(video_id, new_title, new_description):  # Function to edit 
      logging.info(f"Error: {e}")  # Log error
      time.sleep(5)  # Sleep for 5 seconds
 
+def get_youtube_stream_title(video_id):
+    """Get the title of a YouTube live stream from its video ID"""
+    try_count = 0
+    while True:
+        try:
+            service = get_service()
+            request = service.videos().list(
+                part="snippet",
+                id=video_id
+            )
+            response = request.execute()
+            
+            if response['items']:
+                return response['items'][0]['snippet']['title']
+            return None
+            
+        except Exception as e:
+          if 'quotaExceeded' in str(e):  # Check if quota is exceeded
+            logging.info(f"Error and stoping because of api limited")  # Log quota exceeded
+            exit()  # Exit with error
+          if try_count == 3:  # Check if retry limit is reached
+           logging.info(f"Error and stoping because of error that can't fix")  # Log error
+          try_count += 1  # Increment retry counter
+          logging.info(f"Error: {e}")  # Log error
+          time.sleep(5)  # Sleep for 5 seconds
 def create_live_stream(title, description, kmself):  # Function to create live stream
     hitryagain = 0  # Initialize retry counter
     while True:  # Infinite loop
@@ -1151,18 +1176,13 @@ def initialize_and_monitor_stream():  # Asynchronous function to initialize and 
             exit(1)  # Exiting with error code
           logging.info("Stream relay process started successfully")  # Logging success message
         try:
-            if IFTHEREISMORE == "Null":
-              titleforgmail = api_create_edit_schedule(0, rtmp_server, "EDIT", live_url)  # Creating/editing schedule
-            else:
-              titleforgmail = api_create_edit_schedule(0, rtmp_server, "TITLE", live_url)  # Creating/editing schedule
+            if THEREISMORE == "Null":
+              api_create_edit_schedule(0, rtmp_server, "EDIT", live_url)  # Creating/editing schedule via API
             logging.info('edit finished continue the stream')  # Logging edit completion
-            logging.info(f"Successfully retrieved stream title: {titleforgmail}")  # Logging retrieved title
         except UnboundLocalError:  # Handling UnboundLocalError
             logging.warning("Encountered UnboundLocalError when getting title - continuing with default continue at your own risk")  # Logging warning
-            titleforgmail = "Disable"
         except Exception as e:  # Handling exceptions
             logging.error(f"Error getting stream title: {str(e)} - Error continue at your own risk")  # Logging error message
-            titleforgmail = "Disable"
         try:
             logging.info("Loading backup stream configuration...")  # Logging backup configuration
             if rtmp_server == "bkrtmp":
@@ -1177,7 +1197,7 @@ def initialize_and_monitor_stream():  # Asynchronous function to initialize and 
         except Exception as e:  # Catching any exceptions that occur
             logging.error(f"Failed to create backup stream: {str(e)}")  # Logging error message with exception details
         logging.info("Starting offline detection...")  # Logging the start of offline detection
-        offline_check_functions(live_url, live_spare_url, rtmp_server, titleforgmail)  # type: ignore Initiating offline check functions with provided parameters
+        offline_check_functions(live_url, live_spare_url, rtmp_server)  # type: ignore Initiating offline check functions with provided parameters
     except Exception as e:  # Handling exceptions
         logging.error(f"Error in initialize_and_monitor_stream: {str(e)}", exc_info=True)  # Logging error
         logging.error("Critical error encountered - terminating script execution")  # Logging critical error
