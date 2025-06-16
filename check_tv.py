@@ -70,7 +70,7 @@ FONT_MAP = {
 }
 
 ###########################################offline_check###########################################
-def offline_check_functions(live_url, spare_link, rtmp_server):  # Asynchronous function to check offline status
+def offline_check_functions(live_url, spare_link, rtmp_server, title):  # Asynchronous function to check offline status
     state = {  # Initializing state dictionary
         'countdownhours': 0,  # Countdown hours
         'numberpart': 0,  # Number part
@@ -80,12 +80,16 @@ def offline_check_functions(live_url, spare_link, rtmp_server):  # Asynchronous 
         'spare_link': spare_link,  # Spare link
         'rtmp_server': rtmp_server,  # RTMP server
         'refresh_title': 0,
-        'check_title_count': 0
+        'check_title_count': 0,
+        'titleforgmail': title,  # Title for Gmail
+        'refresh_intro': "Null"
     }
     
     logging.info(f"Initializing offline detection monitoring service... With {state['live_url']}, {state['spare_link']}, {state['rtmp_server']}")  # Logging initialization message
     if config.livestreamautostop == "False":
         state['countyt'] = 4
+    if config.intro == "True":
+        state['refresh_intro'] = 0
 
     def ending_stream(stream_url):  # Function to handle stream ending
        check_process_running()  # Checking if process is running
@@ -186,6 +190,13 @@ def offline_check_functions(live_url, spare_link, rtmp_server):  # Asynchronous 
               rtmp_key = config.rtmp_key  # Use backup RTMP key
               ffmpeg = config.ffmpeg     # Use backup ffmpeg path
           os.system(f'{ffmpeg} -re -i ending.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp_key}')  # Executing ffmpeg command
+        if config.intro == "True":
+          if state['rtmp_server'] == "defrtmp":
+              rtmpintro = config.rtmp_key  # Use default RTMP key
+          else:
+              rtmpintro = config.rtmp_key_1  # Use backup RTMP key
+          logging.info("Load intro again IDK")
+          load_intro(rtmpintro)
         if config.unliststream == "True":  # Checking if stream should be unlisted
             logging.info("Setting stream visibility to public...")  # Logging visibility change
             public_stream(state['live_url'])  # Making stream public
@@ -325,19 +336,22 @@ def offline_check_functions(live_url, spare_link, rtmp_server):  # Asynchronous 
     def refresh_stream_title(state):  # Function to refresh stream title
       try:
        new1title = get_twitch_stream_title()  # Getting Twitch stream title
-       newtitle = ''.join('' if unicodedata.category(c) == 'So' else c for c in (new1title or "")).replace("<", "").replace(">", "")  # Cleaning title
+       yttitle = get_youtube_stream_title(state['live_url'])
+       newtitle = ''.join('' if unicodedata.category(c) == 'So' else c for c in (new1title or new2title or "")).replace("<", "").replace(">", "")  # Cleaning title
        part_suffix = f" (PART{state['numberpart']})" if state['numberpart'] > 0 else ""
        filename = f"{config.username} | {newtitle} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}"
        if len(filename) > 100:  # Checking if filename exceeds 100 characters
            max_title_len = 100 - len(config.username) - len(datetime.now().strftime('%Y-%m-%d')) - len(" | " * 2) - len(part_suffix)
            clean_title = newtitle[:max_title_len-3] + "..."
            filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}"
-       if state['titleforgmail'] != filename:  # Checking if title is different:
+       if yttitle != filename:  # Checking if title is different:
                logging.info(f"Title discrepancy detected: {filename} does not match {state['titleforgmail']}")  # Logging discrepancy
                state['titleforgmail'] = api_create_edit_schedule(0, state['rtmp_server'], "EDIT", state['live_url'])  # Editing schedule
                logging.info('edit finished continue the stream')  # Logging edit completion
                logging.info(f"Successfully retrieved stream title: {state['titleforgmail']} contiune offline check")  # Logging retrieved title
                state['check_title_count'] = 0  # Resetting check title count
+       else:
+            state['titleforgmail'] = yttitle
       except UnboundLocalError:  # Handling UnboundLocalError
                logging.warning("Encountered UnboundLocalError when getting title - disabling gmail checking and title checking continue at your own risk")  # Logging warning
                state['gmailcount'] = 5
@@ -356,6 +370,15 @@ def offline_check_functions(live_url, spare_link, rtmp_server):  # Asynchronous 
               state['gmailcount'] += 1  # Incrementing Gmail count
               if config.livestreamautostop == "True":
                 state['countyt'] += 1  # Incrementing YouTube count
+              if not state['refresh_intro'] == "Null":
+                state['refresh_intro'] += 1
+                if state['refresh_intro'] == 5577:
+                    if state['rtmp_server'] == "bkrtmp":
+                      rtmpintro = "defrtmp"
+                    else:
+                      rtmpintro = "bkrtmp"
+                    load_intro(rtmpintro)
+                    state['refresh_intro'] = 0
               state['check_title_count'] += 1  # Incrementing check title count
               if state['check_title_count'] == 43:  # Checking if check title count is 43
                   refresh_stream_title(state)  # Refreshing stream title
@@ -888,7 +911,7 @@ def check_is_live_api(url, ffmpeg, rtmp_server):  # Function to check if stream 
 def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url):  # Asynchronous function to create/edit schedule via API
     filename = None  # Initializing filename
     description = None  # Initializing description
-    if is_reload == "False" or is_reload == "EDIT" or is_reload == "TITLE":  # Checking if reload is False or EDIT
+    if is_reload == "False" or is_reload == "EDIT":  # Checking if reload is False or EDIT
         stream_title = get_twitch_stream_title()  # Getting Twitch stream title
         clean_title = ''.join('' if unicodedata.category(c) == 'So' else c for c in (stream_title or "")).replace("<", "").replace(">", "")  # Cleaning title
         part_suffix = f" (PART{part_number})" if part_number > 0 else ""
@@ -901,9 +924,10 @@ def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url):  
             filename = f"{config.username} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}"
         # DON'T REMOVE THIS WATERMARK
         ITISUNLISTED = "[THIS RESTREAMING PROCESS IS DONE UNLISTED] " if config.unliststream == "True" else ""
-        description = f"{ITISUNLISTED}Original broadcast from https://twitch.tv/{config.username} [Stream Title: {clean_title}] Archived using open-source tools: https://bit.ly/archivescript Service by Karsten Lee, Join My Community Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v"  # Constructing description
-        if is_reload == "TITLE":
-            return filename
+        description = f"""{ITISUNLISTED}Original broadcast from https://twitch.tv/{config.username} [Stream Title: {clean_title}] 
+        Q&A: https://sites.google.com/view/questionthatsomepeopleask, 
+        Archived using open-source tools: https://is.gd/archivescript Service by Karsten Lee, 
+        Join My Community Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v"""  # Constructing description
     try:
         if is_reload == "True":  # Checking if reload is True
             filename = f"{config.username} (WAITING FOR STREAMER)"  # Constructing waiting filename
@@ -921,6 +945,9 @@ def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url):  
                 logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url}")  # Logging stream creation
             logging.info("==================================================")  # Logging separator
             setup_stream_settings(stream_url, rtmp_server)  # Setting up stream settings
+            if config.intro == "True":
+              logging.info("Stream settings updated and load intro")  # Logging stream settings update
+              load_intro(rtmp_server)
         if is_reload == "EDIT":  # Checking if reload is EDIT
             logging.info("Updating stream metadata and title...")  # Logging metadata update
             edit_live_stream(stream_url, filename, description)  # Editing live stream
@@ -1067,6 +1094,9 @@ def initialize_stream_relay(stream_url, rtmp_server):  # Asynchronous function t
         os.system(f'start {ffmpeg_1exe} -re -i blackscreen.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp_key}')  # Starting ffmpeg for normal stream
     subprocess.Popen(["start", config.apiexe], shell=True)  # Starting API executable
 
+def load_intro(rtmp):
+    os.system(f'start {config.ffmpeg} -re -i blackscreen.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp}')
+
 def initialize_and_monitor_stream():  # Asynchronous function to initialize and monitor stream
     try:
         yt_link = "Null"
@@ -1130,8 +1160,17 @@ def initialize_and_monitor_stream():  # Asynchronous function to initialize and 
             logging.info(f"Using provided YouTube link: {live_url} with RTMP server: {rtmp_server}")  # Logging provided YouTube link and RTMP server
         if THEREISMORE == "Null":
           logging.info("Waiting for stream to go live...")  # Logging waiting for stream
+          if config.intro == "True":
+            intro_count = 0
+          else:
+            intro_count = "Null"
           while True:  # Infinite loop
             try:
+                if not intro_count == "Null":
+                  if intro_count == 3920:
+                    logging.info("Load intro again almost 12hours")
+                    load_intro(rtmp_server)
+                    intro_count = 0
                 streams = get_twitch_streams()  # Getting Twitch streams and client
                 if streams:  # Checking if streams are available
                     if not streams == "ERROR":
@@ -1143,6 +1182,7 @@ def initialize_and_monitor_stream():  # Asynchronous function to initialize and 
             except Exception as e:  # Handling exceptions
                 logging.error(f"Error checking stream status: {str(e)}")  # Logging error
                 time.sleep(30)  # Waiting before retrying
+            intro_count += 1
 
           # Start stream monitoring process
           live_spare_url = None  # Initializing spare URL
@@ -1174,7 +1214,9 @@ def initialize_and_monitor_stream():  # Asynchronous function to initialize and 
           logging.info("Stream relay process started successfully")  # Logging success message
         try:
             if THEREISMORE == "Null":
-              api_create_edit_schedule(0, rtmp_server, "EDIT", live_url)  # Creating/editing schedule via API
+              titlegmail = api_create_edit_schedule(0, rtmp_server, "EDIT", live_url)  # Creating/editing schedule via API
+            else:
+              titlegmail = get_youtube_stream_title(live_url)
             logging.info('edit finished continue the stream')  # Logging edit completion
         except UnboundLocalError:  # Handling UnboundLocalError
             logging.warning("Encountered UnboundLocalError when getting title - continuing with default continue at your own risk")  # Logging warning
@@ -1194,7 +1236,7 @@ def initialize_and_monitor_stream():  # Asynchronous function to initialize and 
         except Exception as e:  # Catching any exceptions that occur
             logging.error(f"Failed to create backup stream: {str(e)}")  # Logging error message with exception details
         logging.info("Starting offline detection...")  # Logging the start of offline detection
-        offline_check_functions(live_url, live_spare_url, rtmp_server)  # type: ignore Initiating offline check functions with provided parameters
+        offline_check_functions(live_url, live_spare_url, rtmp_server, titlegmail)  # type: ignore Initiating offline check functions with provided parameters
     except Exception as e:  # Handling exceptions
         logging.error(f"Error in initialize_and_monitor_stream: {str(e)}", exc_info=True)  # Logging error
         logging.error("Critical error encountered - terminating script execution")  # Logging critical error
