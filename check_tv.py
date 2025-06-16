@@ -373,12 +373,12 @@ def offline_check_functions(live_url, spare_link, rtmp_server, title):  # Asynch
               if not state['refresh_intro'] == "Null":
                 state['refresh_intro'] += 1
                 if state['refresh_intro'] == 5577:
-                    if state['rtmp_server'] == "bkrtmp":
-                      rtmpintro = "defrtmp"
-                    else:
-                      rtmpintro = "bkrtmp"
-                    load_intro(rtmpintro)
-                    state['refresh_intro'] = 0
+                  if state['rtmp_server'] == "defrtmp":
+                     rtmpintro = config.rtmp_key  # Use default RTMP key
+                  else:
+                     rtmpintro = config.rtmp_key_1  # Use backup RTMP key
+                  load_intro(rtmpintro)
+                  state['refresh_intro'] = 0
               state['check_title_count'] += 1  # Incrementing check title count
               if state['check_title_count'] == 43:  # Checking if check title count is 43
                   refresh_stream_title(state)  # Refreshing stream title
@@ -947,7 +947,11 @@ def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url):  
             setup_stream_settings(stream_url, rtmp_server)  # Setting up stream settings
             if config.intro == "True":
               logging.info("Stream settings updated and load intro")  # Logging stream settings update
-              load_intro(rtmp_server)
+              if rtmp_server == "bkrtmp":
+                rtmpintro = config.rtmp_key_1
+              else:
+                rtmpintro = config.rtmp_key
+              load_intro(rtmpintro)
         if is_reload == "EDIT":  # Checking if reload is EDIT
             logging.info("Updating stream metadata and title...")  # Logging metadata update
             edit_live_stream(stream_url, filename, description)  # Editing live stream
@@ -1095,7 +1099,9 @@ def initialize_stream_relay(stream_url, rtmp_server):  # Asynchronous function t
     subprocess.Popen(["start", config.apiexe], shell=True)  # Starting API executable
 
 def load_intro(rtmp):
-    os.system(f'start {config.ffmpeg} -re -i blackscreen.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp}')
+    command = f'start {config.ffmpeg} -re -i blackscreen.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp}'
+    print(command)
+    os.system(command)
 
 def initialize_and_monitor_stream():  # Asynchronous function to initialize and monitor stream
     try:
@@ -1168,8 +1174,12 @@ def initialize_and_monitor_stream():  # Asynchronous function to initialize and 
             try:
                 if not intro_count == "Null":
                   if intro_count == 3920:
+                    if rtmp_server == "bkrtmp":
+                      rtmpintro = config.rtmp_key_1
+                    else:
+                      rtmpintro = config.rtmp_key
                     logging.info("Load intro again almost 12hours")
-                    load_intro(rtmp_server)
+                    load_intro(rtmpintro)
                     intro_count = 0
                 streams = get_twitch_streams()  # Getting Twitch streams and client
                 if streams:  # Checking if streams are available
