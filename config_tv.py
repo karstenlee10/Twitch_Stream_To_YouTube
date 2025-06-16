@@ -4,6 +4,7 @@ username = "" #twitch or bilibili username
 #ARCHIVE SETTINGS
 playvideo = "True" #if true will play ending screen and error screen
 livestreamautostop = "False" #if true than youtube will auto stop stream
+intro = "True" if livestreamautostop == "False" else "False" # Set intro based on livestreamautostop
 unliststream = "False" #after stream will be public
 disablechat = "True"  #disable chat on live stream
 playlist = "False"  # True or DOUBLE IF YOU WANT TO SAVE TO MULTIPLE PLAYLIST disable to False
