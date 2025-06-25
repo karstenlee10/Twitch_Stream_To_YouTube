@@ -1,19 +1,13 @@
 import os
 import sys
+from logger_config import check_tv_logger as logging # Importing logging module for logging messages
 import time
-
 import psutil
-import streamlink
-
 import config_tv as config
-from logger_config import relive_tv_logger as logging # Importing logging module for logging messages
-
+import streamlink
 
 arguments = sys.argv
 apiexe = f"taskkill /f /im {config.apiexe}"
-#twitch_token = token_key.token
-#print(twitch_token)
-live_link_url = f'streamlink https://www.twitch.tv/{config.username}'
 
 def check_is_live():
   trytimes = 0
@@ -35,11 +29,11 @@ def check_is_live():
             logging.info('The stream is finsh')
             return "False"
 
-def api_this():
+def api_this(m3u8):
   logging.info('script is started now api')
   t = time.localtime()
   current_time = time.strftime("%H:%M:%S", t)
-  command = f"{live_link_url} best -o - | {config.ffmpeg1} -re -i pipe:0 -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key_1}"
+  command = f"{config.ffmpeg1} -i {m3u8} -loglevel warning -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key_1}"
   os.system(command)
   OMG = check_is_live()
   if OMG == "True":
@@ -49,11 +43,11 @@ def api_this():
     logging.info('stream has finish no loop it and kill countdown')
     os.system(apiexe)
 
-def this():
+def this(m3u8):
   logging.info('script is started now')
   t = time.localtime()
   current_time = time.strftime("%H:%M:%S", t)
-  command = f"{live_link_url} best -o - | {config.ffmpeg} -re -i pipe:0 -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key}"
+  command = f"{config.ffmpeg1} -i {m3u8} -loglevel warning -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key}"
   os.system(command)
   OMG = check_is_live()
   if OMG == "True":
@@ -64,7 +58,8 @@ def this():
     os.system(apiexe)
 
 arg1 = arguments[1]
+m3u8 = arguments[2]
 if arg1 == "api_this":
-  api_this()
+  api_this(m3u8)
 if arg1 == "this":
-  this()
+  this(m3u8)
