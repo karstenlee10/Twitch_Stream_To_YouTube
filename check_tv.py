@@ -99,7 +99,7 @@ FONT_MAP = {
 }
 
 ###########################################offline_check###########################################
-def offline_check_functions(live_url, spare_link, rtmp_server, title, m3u8):  # Asynchronous function to check offline status
+def offline_check_functions(live_url, spare_link, rtmp_server, title):  # Asynchronous function to check offline status
     state = {  # Initializing state dictionary
         'countdownhours': 0,  # Countdown hours
         'numberpart': 0,  # Number part
@@ -110,11 +110,11 @@ def offline_check_functions(live_url, spare_link, rtmp_server, title, m3u8):  # 
         'rtmp_server': rtmp_server,  # RTMP server
         'refresh_title': 0,
         'check_title_count': 0,
-        'titleforgmail': title,  # Title for Gmail
-        'm3u8': m3u8,
+        'titleforgmail': title  # Title for Gmail
     }
     
-    logging.info(f"Initializing offline detection monitoring service... With {state['live_url']}, {state['spare_link']}, {state['rtmp_server']}, {state['titleforgmail']}, {state['m3u8']}")  # Logging initialization message
+    logging.info(f"Initializing offline detection monitoring service... With {state['live_url']}, {state['spare_link']}, {state['rtmp_server']}, {state['titleforgmail']}")  # Logging initialization message
+
     if config.livestreamautostop == "False":
         state['countyt'] = 4
 
@@ -269,12 +269,12 @@ def offline_check_functions(live_url, spare_link, rtmp_server, title, m3u8):  # 
         else:
             subprocess.run(["taskkill", "/f", "/im", config.ffmpeg])  # Killing ffmpeg executable
         state['numberpart'] += 1  # Incrementing number part
-        state['titleforgmail'] = api_create_edit_schedule(state['numberpart'], state['rtmp_server'], "False", state['spare_link'], state['m3u8'])  # Editing schedule
+        state['titleforgmail'] = api_create_edit_schedule(state['numberpart'], state['rtmp_server'], "False", state['spare_link'])  # Editing schedule
         if state['rtmp_server'] == "bkrtmp":
             state['rtmp_server'] = "defrtmp"
         else:
             state['rtmp_server'] = "bkrtmp"
-        live_spare_url = api_create_edit_schedule("0", state['rtmp_server'], "True", "Null")  # Creating schedule
+        live_spare_url = api_create_edit_schedule(0, state['rtmp_server'], "True", "Null")  # Creating schedule
         subprocess.Popen(["start", config.apiexe], shell=True)  # Starting API executable
         if config.unliststream == "True":  # Checking if stream should be unlisted
             public_stream(state['live_url'])  # Making stream public
@@ -328,7 +328,7 @@ def offline_check_functions(live_url, spare_link, rtmp_server, title, m3u8):  # 
                         received_time = datetime.fromtimestamp(int(msg['internalDate']) / 1000)  # Get received time
                         subject = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'subject'), '')  # Get subject
                         sender = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'from'), '')  # Get sender
-                        if received_time >= minutes_ago and title in subject:  # Check if message is recent, title matches, and from YouTube #and "no-reply@youtube.com" in sender
+                        if received_time >= minutes_ago and title in subject and "no-reply@youtube.com" in sender:  # Check if message is recent, title matches, and from YouTube
                             logging.info(f"Found email from YouTube: {subject}")  # Log found message
                             return True  # Return True if message is found
                 return False  # Return False if no message is found
@@ -367,7 +367,7 @@ def offline_check_functions(live_url, spare_link, rtmp_server, title, m3u8):  # 
            filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
        if yt_title != filename:  # Checking if title is different:
                logging.info(f"Title discrepancy detected: {filename} does not match {state['titleforgmail']}")  # Logging discrepancy
-               state['titleforgmail'] = api_create_edit_schedule(0, state['rtmp_server'], "EDIT", state['live_url'])  # Editing schedule
+               state['titleforgmail'] = api_create_edit_schedule(state['numberpart'], state['rtmp_server'], "EDIT", state['live_url'])  # Editing schedule
                logging.info('edit finished continue the stream')  # Logging edit completion
                logging.info(f"Successfully retrieved stream title: {state['titleforgmail']} contiune offline check")  # Logging retrieved title
                state['check_title_count'] = 0  # Resetting check title count
@@ -892,7 +892,7 @@ def api_load(url, brandacc):  # Function to load API
       time.sleep(5)  # Sleep for 5 seconds
       driver.quit()  # Quit Chrome driver
 
-def check_is_live_api(url, ffmpeg, rtmp_server, m3u8_url):  # Function to check if stream is live using API
+def check_is_live_api(url, ffmpeg, rtmp_server):  # Function to check if stream is live using API
     logging.info("Waiting for 40sec live on YouTube")  # Logging wait message
     time.sleep(40)  # Waiting for 40 seconds
     new_url = f"https://youtube.com/watch?v={url}"  # Constructing new URL
@@ -913,7 +913,7 @@ def check_is_live_api(url, ffmpeg, rtmp_server, m3u8_url):  # Function to check 
             logging.info('The stream is messed up. Trying again...')  # Logging retry message
             time.sleep(2)  # Waiting for 2 seconds
             subprocess.run(["taskkill", "/f", "/im", ffmpeg])  # Killing ffmpeg process
-            subprocess.Popen(["start", "python", "relive_tv.py", text, m3u8_url], shell=True)  # Restarting relive_tv script
+            subprocess.Popen(["start", "python", "relive_tv.py", text], shell=True)  # Restarting relive_tv script
             time.sleep(35)  # Waiting for 35 seconds
             count_error += 1  # Incrementing error counter
         if count_error >= MAX_RETRIES:  # Checking if retry limit is reached
@@ -921,7 +921,7 @@ def check_is_live_api(url, ffmpeg, rtmp_server, m3u8_url):  # Function to check 
             subprocess.Popen(["start", "python", "check_tv.py", "KILL"], shell=True)  # Restarting check_tv script with KILL
             exit()  # Exiting the script
 
-def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url, m3u8=None):  # Asynchronous function to create/edit schedule via API
+def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url):  # Asynchronous function to create/edit schedule via API
     filename = None  # Initializing filename
     description = None  # Initializing description
     TESTING = "[TESTING WILL BE REMOVE AFTER]" if config.exp_tesing == "True" else ""
@@ -937,8 +937,7 @@ def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url, m3
         if len(filename) > 100:
             filename = f"{config.username} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
         # DON'T REMOVE THIS WATERMARK
-        ITISUNLISTED = """[THIS RESTREAMING PROCESS IS DONE UNLISTED] 
-        """ if config.unliststream == "True" else ""
+        ITISUNLISTED = "[THIS RESTREAMING PROCESS IS DONE UNLISTED]" if config.unliststream == "True" else ""
         description = f"""{TESTING}{ITISUNLISTED}
 Original broadcast from https://twitch.tv/{config.username} 
 [Stream Title: {clean_title}]
@@ -970,7 +969,7 @@ Join My Community Discord Server(discussion etc./I need help for coding :helpme:
             return stream_url  # Returning stream URL
         if is_reload == "False":  # Checking if reload is False
             logging.info("Start stream relay")
-            initialize_stream_relay(stream_url, rtmp_server, m3u8)  # Initializing stream relay
+            initialize_stream_relay(stream_url, rtmp_server)  # Initializing stream relay
             edit_live_stream(stream_url, filename, description)  # Editing live stream
             return filename  # Returning filename
     except Exception as e:  # Handling exceptions
@@ -1085,19 +1084,19 @@ def setup_stream_settings(stream_url, rtmp_server):  # Asynchronous function to 
            subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  # Killing CHROME PROCESS
            time.sleep(5)
 
-def initialize_stream_relay(stream_url, rtmp_server, m3u8):  # Asynchronous function to initialize stream relay
+def initialize_stream_relay(stream_url, rtmp_server):  # Asynchronous function to initialize stream relay
     if rtmp_server == "defrtmp":
         rtmp_relive = "this"
     else:
         rtmp_relive = "api_this"  # Setting RTMP server for relay
-    subprocess.Popen(["start", "python", "relive_tv.py", rtmp_relive, m3u8], shell=True)  # Starting relive_tv script
+    subprocess.Popen(["start", "python", "relive_tv.py", rtmp_relive], shell=True)  # Starting relive_tv script
     if rtmp_server == "defrtmp":
         ffmpeg_exe = config.ffmpeg
         ffmpeg_1exe = config.ffmpeg1
     else: 
         ffmpeg_exe = config.ffmpeg1
         ffmpeg_1exe = config.ffmpeg
-    check_is_live_api(stream_url, ffmpeg_exe, rtmp_server, m3u8)  # Checking live API
+    check_is_live_api(stream_url, ffmpeg_exe, rtmp_server)  # Checking live API
     subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Killing API executable
     subprocess.run(["taskkill", "/f", "/im", ffmpeg_1exe])  # Killing ffmpeg process
     if rtmp_server == "bkrtmp":
@@ -1193,12 +1192,12 @@ def initialize_and_monitor_stream():  # Asynchronous function to initialize and 
           try:
             if rtmp_server == "bkrtmp":  # Checking if RTMP server is "bkrtmp"
                 logging.info("Starting with backup stream rtmp... and check")  # Logging relay start message
-                subprocess.Popen(["start", "python", "relive_tv.py", "api_this", m3u8_url], shell=True)  # Starting relive_tv script for "bkrtmp"
-                check_is_live_api(live_url, config.ffmpeg1, rtmp_server, m3u8_url) # Checking the stream using the streamlink
+                subprocess.Popen(["start", "python", "relive_tv.py", "api_this"], shell=True)  # Starting relive_tv script for "bkrtmp"
+                check_is_live_api(live_url, config.ffmpeg1, rtmp_server) # Checking the stream using the streamlink
             elif rtmp_server == "defrtmp":  # Checking if RTMP server is "defrtmp"
                 logging.info("Starting with default stream rtmp... and check")  # Logging relay start message
-                subprocess.Popen(["start", "python", "relive_tv.py", "this", m3u8_url], shell=True)  # Starting relive_tv script for "defrtmp"
-                check_is_live_api(live_url, config.ffmpeg, rtmp_server, m3u8_url) # Checking the stream using the streamlink
+                subprocess.Popen(["start", "python", "relive_tv.py", "this"], shell=True)  # Starting relive_tv script for "defrtmp"
+                check_is_live_api(live_url, config.ffmpeg, rtmp_server) # Checking the stream using the streamlink
           except Exception as e:  # Handling exceptions
             logging.error(f"Failed to start relay process: {str(e)}")  # Logging error message
             exit(1)  # Exiting with error code
@@ -1230,72 +1229,11 @@ def initialize_and_monitor_stream():  # Asynchronous function to initialize and 
         except Exception as e:  # Catching any exceptions that occur
             logging.error(f"Failed to create backup stream: {str(e)}")  # Logging error message with exception details
         logging.info("Starting offline detection...")  # Logging the start of offline detection
-        offline_check_functions(live_url, live_spare_url, rtmp_server, titlegmail, m3u8_url)  # type: ignore Initiating offline check functions with provided parameters
+        offline_check_functions(live_url, live_spare_url, rtmp_server, titlegmail)  # type: ignore Initiating offline check functions with provided parameters
     except Exception as e:  # Handling exceptions
         logging.error(f"Error in initialize_and_monitor_stream: {str(e)}", exc_info=True)  # Logging error
         logging.error("Critical error encountered - terminating script execution")  # Logging critical error
         exit(1)  # Exiting with error code
-
-def get_highest_quality_m3u8(twitch_url):
-    """Extract highest quality m3u8 URL from Twitch stream using Chrome automation."""
-    # Configure Chrome options with performance logging
-    options = Options()
-    options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
-    chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")
-    options.add_argument(f"user-data-dir={chrome_user_data_dir}")
-    options.add_argument(f"profile-directory={config.Chrome_Profile}")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-
-    driver = webdriver.Chrome(options=options)
-    driver.get(twitch_url)
-
-    try:
-        # Wait for stream player to load
-        WebDriverWait(driver, 30).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "video[class*='player-video']"))
-        )
-
-        # Capture network logs
-        logs = driver.get_log("performance")
-        m3u8_urls = [
-            json.loads(entry["message"])["message"]["params"]["response"]["url"]
-            for entry in logs
-            if "Network.responseReceived" in json.loads(entry["message"])["message"]["method"]
-            and ".m3u8" in json.loads(entry["message"])["message"]["params"]["response"]["url"]
-            
-        ]
-
-        logger.debug(f"Found {len(m3u8_urls)} m3u8 URLs (removed 'chunked' filter)")
-        if not m3u8_urls:
-            driver.save_screenshot("twitch_stream_error.png")
-            raise ValueError(f"No m3u8 streams found in {len(logs)} network entries")
-
-        # Parse master playlists for highest resolution
-        highest_res_url = None
-        max_height = 0
-        master_playlists = [url for url in m3u8_urls if "master" in url.lower()]
-
-        for url in master_playlists:
-            response = requests.get(url)
-            if response.status_code == 200:
-                lines = response.text.split("\n")
-                for i, line in enumerate(lines):
-                    if "RESOLUTION" in line:
-                        try:
-                            height = int(line.split("x")[1].split(",")[0])
-                            if height > max_height:
-                                max_height = height
-                                highest_res_url = lines[i+1].strip()
-                        except (IndexError, ValueError):
-                            continue
-
-        if not highest_res_url:
-            raise ValueError("Failed to identify highest quality stream from m3u8 playlists")
-
-        return highest_res_url
-
-    finally:
-        driver.quit()
 
 def checker_api():
         while True:  # Infinite loop
