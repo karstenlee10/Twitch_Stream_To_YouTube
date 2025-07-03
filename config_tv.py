@@ -32,3 +32,6 @@ client_secret = "" #twitch api client sercet
 ffmpeg1 = "ffmpeg111.exe" #ffmpeg exe name
 ffmpeg = "ffmpeg.exe" #ffmpeg exe name
 apiexe = "ffmpeg_api.exe" #api exe name
+##########################################################################
+#EXPERIMENTAL SETTINGS
+exp_tesing = "False" #enable exp testing display in title
