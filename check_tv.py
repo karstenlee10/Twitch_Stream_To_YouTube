@@ -7,9 +7,6 @@ import sys
 import time
 import unicodedata
 import urllib.request
-import re
-import zipfile
-import shutil
 from datetime import datetime, timedelta, timezone
 
 # Third-party imports
@@ -21,7 +18,6 @@ from googleapiclient.discovery import build
 from PIL import Image, ImageDraw, ImageFont
 import re
 import zipfile
-import shutil
 from io import BytesIO
 import psutil
 import requests
@@ -40,10 +36,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 # Local project imports
 from logger_config import check_tv_logger as logging
 import config_tv as config
-
-# Multiprocessing/threading imports
-import threading
-import multiprocessing
 
 def loop_check_stream():
     while True:  # Infinite loop
@@ -365,13 +357,14 @@ def offline_check_functions(live_url, spare_link, rtmp_server, title, m3u8):  # 
       try:
        twitch_title = get_twitch_stream_title()  # Getting Twitch stream title
        yt_title = get_youtube_stream_title(state['live_url'])
+       TESTING = "[TESTING WILL BE REMOVE AFTER]" if config.exp_tesing == "True" else ""
        newtitle = ''.join('' if unicodedata.category(c) == 'So' else c for c in (twitch_title or yt_title or "")).replace("<", "").replace(">", "")  # Cleaning title
        part_suffix = f" (PART{state['numberpart']})" if state['numberpart'] > 0 else ""
-       filename = f"{config.username} | {newtitle} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}"
+       filename = f"{config.username} | {newtitle} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
        if len(filename) > 100:  # Checking if filename exceeds 100 characters
-           max_title_len = 100 - len(config.username) - len(datetime.now().strftime('%Y-%m-%d')) - len(" | " * 2) - len(part_suffix)
+           max_title_len = 100 - len(config.username) - len(datetime.now().strftime('%Y-%m-%d')) - len(" | " * 2) - len(part_suffix) - len(TESTING)
            clean_title = newtitle[:max_title_len-3] + "..."
-           filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}"
+           filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
        if yt_title != filename:  # Checking if title is different:
                logging.info(f"Title discrepancy detected: {filename} does not match {state['titleforgmail']}")  # Logging discrepancy
                state['titleforgmail'] = api_create_edit_schedule(0, state['rtmp_server'], "EDIT", state['live_url'])  # Editing schedule
@@ -931,29 +924,31 @@ def check_is_live_api(url, ffmpeg, rtmp_server, m3u8_url):  # Function to check 
 def api_create_edit_schedule(part_number, rtmp_server, is_reload, stream_url, m3u8=None):  # Asynchronous function to create/edit schedule via API
     filename = None  # Initializing filename
     description = None  # Initializing description
+    TESTING = "[TESTING WILL BE REMOVE AFTER]" if config.exp_tesing == "True" else ""
     if is_reload == "False" or is_reload == "EDIT":  # Checking if reload is False or EDIT
         stream_title = get_twitch_stream_title()  # Getting Twitch stream title
         clean_title = ''.join('' if unicodedata.category(c) == 'So' else c for c in (stream_title or "")).replace("<", "").replace(">", "")  # Cleaning title
         part_suffix = f" (PART{part_number})" if part_number > 0 else ""
-        filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}"
+        filename = f"{config.username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
         if len(filename) > 100:
-            max_title_len = 100 - len(config.username) - len(datetime.now().strftime('%Y-%m-%d')) - len(" | " * 2) - len(part_suffix)
+            max_title_len = 100 - len(config.username) - len(datetime.now().strftime('%Y-%m-%d')) - len(" | " * 2) - len(part_suffix) - len(TESTING)
             clean1_title = clean_title[:max_title_len-3] + "..."
-            filename = f"{config.username} | {clean1_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}"
+            filename = f"{config.username} | {clean1_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
         if len(filename) > 100:
-            filename = f"{config.username} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}"
+            filename = f"{config.username} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
         # DON'T REMOVE THIS WATERMARK
         ITISUNLISTED = """[THIS RESTREAMING PROCESS IS DONE UNLISTED] 
         """ if config.unliststream == "True" else ""
-        description = f"""{ITISUNLISTED}Original broadcast from https://twitch.tv/{config.username} 
+        description = f"""{TESTING}{ITISUNLISTED}
+Original broadcast from https://twitch.tv/{config.username} 
 [Stream Title: {clean_title}]
 Q&A(Question The Same In Comment Won't Reply): https://sites.google.com/view/questionthatsomepeopleask, 
 Archived using open-source tools: https://is.gd/archivescript Service by Karsten Lee, 
 Join My Community Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v"""  # Constructing description
     try:
         if is_reload == "True":  # Checking if reload is True
-            filename = f"{config.username} (WAITING FOR STREAMER)"  # Constructing waiting filename
-            description = f"Waiting for https://twitch.tv/{config.username}, Archived using open-source tools: https://is.gd/archivescript Service by Karsten Lee, Join My Community Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v"  # Constructing waiting description
+            filename = f"{config.username} (WAITING FOR STREAMER){TESTING}"  # Constructing waiting filename
+            description = f"{TESTING}Waiting for https://twitch.tv/{config.username}, Archived using open-source tools: https://is.gd/archivescript Service by Karsten Lee, Join My Community Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v"  # Constructing waiting description
         if stream_url == "Null":  # Checking if stream URL is Null
             logging.info('Initiating API request for stream creation...')  # Logging API request initiation
             privacy_status = "public" if config.unliststream == "False" else "unlisted"  # Setting privacy status
@@ -1179,7 +1174,7 @@ def initialize_and_monitor_stream():  # Asynchronous function to initialize and 
             logging.info(f"Using provided YouTube link: {live_url} with RTMP server: {rtmp_server}")  # Logging provided YouTube link and RTMP server
         if THEREISMORE == "Null":
           logging.info("Waiting for stream to go live...")  # Logging waiting for stream
-          m3u8_url = get_m3u8_urls(config.username)
+          checker_api()
           # Start stream monitoring process
           live_spare_url = None  # Initializing spare URL
           logging.info("Starting stream monitoring process...")  # Logging start message
@@ -1209,7 +1204,8 @@ def initialize_and_monitor_stream():  # Asynchronous function to initialize and 
             exit(1)  # Exiting with error code
           logging.info("Stream relay process started successfully")  # Logging success message
         else:
-            m3u8_url = get_m3u8_urls(config.username)
+            pass
+            #m3u8_url = get_m3u8_urls(config.username)
         try:
             if THEREISMORE == "Null":
               titlegmail = api_create_edit_schedule(0, rtmp_server, "EDIT", live_url)  # Creating/editing schedule via API
@@ -1301,8 +1297,7 @@ def get_highest_quality_m3u8(twitch_url):
     finally:
         driver.quit()
 
-def get_m3u8_urls(username):
-    def checker_api():
+def checker_api():
         while True:  # Infinite loop
             try:
                 streams = get_twitch_streams()  # Getting Twitch streams and client
@@ -1317,6 +1312,7 @@ def get_m3u8_urls(username):
                 logging.error(f"Error checking stream status: {str(e)}")  # Logging error
                 time.sleep(30)  # Waiting before retrying
 
+def get_m3u8_urls(username):
     def check_1080p_quality(m3u8_url):
         try:
             response = requests.get(m3u8_url, timeout=10)
@@ -1360,9 +1356,7 @@ def get_m3u8_urls(username):
     chrome_options.add_argument('--ignore-ssl-errors')
     chrome_options.add_argument('--ignore-certificate-errors-spki-list')
     chrome_options.add_argument('--autoplay-policy=no-user-gesture-required')
-    
-    
-    
+
     # Initialize WebDriver
     driver = webdriver.Chrome(
         service=Service(ChromeDriverManager().install()),
@@ -1382,11 +1376,9 @@ def get_m3u8_urls(username):
             try:
                 driver.find_element("xpath", "//a[@tabname='chat' and @data-a-target='channel-home-tab-Chat' and contains(@href, '/" + username + "')]").click()
                 checker_api()
-                break
+                driver.refresh()
             except NoSuchElementException:
                 time.sleep(3)
-    driver.refresh()
-    time.sleep(10)
         # Extract m3u8 URLs from HAR data
     har_data = proxy.har
     m3u8_urls = []
