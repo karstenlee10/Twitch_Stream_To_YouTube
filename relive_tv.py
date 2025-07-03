@@ -8,6 +8,7 @@ import streamlink
 
 arguments = sys.argv
 apiexe = f"taskkill /f /im {config.apiexe}"
+live_link_url = f'streamlink https://www.twitch.tv/{config.username}'
 
 def check_is_live():
   trytimes = 0
@@ -29,11 +30,11 @@ def check_is_live():
             logging.info('The stream is finsh')
             return "False"
 
-def api_this(m3u8):
+def api_this():
   logging.info('script is started now api')
   t = time.localtime()
   current_time = time.strftime("%H:%M:%S", t)
-  command = f"{config.ffmpeg1} -i {m3u8} -loglevel warning -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key_1}"
+  command = f"{live_link_url} best -o - | {config.ffmpeg1} -re -i pipe:0 -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key_1}"
   os.system(command)
   OMG = check_is_live()
   if OMG == "True":
@@ -43,11 +44,11 @@ def api_this(m3u8):
     logging.info('stream has finish no loop it and kill countdown')
     os.system(apiexe)
 
-def this(m3u8):
+def this():
   logging.info('script is started now')
   t = time.localtime()
   current_time = time.strftime("%H:%M:%S", t)
-  command = f"{config.ffmpeg1} -i {m3u8} -loglevel warning -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key}"
+  command = f"{live_link_url} best -o - | {config.ffmpeg} -re -i pipe:0 -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -f flv rtmp://a.rtmp.youtube.com/live2/{config.rtmp_key}"
   os.system(command)
   OMG = check_is_live()
   if OMG == "True":
@@ -58,8 +59,7 @@ def this(m3u8):
     os.system(apiexe)
 
 arg1 = arguments[1]
-m3u8 = arguments[2]
 if arg1 == "api_this":
-  api_this(m3u8)
+  api_this()
 if arg1 == "this":
-  this(m3u8)
+  this()
