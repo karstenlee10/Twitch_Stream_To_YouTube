@@ -425,14 +425,19 @@ def get_twitch_streams(): # Function to get Twitch streams data by making API re
         access_token = token_data.get('access_token') # Extract access token from response
         if not access_token: # Raise error if no token found
             logging.info("Access token not found in response")
+            return "ERROR"
     except requests.exceptions.ConnectionError as e:
       logging.error(f"No internet connection or connection error: {e}")
+      return "ERROR"
     except requests.exceptions.Timeout as e:
       logging.error(f"Request timed out: {e}")
+      return "ERROR"
     except requests.exceptions.RequestException as e:
         logging.error(f"Error obtaining Twitch access token: {e}") # Log error if request fails
+        return "ERROR"
     except ValueError as ve:
         logging.error(f"Error in response data: {ve}") # Log error if response data is invalid
+        return "ERROR"
     headers = {'Authorization': f'Bearer {access_token}', 'Client-ID': config.client_id} # type: ignore Set up request headers with access token and client ID
     streams_response = requests.get(f'https://api.twitch.tv/helix/streams?user_login={config.username}', headers=headers) # Make GET request to Twitch API to get stream data
     streams_data = streams_response.json() # Parse JSON response
@@ -1173,7 +1178,22 @@ def initialize_and_monitor_stream():  # Asynchronous function to initialize and 
             logging.info(f"Using provided YouTube link: {live_url} with RTMP server: {rtmp_server}")  # Logging provided YouTube link and RTMP server
         if THEREISMORE == "Null":
           logging.info("Waiting for stream to go live...")  # Logging waiting for stream
-          checker_api()
+          while True:  # Infinite loop
+              try:
+                  streams = get_twitch_streams()  # Getting Twitch streams and client
+                  if streams:  # Checking if streams are available
+                      if not streams == "ERROR":
+                        stream = streams[0]  # Getting the first stream
+                        logging.info(f"Stream is now live! Title From Twitch: {stream['title']}")  # Logging stream is live
+                        break  # Breaking the loop
+                      else:
+                         logging.error(f"Error checking stream status")  # Logging error
+                         time.sleep(30)  # Waiting before retrying
+                  else:
+                      time.sleep(10)  # Waiting before retrying
+              except Exception as e:  # Handling exceptions
+                  logging.error(f"Error checking stream status: {str(e)}")  # Logging error
+                  time.sleep(30)  # Waiting before retrying
           # Start stream monitoring process
           live_spare_url = None  # Initializing spare URL
           logging.info("Starting stream monitoring process...")  # Logging start message
@@ -1234,21 +1254,6 @@ def initialize_and_monitor_stream():  # Asynchronous function to initialize and 
         logging.error(f"Error in initialize_and_monitor_stream: {str(e)}", exc_info=True)  # Logging error
         logging.error("Critical error encountered - terminating script execution")  # Logging critical error
         exit(1)  # Exiting with error code
-
-def checker_api():
-        while True:  # Infinite loop
-            try:
-                streams = get_twitch_streams()  # Getting Twitch streams and client
-                if streams:  # Checking if streams are available
-                    if not streams == "ERROR":
-                      stream = streams[0]  # Getting the first stream
-                      logging.info(f"Stream is now live! Title From Twitch: {stream['title']}")  # Logging stream is live
-                      break  # Breaking the loop
-                else:
-                    time.sleep(10)  # Waiting before retrying
-            except Exception as e:  # Handling exceptions
-                logging.error(f"Error checking stream status: {str(e)}")  # Logging error
-                time.sleep(30)  # Waiting before retrying
 
 def get_m3u8_urls(username):
     def check_1080p_quality(m3u8_url):
@@ -1313,7 +1318,19 @@ def get_m3u8_urls(username):
         except NoSuchElementException:
             try:
                 driver.find_element("xpath", "//a[@tabname='chat' and @data-a-target='channel-home-tab-Chat' and contains(@href, '/" + username + "')]").click()
-                checker_api()
+                while True:  # Infinite loop
+                 try:
+                   streams = get_twitch_streams()  # Getting Twitch streams and client
+                   if streams:  # Checking if streams are available
+                    if not streams == "ERROR":
+                      stream = streams[0]  # Getting the first stream
+                      logging.info(f"Stream is now live! Title From Twitch: {stream['title']}")  # Logging stream is live
+                      break  # Breaking the loop
+                   else:
+                    time.sleep(10)  # Waiting before retrying
+                 except Exception as e:  # Handling exceptions
+                    logging.error(f"Error checking stream status: {str(e)}")  # Logging error
+                    time.sleep(30)  # Waiting before retrying
                 driver.refresh()
             except NoSuchElementException:
                 time.sleep(3)
