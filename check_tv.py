@@ -37,21 +37,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 from logger_config import check_tv_logger as logging
 import config_tv as config
 
-def loop_check_stream():
-    while True:  # Infinite loop
-        try:
-            streams = get_twitch_streams()  # Getting Twitch streams and client
-            if streams:  # Checking if streams are available
-                if not streams == "ERROR":
-                    stream = streams[0]  # Getting the first stream
-                    logging.info(f"Stream is now live! Title From Twitch: {stream['title']}")  # Logging stream is live
-                    break  # Breaking the loop
-            else:
-                time.sleep(10)  # Waiting before retrying
-        except Exception as e:  # Handling exceptions
-            logging.error(f"Error checking stream status: {str(e)}")  # Logging error
-            time.sleep(30)  # Waiting before retrying     
-
 refresh_title = "True"  # Setting refresh title flag to True
 
 token_url = f"https://id.twitch.tv/oauth2/token?client_id={config.client_id}&client_secret={config.client_secret}&grant_type=client_credentials"  # URL for obtaining Twitch token
@@ -419,7 +404,7 @@ def get_twitch_streams(): # Function to get Twitch streams data by making API re
   ERROR = 0
   while True:
     try:
-        token_response = requests.post(token_url) # Make POST request to get Twitch access token
+        token_response = requests.post(token_url, timeout=10) # Make POST request to get Twitch access token
         token_response.raise_for_status() # Raise exception if request failed
         token_data = token_response.json() # Parse JSON response to get token data
         access_token = token_data.get('access_token') # Extract access token from response
@@ -439,7 +424,7 @@ def get_twitch_streams(): # Function to get Twitch streams data by making API re
         logging.error(f"Error in response data: {ve}") # Log error if response data is invalid
         return "ERROR"
     headers = {'Authorization': f'Bearer {access_token}', 'Client-ID': config.client_id} # type: ignore Set up request headers with access token and client ID
-    streams_response = requests.get(f'https://api.twitch.tv/helix/streams?user_login={config.username}', headers=headers) # Make GET request to Twitch API to get stream data
+    streams_response = requests.get(f'https://api.twitch.tv/helix/streams?user_login={config.username}', headers=headers, timeout=10) # Make GET request to Twitch API to get stream data
     streams_data = streams_response.json() # Parse JSON response
     if streams_response.status_code == 401 and streams_data.get('message') == 'Invalid OAuth token':
         logging.error("Invalid OAuth token: Unauthorized access to Twitch API (Normal Error Sometimes)")
