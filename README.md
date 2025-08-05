@@ -15,6 +15,8 @@ and stop it from updating(security issue at your own risk)
 
 Orginal From: https://azodl.blogspot.com/2015/04/google-chrome.html
 
+<h2>😄THE SCRIPT IS RUNING GOOD BUT YOU WILL NEED TO DOWNGRADE YOUR STREAMLINK VERSION [7.4.0] THE EXE AND THE PIP THX</h2>
+
 <h2>🛡️ License:</h2>
 
 ***PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING ON YOUR channel description*** paste the github link  
