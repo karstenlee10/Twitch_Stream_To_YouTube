@@ -34,4 +34,16 @@ ffmpeg = "ffmpeg.exe" #ffmpeg exe name
 apiexe = "ffmpeg_api.exe" #api exe name
 ##########################################################################
 #EXPERIMENTAL SETTINGS
-exp_tesing = "False" #enable exp testing display in title
+StreamerName = "Null" #if you don't want the twitch username at the title
+local_archive = False #if true will save a copy of the stream to local
+exp_tesing = False #enable exp testing display in title and input textbox
+QandA = False #enable Q&A in description
+ADSqa = False
+Filian = False
+brought_twitch_sub_or_turbo = False #if true will show twitch sub or turbo in description
+public_notification = False #enable public notification and change the stream back to unlisted
+show_twitch_category = True #enable twitch category in description
+##########################################################################
+# AGREEMENT SETTINGS DON'T SET MANUALLY
+agreement_accepted = False
+
