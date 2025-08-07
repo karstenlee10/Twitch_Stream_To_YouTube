@@ -20,6 +20,7 @@ import re
 import zipfile
 from io import BytesIO
 import psutil
+import emoji
 import requests
 import streamlink
 from selenium import webdriver
@@ -95,6 +96,7 @@ def offline_check_functions(
         'rtmp_server': rtmp_server,  # RTMP server
         'titleforgmail': title,  # Title for Gmail
         'category': "Null",
+        "reason": "Null",
         'input_state': False,
         'thread_in_use': False,
         'exit_flag': False
@@ -220,14 +222,21 @@ def offline_check_functions(
         state['exit_flag'] = True; return  # Exiting the script
 
     def switch_stream_config(state):  # Asynchronous function to switch stream configuration
+        if state['reason'] == "Null":
+           reason = f"[Reason of Switching is Unknown(Part{state['numberpart']} is on https://youtube.com/watch?v={state['spare_link']})]"
+        else:
+           reason = f"[Reason of Switching is {state['reason']}(Part{state['numberpart']} is on https://youtube.com/watch?v={state['spare_link']})]"
         state['numberpart'] += 1  # Incrementing number part
+        update_old_description_thread = threading.Thread(target=api_create_edit_schedule, args=(state['numberpart'], state['rtmp_server'], "EDIT", state['live_url'], reason), daemon=False)
+        update_old_description_thread.start()
+        subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Killing API executable
         state['titleforgmail'] = api_create_edit_schedule(state['numberpart'], state['rtmp_server'], False, state['spare_link'])  # Editing schedule
+        subprocess.Popen(["start", config.apiexe], shell=True)  # Starting API executable
         if state['rtmp_server'] == "bkrtmp":
             state['rtmp_server'] = "defrtmp"
         else:
             state['rtmp_server'] = "bkrtmp"
         live_spare_url = api_create_edit_schedule(0, state['rtmp_server'], True, "Null")  # Creating schedule
-        subprocess.Popen(["start", config.apiexe], shell=True)  # Starting API executable
         if config.unliststream == True:  # Checking if stream should be unlisted
             public_stream(state['live_url'])  # Making stream public
         if config.unliststream and config.public_notification:
@@ -238,6 +247,7 @@ def offline_check_functions(
           ending_stream(state['live_url'])  # Handling stream offline
         state['live_url'] = state['spare_link']  # Swapping live and spare links
         state['spare_link'] = live_spare_url  # Swapping live and spare links
+        state['reason'] = "Null"
 
     def public_stream(live_id):  # Function to make a YouTube stream public
         hitryagain = 0  # Initialize retry counter
@@ -309,47 +319,41 @@ def offline_check_functions(
               logging.error(f"Error checking YouTube livestream status: {e}")  # Log error
               return "ERROR"  # Return ERROR if exception occurs
 
-    def check_twitch_category(state):
-      while True:
-       try:
-          data = get_twitch_streams()
-          if isinstance(data, list) and len(data) > 0:
-            # Extract game_name from the first item
-            state["category"] = data[0].get('game_name', 'Game name not found')
-            break
-          else:
-            logging.info("Error getting category")
-            time.sleep(25)
-       except (SyntaxError, ValueError, TypeError) as e:
-          logging.info("Error getting category")
-          time.sleep(25)
-      while True:
-       try:
-          data = get_twitch_streams()
-          if isinstance(data, list) and len(data) > 0:
-            # Extract game_name from the first item
-            new_category = data[0].get('game_name', 'Game name not found')
-            if new_category != state["category"]:
-              while state['thread_in_use']:
-                time.sleep(1)
-              state['thread_in_use'] = True
-              state['titleforgmail'] = api_create_edit_schedule(state['numberpart'], state['rtmp_server'], "EDIT", state['live_url'])  # Editing schedule
-              state['thread_in_use'] = False
-              state["category"] = new_category
-          else:
-            logging.info("Error getting category")
-            time.sleep(25)
-       except (SyntaxError, ValueError, TypeError) as e:
-          logging.info("Error getting category")
-          time.sleep(25)
-
-    def refresh_stream_title(state):  # Function to refresh stream title
+    def refresh_stream_title_and_category(state):  # Function to refresh stream title
+      changed = False
+      reason = "Null"
       while True:
         try:
-          twitch_title = get_twitch_stream_title()  # Getting Twitch stream title
+          if config.show_twitch_category:
+            response, streams = get_twitch_stream_title_maybe_category("ALL")  # Getting Twitch stream title
+            # Get current game name from Twitch
+            current_game = streams[0].get('game_name', 'Game name not found')
+            # Trim whitespace and normalize to handle subtle differences
+            current_game = current_game.strip()    
+            if state['category'] == "Null":
+              state['category'] = current_game
+            state_category = state["category"].strip() if state["category"] else ""
+            # Log detailed comparison information
+            logging.info(f"Comparing Twitch category '{current_game}' with state category '{state_category}'")
+            # Detailed comparison with debugging
+            if current_game != state_category and response:
+              # Log the actual values being compared that caused the change
+              logging.info(f"Category change detected: '{current_game}' (Twitch) vs '{state_category}' (State)")
+              changed = "category"
+              category = current_game
+            elif not response:
+              category = "Unknown"
+            else:
+              category = current_game
+            twitch_title = streams[0]['title']
+          else:
+            twitch_title = get_twitch_stream_title_maybe_category()
           yt_title = get_youtube_stream_title(state['live_url'])
           TESTING = "[TESTING WILL BE REMOVE AFTER]" if config.exp_tesing else ""
-          newtitle = ''.join('' if unicodedata.category(c) == 'So' else c for c in (twitch_title or yt_title or "")).replace("<", "").replace(">", "")  # Cleaning title
+          newtitle = ''.join(char for char in twitch_title if char not in emoji.EMOJI_DATA).replace("<", "").replace(">", "")
+          # Remove leading space if present
+          if newtitle and newtitle[0] == " ":
+              newtitle = newtitle[1:]
           part_suffix = f" (PART{state['numberpart']})" if state['numberpart'] > 0 else ""
           if config.StreamerName == "Null":
             username = config.username
@@ -361,28 +365,51 @@ def offline_check_functions(
               clean_title = newtitle[:max_title_len-3] + "..."
               filename = f"{username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
           if yt_title != filename:  # Checking if title is different:
-                while state['thread_in_use']:
+            if reason == "category":
+              reason = "titcatle"
+            else:
+              reason = "title"
+          # Fix logical error in condition
+          if changed in ("titcatle", "title", "category"):
+            while state['thread_in_use']:
                     time.sleep(1)  # 每秒检查一次线程使用状态
-                state['thread_in_use'] = True
-                logging.info(f"Title discrepancy detected: {filename} does not match {state['titleforgmail']}")  # Logging discrepancy
-                state['titleforgmail'] = api_create_edit_schedule(state['numberpart'], state['rtmp_server'], "EDIT", state['live_url'])  # Editing schedule
-                logging.info('edit finished continue the stream')  # Logging edit completion
-                logging.info(f"Successfully retrieved stream title: {state['titleforgmail']} contiune checking")  # Logging retrieved title
-                state['thread_in_use'] = False
-                time.sleep(60)
+            state['thread_in_use'] = True
+            if changed == "title":
+              logging.info(f"Title discrepancy detected: {filename} does not match {state['titleforgmail']}")  # Logging discrepancy
+            elif changed == "titcatle":
+              logging.info(f"Title and category discrepancy detected: {filename} does not match {state['titleforgmail']} and {state['category']} does not match {category}")  # Logging discrepancy
+              state['category'] = category
+            elif changed == "category":
+              # Log the specific values that are being reported as different
+              logging.info(f"Category discrepancy detected: '{state['category']}' (State) does not match '{category}' (New Category)")  # Logging discrepancy
+              state['category'] = category
+            state['titleforgmail'] = api_create_edit_schedule(state['numberpart'], state['rtmp_server'], "EDIT", state['live_url'])  # Editing schedule
+            logging.info('edit finished continue the stream')  # Logging edit completion
+            if changed == "title" or "titcatle": 
+               logging.info(f"Successfully retrieved stream title: {state['titleforgmail']} contiune checking")  # Logging retrieved title
+            state['thread_in_use'] = False
+            time.sleep(30)
           else:
                state['titleforgmail'] = yt_title
-               time.sleep(60)
+               if config.show_twitch_category:
+                  state['category'] = category
+               time.sleep(30)
         except UnboundLocalError:  # Handling UnboundLocalError
-               logging.warning("Encountered UnboundLocalError when getting title - disabling gmail checking and title checking continue at your own risk")  # Logging warning
+               if config.show_twitch_category:
+                  logging.warning("Encountered UnboundLocalError when getting title - disabling gmail checking and title/category checking continue at your own risk")  # Logging warning
+               else:
+                  logging.warning("Encountered UnboundLocalError when getting title - disabling gmail checking and title checking continue at your own risk")  # Logging warning
                state['thread_in_use'] = False
                state['gmail_checking'] = False
                break
         except Exception as e:  # Handling exceptions
-               logging.error(f"Error getting stream title: {str(e)} - disabling gmail checking and title checking continue at your own risk")  # Logging error message
-               state['thread_in_use'] = False
-               state['gmail_checking'] = False
-               break
+            if config.show_twitch_category:
+               logging.error(f"Error getting stream title: {str(e)} - disabling gmail checking and title/category checking continue at your own risk")  # Logging error message
+            else:
+                logging.error(f"Error getting stream title: {str(e)} - disabling gmail checking and title/category checking continue at your own risk")  # Logging error message
+            state['thread_in_use'] = False
+            state['gmail_checking'] = False
+            break
 
     def find_gmail_title(state):  # Asynchronous function to find Gmail title
         while True:  # Infinite loop
@@ -402,19 +429,20 @@ def offline_check_functions(
                         received_time = datetime.fromtimestamp(int(msg['internalDate']) / 1000)  # Get received time
                         subject = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'subject'), '')  # Get subject
                         sender = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'from'), '')  # Get sender
-                        if received_time >= minutes_ago and title in subject and "no-reply@youtube.com" in sender:  #  Check if message is recent, title matches, and from YouTube
+                        if received_time >= minutes_ago and title in subject:  #   and "no-reply@youtube.com" in sender Check if message is recent, title matches, and from YouTube
                             logging.info(f"Found email from YouTube: {subject}")  # Log found message
                             while state['thread_in_use']:
                                time.sleep(1)  # 每秒检查一次线程使用状态
                             state['thread_in_use'] = True
                             logging.info("Third-party notification detected - switching to backup stream...")  # Logging notification
+                            state['reason'] = "Third-party notification detected"
                             switch_stream_config(state)  # Switching stream configuration
                             state['thread_in_use'] = False
-                time.sleep(20)
+                time.sleep(40)
             except Exception as e:  # Handle exceptions
                 logging.error(f"Error in find_gmail_title: {e}")  # Log error
                 state['thread_in_use'] = False
-                time.sleep(5)  # Sleep for 5 seconds
+                time.sleep(60)  # Sleep for 5 seconds
 
     def handle_youtube_status(state):  # Asynchronous function to handle YouTube status
       while True:
@@ -448,6 +476,7 @@ def offline_check_functions(
                 while state['thread_in_use']:
                   time.sleep(1)  # 每秒检查一次线程使用状态
                 state['thread_in_use'] = True
+                state['reason'] = "YouTube Connection Failed"
                 switch_stream_config(state)  # Switching stream configuration
                 state['thread_in_use'] = False
                 time.sleep(15)  # Returning True
@@ -459,6 +488,7 @@ def offline_check_functions(
         while state['thread_in_use']:
             time.sleep(1)  # 每秒检查一次线程使用状态
         state['thread_in_use'] = True
+        state['reason'] = "stream duration limit near 12h reached"
         switch_stream_config(state)  # Switching stream configuration
         state['thread_in_use'] = False
 
@@ -487,7 +517,11 @@ def offline_check_functions(
                 state['exit_flag'] = True; return  # Exit
             elif user_input == "REFRESH":
                 logging.info("REFRESH EXIT AND CREATE NEW CMD")
-                subprocess.Popen(["start", "cmd", "/k", "py", "check_tv.py", state['live_url'], state['rtmp_server'], state['spare_link']], shell=True)  # Restarting script with spare link
+                if state['rtmp_server'] == "defrtmp":
+                    rtmp = "bkrtmp"
+                else:
+                    rtmp = "defrtmp"
+                subprocess.Popen(["start", "cmd", "/k", "py", "check_tv.py", state['live_url'], rtmp, state['spare_link']], shell=True)  # Restarting script with spare link
                 state['exit_flag'] = True; return  # Exit
 
 
@@ -510,12 +544,8 @@ def offline_check_functions(
     find_gmail_title_thread = threading.Thread(target=find_gmail_title, args=(state,), daemon=False)
     find_gmail_title_thread.start()
 
-    refresh_stream_title_thread = threading.Thread(target=refresh_stream_title, args=(state,), daemon=False)
-    refresh_stream_title_thread.start()
-    
-    if config.show_twitch_category:
-       check_twitch_category_thread = threading.Thread(target=check_twitch_category, args=(state,), daemon=False)
-       check_twitch_category_thread.start()
+    refresh_stream_title_and_category_thread = threading.Thread(target=refresh_stream_title_and_category, args=(state,), daemon=False)
+    refresh_stream_title_and_category_thread.start()
 
     if config.exp_tesing:# 启动一个线程来处理用户输入
        input_thread = threading.Thread(target=handle_user_input, args=(state,), daemon=True)
@@ -575,38 +605,7 @@ def get_twitch_streams(): # Function to get Twitch streams data by making API re
     else:
         return streams_data['data'] # Return stream data if successful
 
-def get_twitch_category():
-    MAX_RETRIES = 3
-    RETRY_DELAY = 5
-    for attempt in range(MAX_RETRIES): # Try up to MAX_RETRIES times
-        try:
-            streams = get_twitch_streams() # Get stream data
-            if isinstance(streams, list) and len(streams) > 0:
-            # Extract game_name from the first item
-               return streams[0].get('game_name', 'Game name not found')
-            else:
-               logging.error(f"Error getting Twitch stream info (attempt {attempt + 1}/{MAX_RETRIES}): {streams}") # Log error on failure
-               if attempt < MAX_RETRIES - 1: # Retry if not at max attempts
-                time.sleep(RETRY_DELAY)
-               else:
-                logging.error("Max retries reached, returning fallback title") # Return fallback title if all retries failed
-                return f"Unknown"
-        except (SyntaxError, ValueError, TypeError) as e:
-            logging.error(f"Error getting Twitch stream info (attempt {attempt + 1}/{MAX_RETRIES}): {e}") # Log error on failure
-            if attempt < MAX_RETRIES - 1: # Retry if not at max attempts
-                time.sleep(RETRY_DELAY)
-            else:
-                logging.error("Max retries reached, returning fallback title") # Return fallback title if all retries failed
-                return f"Unknown"
-        except Exception as e:
-            logging.error(f"Error getting Twitch stream info (attempt {attempt + 1}/{MAX_RETRIES}): {e}") # Log error on failure
-            if attempt < MAX_RETRIES - 1: # Retry if not at max attempts
-                time.sleep(RETRY_DELAY)
-            else:
-                logging.error("Max retries reached, returning fallback title") # Return fallback title if all retries failed
-                return f"Unknown"
-
-def get_twitch_stream_title(): # Function to get Twitch stream title with retries
+def get_twitch_stream_title_maybe_category(INPUT=None): # Function to get Twitch stream title with retries
     MAX_RETRIES = 3
     RETRY_DELAY = 5
     for attempt in range(MAX_RETRIES): # Try up to MAX_RETRIES times
@@ -616,8 +615,18 @@ def get_twitch_stream_title(): # Function to get Twitch stream title with retrie
                 logging.info(f"No streams found (attempt {attempt + 1}/{MAX_RETRIES})")
                 time.sleep(RETRY_DELAY)
                 continue
-            if streams: # Return title if streams exist
-                return streams[0]['title']
+            if INPUT == "ALL":
+              if isinstance(streams, list) and len(streams) > 0:
+                return True, streams
+              else:
+                logging.error(f"Error getting Twitch stream info (attempt {attempt + 1}/{MAX_RETRIES}): {streams}") # Log error on failure
+                if attempt < MAX_RETRIES - 1: # Retry if not at max attempts
+                    time.sleep(RETRY_DELAY)
+                else:
+                    logging.error("Max retries reached, returning fallback title") # Return fallback title if all retries failed
+                    return False, f"Stream_{datetime.now().strftime('%Y-%m-%d')}"
+            if streams and INPUT == None:
+                    return streams[0]['title']
         except Exception as e:
             logging.error(f"Error getting Twitch stream info (attempt {attempt + 1}/{MAX_RETRIES}): {e}") # Log error on failure
             if attempt < MAX_RETRIES - 1: # Retry if not at max attempts
@@ -1098,16 +1107,25 @@ def api_create_edit_schedule(
     stream_url, 
     reason=None
     ):  # Asynchronous function to create/edit schedule via API
-    filename = None  # Initializing filename
-    description = None  # Initializing description
     if config.StreamerName == "Null":
         username = config.username
     else:
         username = config.StreamerName
     TESTING = "[TESTING WILL BE REMOVE AFTER]" if config.exp_tesing else ""
     if not is_reload or is_reload == "EDIT":  # Checking if reload is False or EDIT
-        stream_title = get_twitch_stream_title()  # Getting Twitch stream title
-        clean_title = ''.join('' if unicodedata.category(c) == 'So' else c for c in (stream_title or "")).replace("<", "").replace(">", "")  # Cleaning title
+        if config.show_twitch_category:
+            response, streams = get_twitch_stream_title_maybe_category("ALL")  # Getting Twitch stream title
+            if response:
+                stream_title = streams[0]['title']
+                category = streams[0].get('game_name', 'Game name not found')
+            elif not response:
+                stream_title = streams
+                category = "Unknown"
+        else:
+            stream_title = get_twitch_stream_title_maybe_category()  # Getting Twitch stream title
+        clean_title = ''.join(char for char in stream_title if char not in emoji.EMOJI_DATA).replace("<", "").replace(">", "")
+        if clean_title and clean_title[0] == " ":
+              clean_title = clean_title[1:]# Cleaning title
         part_suffix = f" (PART{part_number})" if part_number > 0 else ""
         filename = f"{username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
         if len(filename) > 100:
@@ -1124,15 +1142,15 @@ def api_create_edit_schedule(
         Twitch_sub_or_turbo = "[AD-FREE: SUB/TURBO]" if config.brought_twitch_sub_or_turbo else "[ADS INCLUDE WILL AFFECT THE VIEWING EXPERIENCE]"
         ADSqa = "Info about commercial break here: https://sites.google.com/view/qa-for-ads-problems/"  if config.ADSqa else ""
         ADSqaN = "If you want to help out you can make a direct sub to username: karsteniee on Twitch to have no ads on a streamer(if you want to)" if not config.Filian else ""
-        stream_category = f"[Stream Category: {get_twitch_category()}]" if config.show_twitch_category else ""
+        stream_category = f"[Stream Category: {category}]" if config.show_twitch_category else ""
         description = f"""{TESTING}{ITISUNLISTED}{Twitch_sub_or_turbo}
-Original broadcast from https://twitch.tv/{config.username} 
-{ADSqa}
-{ADSqaN}
-{QA}{reason_description}
+Original broadcast from https://twitch.tv/{config.username} {reason_description}
 [Stream Title: {clean_title}]{stream_category}
+{ADSqa}
+{QA}
 Archived using open-source tools: https://is.gd/archivescript Service by Karsten Lee, 
-Join My Community Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v"""  # Constructing description
+Join My Community Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v
+{ADSqaN}"""  # Constructing description
     try:
         if is_reload is True:  # Checking if reload is True
             filename = f"{username} (WAITING FOR STREAMER){TESTING}"  # Constructing waiting filename
@@ -1297,7 +1315,6 @@ def initialize_stream_relay(
         ffmpeg_exe = config.ffmpeg1
         ffmpeg_1exe = config.ffmpeg
     check_is_live_api(stream_url, ffmpeg_exe, rtmp_server)  # Checking live API
-    subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Killing API executable
     subprocess.run(["taskkill", "/f", "/im", ffmpeg_1exe])  # Killing ffmpeg process
     if rtmp_server == "bkrtmp":
         rtmp_key = config.rtmp_key
@@ -1305,7 +1322,6 @@ def initialize_stream_relay(
         rtmp_key = config.rtmp_key_1
     if config.playvideo:
         os.system(f'start {ffmpeg_1exe} -re -i blackscreen.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp_key}')  # Starting ffmpeg for normal stream
-    subprocess.Popen(["start", config.apiexe], shell=True)  # Starting API executable
 
 def initialize_and_monitor_stream():  # Asynchronous function to initialize and monitor stream
     if not check_chrome_version():
@@ -1664,22 +1680,14 @@ def show_agreement_screen():
     # Function to download agreement content from GitHub
     def download_agreement_content():
         agreement_url = 'https://raw.githubusercontent.com/karstenlee10/Twitch_Stream_To_YouTube/refs/heads/main/END%20USER%20LICENSE%20AGREEMENT'
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                response = requests.get(agreement_url, timeout=10)
-                response.raise_for_status()  # Raise an exception for HTTP errors
-                return response.text
-            except requests.exceptions.RequestException as e:
-                logging.info(f"Error downloading agreement (attempt {attempt + 1}/{max_retries}): {e}")
-                if attempt == max_retries - 1:
-                    # Show local fallback or error dialog
-                    messagebox.showerror(
-                        "Download Error",
-                        "Failed to download the agreement. Please check your internet connection."
-                    )
-                    exit(1)
-                time.sleep(2)
+        try:
+            response = requests.get(agreement_url, timeout=10)
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            return response.text
+        except requests.exceptions.RequestException as e:
+            logging.info(f"Error downloading agreement: {e}")
+            exit()
+
     # Download the agreement content
     agreement_content = download_agreement_content()
 
