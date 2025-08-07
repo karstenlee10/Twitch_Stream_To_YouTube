@@ -1664,14 +1664,22 @@ def show_agreement_screen():
     # Function to download agreement content from GitHub
     def download_agreement_content():
         agreement_url = 'https://raw.githubusercontent.com/karstenlee10/Twitch_Stream_To_YouTube/refs/heads/main/END%20USER%20LICENSE%20AGREEMENT'
-        try:
-            response = requests.get(agreement_url, timeout=10)
-            response.raise_for_status()  # Raise an exception for HTTP errors
-            return response.text
-        except requests.exceptions.RequestException as e:
-            logging.info(f"Error downloading agreement: {e}")
-            exit()
-
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(agreement_url, timeout=10)
+                response.raise_for_status()  # Raise an exception for HTTP errors
+                return response.text
+            except requests.exceptions.RequestException as e:
+                logging.info(f"Error downloading agreement (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt == max_retries - 1:
+                    # Show local fallback or error dialog
+                    messagebox.showerror(
+                        "Download Error",
+                        "Failed to download the agreement. Please check your internet connection."
+                    )
+                    exit(1)
+                time.sleep(2)
     # Download the agreement content
     agreement_content = download_agreement_content()
 
