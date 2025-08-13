@@ -14,8 +14,6 @@ https://is.gd/archivescript
 
 <h2>🛡️ License Example:</h2>
 
-***https://www.youtube.com/@twiARCHIVEtch***
-
 https://www.youtube.com/@FilianVODSArchive
 
 ***https://www.youtube.com/@NeuroVerseUnofficalVODS***
@@ -83,7 +81,7 @@ blackscreen.mp4 (Plays when receive thind-party takedown notice or youtube disco
 
 check_tv.py (main process running api, brower automation, checking email and more)
 
-config_tv (A config file)
+config_tv.py (A config file)
 
 countdriver.exe (Is a process to notify another script(same project but copy another to mult-stream to a channel) that chrome is using, so it won't crash chrome)
 
