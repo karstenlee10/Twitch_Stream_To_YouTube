@@ -6,17 +6,6 @@ The code is designed to run as a continuous service, monitoring streams and hand
 
 <h2>Detail Wiki of this Project: <a href="https://deepwiki.com/karstenlee10/Twitch_Stream_To_YouTube"><img src="https://deepwiki.com/badge.svg" alt="DeepWiki"></a></h2>
 
-<h2>😄THE SCRIPT IS RUNING GOOD BUT YOU WILL NEED TO DOWNGRADE YOUR CHROME VERSION [130.0.6723.70] (DON'T TRUST UNOFFICAL WEBSITE DOWNLOAD IT AT YOUR OWN RISK)😄</h2>
-
-[DOWNLOAD OLD CHROME AT YOUR OWN RISK](https://drive.google.com/file/d/1v26IzTqlI6sCwjARNMqje7xrMhNu7kW0/view?usp=sharing)
-
-Need to unistall your orginal chrome(keep brower data) first and remove "Update" and "Google Update" in "C:\Program Files (x86)\Google"
-and stop it from updating(security issue at your own risk)
-
-Orginal From: https://azodl.blogspot.com/2015/04/google-chrome.html
-
-<h2>😄THE SCRIPT IS RUNING GOOD BUT YOU WILL NEED TO DOWNGRADE YOUR STREAMLINK VERSION [7.4.0] THE EXE AND THE PIP THX</h2>
-
 <h2>🛡️ License:</h2>
 
 ***PLEASE CREDIT ME ON YOUR CHANNEL WHEN USING ON YOUR channel description*** paste the github link  
@@ -34,8 +23,6 @@ https://www.youtube.com/@FilianVODSArchive
 <h2>🚨 Warning:</h2>
 
 This script is not in a complete ***finish state*** and only support ***WINDOWS***
-
-***INSTALLATION GUIDE WILL ONLY BE UPDATE IF THE VERSION IS V1(PUBLIC RELEASE)***
 
 If you can't successfully run the google api please make an issue and give your channel's email and then I will give you a client_secret for the api
 
@@ -63,19 +50,7 @@ Here're some of the project's disadvantage:
 * This project is still in ***beta*** may have some bugs that didn't fix or found
 * Setup can be difficult for people who are not computer savvy
 
-<h2>🤔 Code main functionality explained by ai</h2>
-
-[READ](explain.md)
-
-<h2>🛠️ Installation Steps:</h2>
-
-read the guide
-
-[GUIDE](readthisguide.md)
-
 <h2>🍰 Contribution:</h2>
-
-[L5CS](https://github.com/l5cs) has helped this Project
 
 Make an issue when there a bug
   
@@ -99,6 +74,26 @@ Technologies used in the project:
 * Make a mode the use independent webdriver.exe
 * Using a different browers
 * Add Kick/Add YouTube??(Needed support on streamlink)
+
+<h2>🧐 Definition of the file</h2>
+
+google_auth_oauthlib/flow.py (EDIT FOR AUTOMATED REFRESH API KEY)
+
+blackscreen.mp4 (Plays when receive thind-party takedown notice or youtube disconnect and if config_tv.playvideo is True)
+
+check_tv.py (main process running api, brower automation, checking email and more)
+
+config_tv (A config file)
+
+countdriver.exe (Is a process to notify another script(same project but copy another to mult-stream to a channel) that chrome is using, so it won't crash chrome)
+
+ending.mp4 (Plays when receive no streams from Twitch API and if config_tv.playvideo is True)
+
+ffmpeg_api.exe (A process that notify relive_tv.py if the ffmpeg error then check if process is still here and the streamer is still live and restart the stream if the process is not here but the streamer is still live then it will exit itself)(Also a timer for 11hours and 50mins perventing the stream over 12 hours)
+
+logger_config.py (another script will import this as their logger)
+
+relive_tv.py (restreaming twitch stream to youtube and also save locally if config_tv.local_archive is True)
 
 <h2>💲 Donation</h2>
 
