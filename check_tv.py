@@ -1,1719 +1,1858 @@
-# Standard library imports
-import tkinter as tk
-from tkinter import messagebox
-import os
-import subprocess
-import threading
-import sys
-import time
-import unicodedata
-import importlib
-import urllib.request
-from datetime import datetime, timedelta, timezone
-import winreg
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from ctypes import windll
-from PIL import Image, ImageDraw, ImageFont
-import re
-import zipfile
-from io import BytesIO
-import psutil
-import emoji
-import requests
-import streamlink
-from selenium import webdriver
-from selenium.common.exceptions import (NoSuchElementException, SessionNotCreatedException, TimeoutException)
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+# GUI IMPORTS
+########################################################################
+import tkinter as tk # For GUI elements
+from tkinter import messagebox # For message boxes
+########################################################################
+# NORMAL IMPORTS
+########################################################################
+import os # For file and directory operations
+import re # For replacing text
+import sys # For checking command line arguments
+import time # For delays
+import requests # For making HTTP requests
+import threading # For running multiple threads
+import importlib # For reloading modules
+import subprocess # For running external commands
+import unicodedata # For checking characters
+import urllib.request # For downloading font files
+from datetime import datetime, timedelta, timezone #getting current time and date
+########################################################################
+# GOOGLE API IMPORTS
+########################################################################
+from googleapiclient.discovery import build # For accessing Google APIs
+from google.oauth2.credentials import Credentials # For handling OAuth2 credentials
+from google.auth.transport.requests import Request # For making authenticated requests
+########################################################################
+# OTHER IMPORTS
+########################################################################
+import emoji # For checking and replacing emojis in text
+import psutil # For checking running processes
+import winreg # For accessing Windows registry, checking chrome version
+import zipfile # For extracting zip files 
+import streamlink # For checking YouTube livestream status
+from io import BytesIO # For display bytes idk
+from ctypes import windll # For accessing Windows API functions and checking display dpi
+from PIL import Image, ImageDraw, ImageFont # For image processing and drawing text on images
+########################################################################
+# Selenium IMPORTS
+########################################################################
+from selenium import webdriver # For controlling web browsers
+from selenium.webdriver.common.by import By # For locating elements in the DOM
+from selenium.webdriver.chrome.options import Options # For configuring Chrome options
+from selenium.webdriver.chrome.service import Service # For managing ChromeDriver service
+from selenium.webdriver.support.ui import WebDriverWait # For waiting for elements in the DOM
+from selenium.webdriver.support import expected_conditions as EC # For waiting for conditions in the DOM
+from selenium.common.exceptions import (NoSuchElementException, SessionNotCreatedException, TimeoutException) # For handling Selenium exceptions
+########################################################################
+# LOCAL IMPORTS
+########################################################################
+from logger_config import check_tv_logger as logging # For logging messages
+import config_tv as config # For configuration settings
+########################################################################
 
-# Local project imports
-from logger_config import check_tv_logger as logging
-import config_tv as config
+# Twitch API token URL
+token_url = f"https://id.twitch.tv/oauth2/token?client_id={config.client_id}&client_secret={config.client_secret}&grant_type=client_credentials" # Construct Twitch OAuth2 token URL with credentials
 
-token_url = f"https://id.twitch.tv/oauth2/token?client_id={config.client_id}&client_secret={config.client_secret}&grant_type=client_credentials"  # URL for obtaining Twitch token
-APP_TOKEN_FILE = "client_secret.json"  # File name for app token
-GMAIL_TOKEN_FILE = "gmail_token.json"  # File name for Gmail token
-USER_TOKEN_FILE = "user_token.json"  # File name for user token
+# Google API token files names
+APP_TOKEN_FILE = "client_secret.json"  
+GMAIL_TOKEN_FILE = "gmail_token.json"  
+USER_TOKEN_FILE = "user_token.json"  
 
-SCOPES_GMAIL = [  # Scopes for Gmail API
+# Google API scopes
+# For Brand YouTube account's main account
+SCOPES_GMAIL = [  
+    'https://www.googleapis.com/auth/gmail.readonly',
+  ]
+# For Brand YouTube account 
+SCOPES_BRAND = [  
+    'https://www.googleapis.com/auth/youtube.force-ssl',
+  ]
+# For Normal YouTube account
+SCOPES = [  
+    'https://www.googleapis.com/auth/youtube.force-ssl',
     'https://www.googleapis.com/auth/gmail.readonly',
   ]
 
-SCOPES_BRAND = [  # Scopes for YouTube API with brand account
-    'https://www.googleapis.com/auth/youtube.force-ssl',
-  ]
+# Home directory when running the script
+home_dir = os.path.expanduser("~")  
 
-SCOPES = [  # Combined scopes for YouTube and Gmail APIs
-    'https://www.googleapis.com/auth/youtube.force-ssl',
-    'https://www.googleapis.com/auth/gmail.readonly',
-  ]
-
-home_dir = os.path.expanduser("~")  # Getting the home directory path
-
-# Mapping of script to font file and download URL
-FONT_MAP = {
-    'CJK': {
-        'file': 'NotoSansCJKjp-Regular.otf',
-        'url': 'https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf'
+# Font configuration for different languages
+FONT_MAP = { # Dictionary mapping script types to font files and download URLs
+    'CJK': { # Configuration for Chinese, Japanese, Korean characters
+        'file': 'NotoSansCJKjp-Regular.otf', # Local font file name for CJK
+        'url': 'https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf' # Download URL for CJK font
     },
-    'Hangul': {
-        'file': 'NotoSansCJKkr-Regular.otf',
-        'url': 'https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Korean/NotoSansCJKkr-Regular.otf'
+    'Hangul': { # Configuration for Korean Hangul characters
+        'file': 'NotoSansCJKkr-Regular.otf', # Local font file name for Hangul
+        'url': 'https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Korean/NotoSansCJKkr-Regular.otf' # Download URL for Hangul font
     },
-    'Arabic': {
-        'file': 'NotoSansArabic-Regular.ttf',
-        'url': 'https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansArabic/NotoSansArabic-Regular.ttf'
+    'Arabic': { # Configuration for Arabic script
+        'file': 'NotoSansArabic-Regular.ttf', # Local font file name for Arabic
+        'url': 'https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansArabic/NotoSansArabic-Regular.ttf' # Download URL for Arabic font
     },
-    'Devanagari': {
-        'file': 'NotoSansDevanagari-Regular.ttf',
-        'url': 'https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Regular.ttf'
+    'Devanagari': { # Configuration for Devanagari script (Hindi, Sanskrit)
+        'file': 'NotoSansDevanagari-Regular.ttf', # Local font file name for Devanagari
+        'url': 'https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Regular.ttf' # Download URL for Devanagari font
     },
-    'default': {
-        'file': 'NotoSans-Regular.ttf',
-        'url': 'https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf'
+    'default': { # Default font configuration for Latin scripts
+        'file': 'NotoSans-Regular.ttf', # Local font file name for default font
+        'url': 'https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf' # Download URL for default font
     }
 }
 
-###########################################offline_check###########################################
-def offline_check_functions(
-    live_url, 
-    spare_link, 
-    rtmp_server, 
-    title,
-    REFRESH_TYPE
-    ):  # Asynchronous function to check offline status
-    state = {  # Initializing state dictionary
-        'numberpart': 0,  # Number part
-        'gmail_checking': True,  # Gmail count
-        'countyt': True,  # Count YouTube
-        'live_url': live_url,  # Live URL
-        'spare_link': spare_link,  # Spare link
-        'rtmp_server': rtmp_server,  # RTMP server
-        'titleforgmail': title,  # Title for Gmail
-        'category': "Null",
-        "reason": "Null",
-        'input_state': False,
-        'thread_in_use': False,
-        'exit_flag': False
+# Start when the front code is finished
+def offline_check_functions( # Main function to monitor stream status and handle offline detection
+    live_url, # YouTube stream URL to monitor
+    spare_link, # Backup YouTube stream URL
+    rtmp_server, # RTMP server configuration to use
+    title # Stream title for Gmail notifications
+    ):  
+    state = {  # Dictionary to store all stream monitoring state variables
+        'numberpart': 0,  # Current number of already part numbers of the stream
+        'gmail_checking': True,  # Whether to check Gmail for notifications
+        'countyt': True,  #Checking if the youtube stream is still live
+        'live_url': live_url,  # Current live stream URL
+        'spare_link': spare_link,  # Spare link for backup stream
+        'rtmp_server': rtmp_server,  # RTMP server to use for streaming(spare_link)
+        'titleforgmail': title,  # Title for Gmail notifications
+        "reason": "Null", # Reason for switching streams, initially set to "Null"
+        'input_state': False,  # Whether the input state is active
+        'thread_in_use': False, # Whether a thread is currently using a important script
+        'ending': False, # Whether the stream is ending
+        'exit_flag': False # Flag to indicate if the script should exit
     }
     
-    logging.info(f"Initializing offline detection monitoring service... With {state['live_url']}, {state['spare_link']}, {state['rtmp_server']}, {state['titleforgmail']}")  # Logging initialization message
+    logging.info(f"Initializing offline detection monitoring service... With {state['live_url']}, {state['spare_link']}, {state['rtmp_server']}, {state['titleforgmail']}")  # Log initialization with current state parameters
 
-    if not config.livestreamautostop:
-        state['countyt'] = False
+    if not config.livestreamautostop: # If livestream autostop is disabled, we need to check if the YouTube stream is live
+        state['countyt'] = False # Disable YouTube stream status checking
+    
+    # Using selenium to control the browser to end the YouTube livestream
+    def ending_stream(stream_url):  # Function to end a YouTube livestream using browser automation
+        check_process_running()  # Check if a chrome process is already running
+        subprocess.Popen(["start", "countdriver.exe"], shell=True)  # Start the protect chrome process
+        options = Options()  # Configure Chrome options
+        chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")  # Get path to Chrome user data directory
+        options.add_argument(f"user-data-dir={chrome_user_data_dir}")  # Add user data path to Chrome options
+        options.add_argument(f"profile-directory={config.Chrome_Profile}")  # Add profile to Chrome options
+        driver = None  # Define driver as None
+        try_count = 0  # Number of attempts to trying
+        while True:  # Infinite loop to retry on errors
+            try: # Try to create driver and end stream
+                driver = webdriver.Chrome(options=options)  # Create a new Chrome driver instance
+                url_to_live = f"https://studio.youtube.com/video/{stream_url}/livestreaming"  #Get the URL to the YouTube livestream
+                driver.get(url_to_live)  # Open the YouTube livestream URL in the browser
+                while True: # Wait for page elements to load
+                    try: # Try to find the main livestream control element
+                        # Wait for the livestream control room to load
+                        WebDriverWait(driver, 30).until( # Wait up to 30 seconds for element to appear
+                           EC.presence_of_element_located((By.XPATH, '/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[1]/div[1]/ytls-live-control-room-renderer/div[1]/div/div/ytls-broadcast-metadata/div[2]/ytcp-button/ytcp-button-shape/button/yt-touch-feedback-shape/div/div[2]')) # XPath for main livestream control button
+                        ) # End of until condition
+                        break # Exit the inner while loop when element is found
+                    except TimeoutException: # Handle timeout when element is not found
+                        try: # Try to find error element on the page
+                            # If the element is not found within 30 seconds, check for an error state
+                            error_element = driver.find_element(By.XPATH, '/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[3]/ytls-live-dashboard-error-renderer/div/yt-icon') # XPath for error state indicator
+                            if error_element: # If error element exists
+                                logging.info("Error element found - YouTube Studio is in error state") # Log error state detection
+                                driver.refresh() # Refresh the page to try again
+                                time.sleep(2) # Wait 2 seconds after refresh
+                                try_count += 1 # Increment error counter
+                                # If there are 3 consecutive errors, stop the process
+                                if try_count >= 3: # Check if maximum retries reached
+                                    logging.error("3 consecutive errors detected - STOP PROCESS") # Log critical error
+                                    subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill Chrome driver process
+                                    return False # Return failure status
+                        except: # Handle case where error element is not found
+                            # If the error element is not found, refresh the page
+                            logging.info("Element not found after 30s, refreshing page...") # Log timeout situation
+                            driver.refresh() # Refresh the page to retry
+                            time.sleep(2) # Wait 2 seconds after refresh
+                            try_count += 1 # Increment timeout counter
+                            # If there are 3 consecutive timeouts, stop the process
+                            if try_count >= 3: # Check if maximum retries reached
+                                logging.error("3 consecutive timeouts detected - STOP PROCESS") # Log critical timeout error
+                                subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill Chrome driver process
+                                return False # Return failure status
+                time.sleep(2) # Wait 2 seconds before proceeding
+                logging.info("Stop livestream manually...")  # Log that manual stream stopping is starting
+                try: # Try to check if stream is already ended
+                    header_title = driver.find_element(By.XPATH, '//*[@id="header-title"]') # Find header title element
+                    if header_title: # If header title element exists (indicates stream already ended)
+                       logging.info("Found already ended, breaking loop...") # Log that stream is already ended
+                       subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill Chrome driver process
+                       if driver:  # If driver still exists
+                            driver.quit()  # Quit the driver properly
+                       return False # Return indicating stream was already ended
+                except: # Ignore any exceptions when checking for already ended stream
+                    pass # Continue with normal ending process
+                driver.find_element(By.XPATH, '//*[@id="end-stream-button"]').click()  # Click the end stream button
+                time.sleep(3)  # Wait 3 seconds for dialog to appear
+                driver.find_element(By.XPATH, '/html/body/ytcp-confirmation-dialog/ytcp-dialog/tp-yt-paper-dialog/div[3]/div[2]/ytcp-button[2]/ytcp-button-shape/button').click()  # Click confirmation button to end stream
+                time.sleep(10)  # Wait 10 seconds for stream to end properly
+                logging.info("livestream ended successfully...")  # Log successful stream termination
+                driver.quit()  # Quit the Chrome driver
+                subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill Chrome driver process
+                if driver:  # If driver still exists after quitting
+                    driver.quit()  # Quit driver again as safety measure
+                break  # Exit the main while loop
+            except SessionNotCreatedException as e: # Handle Chrome session creation failures
+                try_count += 1  # Increment retry counter
+                if try_count >= 3:  # Check if maximum retries reached
+                    logging.error(f"Session not created: [{e}] Critical Error STOP PROCESS") # Log critical error
+                    subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill Chrome driver process
+                    return False # Return failure status
+                if "DevToolsActivePort file doesn't exist" in str(e): # Check for specific Chrome startup error
+                    logging.error(f"Chrome WebDriver failed to start: [{e}] DevToolsActivePort file doesn't exist. Terminating all Chrome processes and retry.") # Log DevTools error
+                else: # Handle other session creation errors
+                    logging.error(f"Session not created: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") # Log general session error
+                subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  # Kill all Chrome processes
+                time.sleep(5) # Wait 5 seconds before retry
+            except Exception as e: # Handle any other unexpected exceptions
+                try_count += 1  # Increment retry counter
+                if try_count >= 3:  # Check if maximum retries reached
+                    logging.error(f"Session not created: [{e}] Critical Error STOP PROCESS") # Log critical error
+                    subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill Chrome driver process
+                    return False # Return failure status
+                logging.error(f"Unexpected error: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") # Log unexpected error
+                subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  # Kill all Chrome processes
+                time.sleep(5)     # Wait 5 seconds before retry
 
-    def ending_stream(stream_url):  # Function to handle stream ending
-       check_process_running()  # Checking if process is running
-       subprocess.Popen(["start", "countdriver.exe"], shell=True)  # Starting countdriver process
-       options = Options()  # Creating Chrome options
-       chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")  # Setting Chrome user data directory
-       options.add_argument(f"user-data-dir={chrome_user_data_dir}")  # Adding user data directory to options
-       options.add_argument(f"profile-directory={config.Chrome_Profile}")  # Adding profile directory to options
-       driver = None  # Initializing driver
-       try_count = 0  # Initializing try count
-       while True:  # Infinite loop
-          try:
-               
-               time.sleep(3)
-               driver = webdriver.Chrome(options=options)  # Creating Chrome WebDriver
-               url_to_live = f"https://studio.youtube.com/video/{stream_url}/livestreaming"  # Constructing URL to live stream
-               driver.get(url_to_live)  # Navigating to URL
-               while True:
-                   try:
-                       WebDriverWait(driver, 30).until(
-                           EC.presence_of_element_located((By.XPATH, '/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[1]/div[1]/ytls-live-control-room-renderer/div[1]/div/div/ytls-broadcast-metadata/div[2]/ytcp-button/ytcp-button-shape/button/yt-touch-feedback-shape/div/div[2]'))
-                       )
-                       break
-                   except TimeoutException:
-                       try:
-                           error_element = driver.find_element(By.XPATH, '/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[3]/ytls-live-dashboard-error-renderer/div/yt-icon')
-                           if error_element:
-                               logging.info("Error element found - YouTube Studio is in error state")
-                               driver.refresh()
-                               time.sleep(2)
-                               try_count += 1
-                               if try_count >= 3:
-                                   logging.error("3 consecutive errors detected - KILLING ALL PROCESSES")
-                                   os.system("start check_tv.py KILL")
-                                   exit(1)
-                       except:
-                           logging.info("Element not found after 30s, refreshing page...")
-                           driver.refresh()
-                           time.sleep(2)
-                           try_count += 1
-                           if try_count >= 3:
-                               logging.error("3 consecutive timeouts detected - KILLING ALL PROCESSES")
-                               os.system("start check_tv.py KILL")
-                               exit(1)
-               time.sleep(2)
-               logging.info("Stop livestream manually...")  # Logging configuration message
-               try:
-                    header_title = driver.find_element(By.XPATH, '//*[@id="header-title"]')
-                    if header_title:
-                       logging.info("Found already ended, breaking loop...")
-                       driver.quit()  # Quitting the driver
-                       subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Killing countdriver process
-                       if driver:  # Checking if driver is initialized
-                            driver.quit()  # Quitting the driver
-                       break
-               except:
-                   pass
-               driver.find_element(By.XPATH, '//*[@id="end-stream-button"]').click()  # Clicking edit button
-               time.sleep(3)  # Waiting for 5 seconds
-               driver.find_element(By.XPATH, '/html/body/ytcp-confirmation-dialog/ytcp-dialog/tp-yt-paper-dialog/div[3]/div[2]/ytcp-button[2]/ytcp-button-shape/button').click()  # Clicking edit button
-               time.sleep(10)  # Waiting for 5 seconds
-               logging.info("livestream ended successfully...")  # Logging success message
-               driver.quit()  # Quitting the driver
-               subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Killing countdriver process
-               if driver:  # Checking if driver is initialized
-                        driver.quit()  # Quitting the driver
-               break  # Breaking the loop
-          except SessionNotCreatedException as e:
-              try_count += 1  # Incrementing try count
-              if try_count >= 3:  # Checking if try count exceeds limit
-                  logging.error(f"Session not created: [{e}] Critical Error KILL ALL")
-                  os.system("start check_tv.py KILL")
-                  exit(1)  # Exiting the script
-              if "DevToolsActivePort file doesn't exist" in str(e):
-                  logging.error(f"Chrome WebDriver failed to start: [{e}] DevToolsActivePort file doesn't exist. Terminating all Chrome processes and retry.")
-              else:
-                  logging.error(f"Session not created: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN")
-              subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  # Killing CHROME PROCESS
-              time.sleep(5)
-          except Exception as e:
-              try_count += 1  # Incrementing try count
-              if try_count >= 3:  # Checking if try count exceeds limit
-                  logging.error(f"Session not created: [{e}] Critical Error KILL ALL")
-                  os.system("start check_tv.py KILL")
-                  exit(1)  # Exiting the script
-              logging.error(f"Unexpected error: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN")
-              subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  # Killing CHROME PROCESS
-              time.sleep(5)    
+    def change_share_settings(stream_url, share):  # Function to change YouTube stream privacy settings using browser automation
+        check_process_running()  # Check if Chrome process is already running
+        subprocess.Popen(["start", "countdriver.exe"], shell=True)  # Start the Chrome driver protection process
+        options = Options()  # Create Chrome options object
+        chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")  # Get Chrome user data directory path
+        options.add_argument(f"user-data-dir={chrome_user_data_dir}")  # Set Chrome user data directory
+        options.add_argument(f"profile-directory={config.Chrome_Profile}")  # Set Chrome profile directory
+        driver = None  # Initialize driver variable as None
+        try_count = 0  # Initialize retry counter
+        while True:  # Infinite loop to retry on errors
+            try: # Try to create driver and change settings
+                time.sleep(3) # Wait 3 seconds before starting
+                driver = webdriver.Chrome(options=options)  # Create Chrome driver instance
+                url_to_live = f"https://studio.youtube.com/video/{stream_url}/livestreaming"  # Construct YouTube Studio livestream URL
+                driver.get(url_to_live)  # Navigate to YouTube Studio livestream page
+                while True: # Wait for page elements to load
+                    try: # Try to find the main livestream control element
+                       WebDriverWait(driver, 30).until( # Wait up to 30 seconds for element
+                           EC.presence_of_element_located((By.XPATH, '/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[1]/div[1]/ytls-live-control-room-renderer/div[1]/div/div/ytls-broadcast-metadata/div[2]/ytcp-button/ytcp-button-shape/button/yt-touch-feedback-shape/div/div[2]')) # XPath for main control element
+                       ) # End of until condition
+                       break # Exit inner loop when element found
+                    except TimeoutException: # Handle timeout when element not found
+                        try: # Try to find error element
+                            error_element = driver.find_element(By.XPATH, '/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[3]/ytls-live-dashboard-error-renderer/div/yt-icon') # XPath for error state
+                            if error_element: # If error element exists
+                                logging.info("Error element found - YouTube Studio is in error state") # Log error state
+                                driver.refresh() # Refresh page to retry
+                                time.sleep(2) # Wait 2 seconds after refresh
+                                try_count += 1 # Increment error counter
+                                if try_count >= 3: # Check if max retries reached
+                                    logging.error("3 consecutive errors detected - STOP PROCESS") # Log critical error
+                                    subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill Chrome driver process
+                                    return False # Return failure status
+                        except: # Handle case where error element not found
+                            logging.info("Element not found after 30s, refreshing page...") # Log timeout
+                            driver.refresh() # Refresh page to retry
+                            time.sleep(2) # Wait 2 seconds after refresh
+                            try_count += 1 # Increment timeout counter
+                            if try_count >= 3: # Check if max retries reached
+                                logging.error("3 consecutive timeouts detected - STOP PROCESS") # Log critical timeout
+                                subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill Chrome driver process
+                                return False # Return failure status
+                time.sleep(2) # Wait 2 seconds before proceeding
+                logging.info("Changing share settings manually...")  # Log start of share settings change
+                driver.find_element(By.XPATH, "//ytcp-button[@id='edit-button']").click()  # Click edit button to open settings
+                time.sleep(3)  # Wait 3 seconds for edit dialog to open
+                driver.find_element(By.XPATH, "/html/body/ytls-broadcast-edit-dialog/ytcp-dialog/tp-yt-paper-dialog/div[2]/div/ytcp-navigation/div[2]/tp-yt-iron-pages/ytcp-video-metadata-editor/div/ytcp-video-metadata-editor-basics/ytcp-video-metadata-visibility/div/div[2]/ytcp-icon-button/tp-yt-iron-icon").click()  # Click visibility dropdown button
+                time.sleep(1)  # Wait 1 second for dropdown to open
+                try: # Try to set the requested privacy setting
+                    if share == "public": # If setting to public
+                        driver.find_element(By.XPATH, "//*[@id='privacy-radios']/tp-yt-paper-radio-button[3]").click()  # Click public radio button
+                    if share == "unlisted": # If setting to unlisted
+                        driver.find_element(By.XPATH, "//*[@id='privacy-radios']/tp-yt-paper-radio-button[2]").click()  # Click unlisted radio button
+                    driver.find_element(By.XPATH, "//*[@id='save-button']/ytcp-button-shape/button/yt-touch-feedback-shape/div/div[2]").click()  # Click save button for privacy settings
+                except Exception as e: # Handle errors when clicking privacy buttons
+                    logging.info("the share settings is unclickable something is very wrong stop process") # Log privacy button error
+                    subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill Chrome driver process
+                    if driver:  # If driver exists
+                        driver.quit()  # Quit driver properly
+                    return False # Return failure status
+                time.sleep(2) # Wait 2 seconds after privacy settings
+                driver.find_element(By.XPATH, "//ytcp-button[@id='save-button']").click()  # Click main save button to apply changes
+                while True: # Wait for save confirmation
+                    try: # Try to find toast notification
+                        WebDriverWait(driver, 30).until( # Wait up to 30 seconds for toast
+                        EC.presence_of_element_located((By.XPATH, "/html/body/ytcp-app/ytcp-toast-manager/tp-yt-paper-toast")) # XPath for toast notification
+                        ) # End of until condition
+                        logging.info("Toast notification appeared") # Log successful save
+                        break # Exit toast waiting loop
+                    except TimeoutException: # Handle timeout waiting for toast
+                        logging.info("Toast notification not found, continuing to wait...") # Log toast timeout
+                subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill Chrome driver process
+                if driver:  # If driver exists
+                    driver.quit()  # Quit driver properly
+                return True  # Return success status
+            except SessionNotCreatedException as e: # Handle Chrome session creation failures
+                try_count += 1  # Increment retry counter
+                if try_count >= 3:  # Check if maximum retries reached
+                    logging.error(f"Session not created: [{e}] Critical Error STOP PROCESS") # Log critical session error
+                    subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill Chrome driver process
+                    return False # Return failure status
+                if "DevToolsActivePort file doesn't exist" in str(e): # Check for DevTools startup error
+                    logging.error(f"Chrome WebDriver failed to start: [{e}] DevToolsActivePort file doesn't exist. Terminating all Chrome processes and retry.") # Log DevTools error
+                else: # Handle other session creation errors
+                    logging.error(f"Session not created: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") # Log general session error
+                subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  # Kill all Chrome processes
+                time.sleep(5) # Wait 5 seconds before retry
+            except Exception as e: # Handle any other unexpected exceptions
+                try_count += 1  # Increment retry counter
+                if try_count >= 3:  # Check if maximum retries reached
+                    logging.error(f"Session not created: [{e}] Critical Error STOP PROCESS") # Log critical error
+                    subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill Chrome driver process
+                    return False # Return failure status
+                logging.error(f"Unexpected error: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") # Log unexpected error
+                subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  # Kill all Chrome processes
+                time.sleep(5) # Wait 5 seconds before retry
 
-    def handle_stream_offline(state):  # Asynchronous function to handle stream offline
-        if state['input_state']:
-          if state['rtmp_server'] == "defrtmp":
-            subprocess.run(["taskkill", "/f", "/im", config.ffmpeg1])  # Killing ffmpeg executable
-          else:
-            subprocess.run(["taskkill", "/f", "/im", config.ffmpeg])  # Killing ffmpeg executable
-        if config.playvideo:  # Checking if mode is yesend
-          logging.info("Stream offline status detected - initiating shutdown sequence... and play ending screen")  # Logging offline status
-          # Select RTMP key and ffmpeg path based on server type
-          if state['rtmp_server'] == "defrtmp":
-              rtmp_key = config.rtmp_key_1  # Use default RTMP key
-              ffmpeg = config.ffmpeg1      # Use default ffmpeg path
-          else:
-              rtmp_key = config.rtmp_key  # Use backup RTMP key
-              ffmpeg = config.ffmpeg     # Use backup ffmpeg path
-          os.system(f'{ffmpeg} -re -i ending.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp_key}')  # Executing ffmpeg command
-        if config.unliststream:  # Checking if stream should be unlisted
-            logging.info("Setting stream visibility to public...")  # Logging visibility change
-            public_stream(state['live_url'])  # Making stream public
-        logging.info("ending the stream...")  # Logging return to offline check
-        if not config.livestreamautostop:
-          ending_stream(state['live_url'])  # Handling stream offline
-        subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Killing API executable
-        subprocess.Popen(["start", "cmd", "/k", "py", "check_tv.py", state['spare_link'], state['rtmp_server']], shell=True)  # Restarting script with spare link
-        state['exit_flag'] = True; return  # Exiting the script
+    def handle_stream_offline(state):  # Function to handle actions when stream goes offline
+        state['ending'] = True # Set ending flag to stop monitoring threads
+        if state['input_state']: # If currently in input state
+            if state['rtmp_server'] == "defrtmp": # If using default RTMP server
+                subprocess.run(["taskkill", "/f", "/im", config.ffmpeg1])  # Kill backup FFmpeg process
+            else: # If using backup RTMP server
+                subprocess.run(["taskkill", "/f", "/im", config.ffmpeg])  # Kill default FFmpeg process
+        if config.playvideo:  # If ending video playback is enabled
+            logging.info("Stream offline status detected - initiating shutdown sequence... and play ending screen")  # Log shutdown sequence start
+            
+            if state['rtmp_server'] == "defrtmp": # If using default RTMP server
+                rtmp_key = config.rtmp_key_1  # Use backup RTMP key
+                ffmpeg = config.ffmpeg1      # Use backup FFmpeg executable
+            else: # If using backup RTMP server
+                rtmp_key = config.rtmp_key  # Use default RTMP key
+                ffmpeg = config.ffmpeg     # Use default FFmpeg executable
+            os.system(f'{ffmpeg} -re -i ending.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp_key}')  # Play ending video to stream
+        if config.unliststream:  # If stream was unlisted, make it public when ending
+            logging.info("Setting stream visibility to public...")  # Log visibility change
+            if not share_settings_api(state['live_url'], "public"): # Try to change privacy via API
+                logging.info("ERROR using api trying browers") # Log API failure
+                change_share_settings(state['live_url'], "public") # Use browser automation as fallback
+        logging.info("ending the stream...")  # Log stream ending process start
+        if not config.livestreamautostop: # If auto-stop is disabled
+            ending_stream(state['live_url'])  # Manually end the stream
+        subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Kill API executable process
+        subprocess.Popen(["start", "cmd", "/k", "py", "check_tv.py", state['spare_link'], state['rtmp_server']], shell=True)  # Start new monitoring process with spare stream
+        state['exit_flag'] = True; return  # Set exit flag and return
 
-    def switch_stream_config(state):  # Asynchronous function to switch stream configuration
-        if state['reason'] == "Null":
-           reason = f"[Reason of Switching is Unknown(Part{state['numberpart']} is on https://youtube.com/watch?v={state['spare_link']})]"
+    def switch_stream_config(state):  # Function to switch between primary and backup streams
+        reason_number = state['numberpart'] # Get current part number
+        reason_number += 1 # Increment for next part number
+        if state['reason'] == "Null": # If no specific reason for switching
+            reason = f"[Reason of Switching is Unknown(Part{reason_number} is on https://youtube.com/watch?v={state['spare_link']})]" # Create unknown reason message
         else:
-           reason = f"[Reason of Switching is {state['reason']}(Part{state['numberpart']} is on https://youtube.com/watch?v={state['spare_link']})]"
-        state['numberpart'] += 1  # Incrementing number part
-        update_old_description_thread = threading.Thread(target=api_create_edit_schedule, args=(state['numberpart'], state['rtmp_server'], "EDIT", state['live_url'], reason), daemon=False)
-        update_old_description_thread.start()
-        subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Killing API executable
-        state['titleforgmail'] = api_create_edit_schedule(state['numberpart'], state['rtmp_server'], False, state['spare_link'])  # Editing schedule
-        subprocess.Popen(["start", config.apiexe], shell=True)  # Starting API executable
-        if state['rtmp_server'] == "bkrtmp":
-            state['rtmp_server'] = "defrtmp"
+            reason = f"[Reason of Switching is {state['reason']}(Part{reason_number} is on https://youtube.com/watch?v={state['spare_link']})]" # Create reason message with specific cause
+        update_old_description_thread = threading.Thread(target=api_create_edit_schedule, args=(state['numberpart'], state['rtmp_server'], "EDIT", state['live_url'], reason), daemon=False) # Create thread to update old stream description
+        update_old_description_thread.start() # Start the description update thread
+        state['numberpart'] += 1  # Increment part number for next stream
+        subprocess.run(["taskkill", "/f", "/im", config.apiexe])  
+        state['titleforgmail'] = api_create_edit_schedule(state['numberpart'], state['rtmp_server'], False, state['spare_link'])  # Create new stream and get title for Gmail
+        subprocess.Popen(["start", config.apiexe], shell=True)  
+        if state['rtmp_server'] == "bkrtmp": # If currently using backup RTMP
+            state['rtmp_server'] = "defrtmp" # Switch to default RTMP
         else:
-            state['rtmp_server'] = "bkrtmp"
-        live_spare_url = api_create_edit_schedule(0, state['rtmp_server'], True, "Null")  # Creating schedule
-        if config.unliststream == True:  # Checking if stream should be unlisted
-            public_stream(state['live_url'])  # Making stream public
+            state['rtmp_server'] = "bkrtmp" # Switch to backup RTMP
+        live_spare_url = api_create_edit_schedule(0, state['rtmp_server'], True, "Null")  # Create new spare stream URL
+        if config.unliststream == True:  # If streams should be unlisted initially
+            if not share_settings_api(state['live_url'], "public"):
+                logging.info("ERROR using api trying browers")
+                change_share_settings(state['live_url'], "public")
         if config.unliststream and config.public_notification:
-            logging.info("new stream back to unlisted")
-            unlist_stream(state['spare_link'])  # Making stream unlisted
-        logging.info("ending the old stream...")  # Logging return to offline check
+            logging.info("new stream back to unlisted") # Log setting new stream to unlisted
+            if not share_settings_api(state['spare_link'], "unlisted"): # Try to set new stream to unlisted via API
+                logging.info("ERROR using api trying browers")
+                change_share_settings(state['spare_link'], "unlisted") # Use browser automation as fallback for unlisted
+        logging.info("ending the old stream...")  # Log old stream termination
         if not config.livestreamautostop:
-          ending_stream(state['live_url'])  # Handling stream offline
-        state['live_url'] = state['spare_link']  # Swapping live and spare links
-        state['spare_link'] = live_spare_url  # Swapping live and spare links
-        state['reason'] = "Null"
+            ending_stream(state['live_url'])  
+        state['live_url'] = state['spare_link']  # Switch spare link to become primary
+        state['spare_link'] = live_spare_url  # Set new spare link
+        state['reason'] = "Null" # Reset reason for future switches
 
-    def public_stream(live_id):  # Function to make a YouTube stream public
+    def share_settings_api(live_id, share):  # Function to change YouTube video privacy settings via API
         hitryagain = 0  # Initialize retry counter
-        while True:  # Infinite loop for retry mechanism
+        while True:  
             try:
-                service = get_service()  # Get the YouTube service client
-                request = service.videos().update(  # Create a request to update video status
-                    part='status',
-                    body={
+                service = get_service()  # Get YouTube API service
+                request = service.videos().update(  # Create API request to update video
+                    part='status', # Specify that we're updating the status part
+                    body={ # Request body with video update data
                         'id': live_id,  # Video ID to update
-                        'status': {
-                            'privacyStatus': 'public'  # Set privacy status to public
-                        }
-                    }
-                )
-                response = request.execute()  # Execute the request
-                return response['id']  # Return the video ID from the response
-            except Exception as e:  # Handle exceptions
-               if 'quotaExceeded' in str(e):  # Check if quota is exceeded
-                 logging.info(f"Error and stoping because of api limited")  # Log quota exceeded
-                 state['exit_flag'] = True; return  # Exit with error
-               if hitryagain == 3:  # Check if retry limit is reached
-                logging.info(f"Error and stoping because of error that can't fix")  # Log error
-               hitryagain += 1  # Increment retry counter
-               logging.info(f"Error: {e}")  # Log error
-               time.sleep(5)  # Sleep for 5 seconds
+                        'status': { # Status object containing privacy settings
+                        'privacyStatus': share  # New privacy status (public/unlisted/private)
+                        } # End status object
+                    } # End request body
+                ) # End API request creation
+                response = request.execute()  # Execute the API request
+                return response['id']  # Return video ID on success
+            except Exception as e:  
+                if 'quotaExceeded' in str(e):  # Check for API quota exceeded error
+                    logging.info(f"API quota exceeded, skipping execution to avoid further errors")  # Log quota exceeded error
+                    return False
+                if hitryagain == 3:  # Check if maximum retries reached
+                    logging.info(f"Error and stoping because of error that can't fix")  # Log unfixable error
+                    return False
+                hitryagain += 1  # Increment retry counter
+                logging.info(f"Error: {e}")  # Log the specific error
+                time.sleep(5)  
 
-    def unlist_stream(live_id):  # Function to make a YouTube stream unlisted
-        hitryagain = 0  # Initialize retry counter
-        while True:  # Infinite loop for retry mechanism
+    def is_youtube_livestream_live(video_id):  # Function to check if a YouTube livestream is currently live
+        TRY = 0 # Initialize attempt counter
+        while True:  
             try:
-                service = get_service()  # Get the YouTube service client
-                request = service.videos().update(  # Create a request to update video status
-                    part='status',
-                    body={
-                        'id': live_id,  # Video ID to update
-                        'status': {
-                            'privacyStatus': 'unlisted'  # Set privacy status to public
+                streams = streamlink.streams(f"https://youtube.com/watch?v={video_id}")  # Get available streams for the video
+                hls_stream = streams["best"]  # Try to get the best quality stream
+                return True  
+            except KeyError as e:  # Handle case when no streams are available (offline)
+                TRY += 1 # Increment attempt counter
+                time.sleep(5)
+                if TRY == 3: # Check if maximum attempts reached
+                    logging.info(f"try 3 times is still offline")  # Log that stream is confirmed offline
+                    return False  # Return False indicating stream is offline
+            except Exception as e:  
+                logging.error(f"Error checking YouTube livestream status: {e}")  # Log the error details
+                return "ERROR"  # Return ERROR status on exception
 
-                        }
-                    }
-                )
-                response = request.execute()  # Execute the request
-                return response['id']  # Return the video ID from the response
-            except Exception as e:  # Handle exceptions
-               if 'quotaExceeded' in str(e):  # Check if quota is exceeded
-                 logging.info(f"Error and stoping because of api limited")  # Log quota exceeded
-                 state['exit_flag'] = True; return  # Exit with error
-               if hitryagain == 3:  # Check if retry limit is reached
-                logging.info(f"Error and stoping because of error that can't fix")  # Log error
-               hitryagain += 1  # Increment retry counter
-               logging.info(f"Error: {e}")  # Log error
-               time.sleep(5)  # Sleep for 5 seconds
-
-    def is_youtube_livestream_live(video_id):  # Function to check if YouTube livestream is live
-        TRY = 0
-        while True:  # Infinite loop
-           try:
-              streams = streamlink.streams(f"https://youtube.com/watch?v={video_id}")  # type: ignore Get streams from YouTube
-              hls_stream = streams["best"]  # Get best quality stream
-              return True  # Return True if stream is available
-           except KeyError as e:  # Handle KeyError
-              TRY += 1
-              time.sleep(5)
-              if TRY == 3:
-               logging.info(f"try 3 times is still offline")  # Log error
-               return False  # Return False if stream is not available
-           except Exception as e:  # Handle exceptions
-              logging.error(f"Error checking YouTube livestream status: {e}")  # Log error
-              return "ERROR"  # Return ERROR if exception occurs
-
-    def refresh_stream_title_and_category(state):  # Function to refresh stream title
-      changed = False
-      reason = "Null"
-      while True:
-        try:
-          if config.show_twitch_category:
-            response, streams = get_twitch_stream_title_maybe_category("ALL")  # Getting Twitch stream title
-            # Get current game name from Twitch
-            current_game = streams[0].get('game_name', 'Game name not found')
-            # Trim whitespace and normalize to handle subtle differences
-            current_game = current_game.strip()    
-            if state['category'] == "Null":
-              state['category'] = current_game
-            state_category = state["category"].strip() if state["category"] else ""
-            # Log detailed comparison information
-            logging.info(f"Comparing Twitch category '{current_game}' with state category '{state_category}'")
-            # Detailed comparison with debugging
-            if current_game != state_category and response:
-              # Log the actual values being compared that caused the change
-              logging.info(f"Category change detected: '{current_game}' (Twitch) vs '{state_category}' (State)")
-              changed = "category"
-              category = current_game
-            elif not response:
-              category = "Unknown"
-            else:
-              category = current_game
-            twitch_title = streams[0]['title']
-          else:
-            twitch_title = get_twitch_stream_title_maybe_category()
-          yt_title = get_youtube_stream_title(state['live_url'])
-          TESTING = "[TESTING WILL BE REMOVE AFTER]" if config.exp_tesing else ""
-          newtitle = ''.join(char for char in twitch_title if char not in emoji.EMOJI_DATA).replace("<", "").replace(">", "")
-          # Remove leading space if present
-          if newtitle and newtitle[0] == " ":
-              newtitle = newtitle[1:]
-          part_suffix = f" (PART{state['numberpart']})" if state['numberpart'] > 0 else ""
-          if config.StreamerName == "Null":
-            username = config.username
-          else:
-            username = config.StreamerName
-          filename = f"{username} | {newtitle} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
-          if len(filename) > 100:  # Checking if filename exceeds 100 characters
-              max_title_len = 100 - len(username) - len(datetime.now().strftime('%Y-%m-%d')) - len(" | " * 2) - len(part_suffix) - len(TESTING)
-              clean_title = newtitle[:max_title_len-3] + "..."
-              filename = f"{username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
-          if yt_title != filename:  # Checking if title is different:
-            if reason == "category":
-              reason = "titcatle"
-            else:
-              reason = "title"
-          # Fix logical error in condition
-          if changed in ("titcatle", "title", "category"):
-            while state['thread_in_use']:
-                    time.sleep(1)  # 每秒检查一次线程使用状态
-            state['thread_in_use'] = True
-            if changed == "title":
-              logging.info(f"Title discrepancy detected: {filename} does not match {state['titleforgmail']}")  # Logging discrepancy
-            elif changed == "titcatle":
-              logging.info(f"Title and category discrepancy detected: {filename} does not match {state['titleforgmail']} and {state['category']} does not match {category}")  # Logging discrepancy
-              state['category'] = category
-            elif changed == "category":
-              # Log the specific values that are being reported as different
-              logging.info(f"Category discrepancy detected: '{state['category']}' (State) does not match '{category}' (New Category)")  # Logging discrepancy
-              state['category'] = category
-            state['titleforgmail'] = api_create_edit_schedule(state['numberpart'], state['rtmp_server'], "EDIT", state['live_url'])  # Editing schedule
-            logging.info('edit finished continue the stream')  # Logging edit completion
-            if changed == "title" or "titcatle": 
-               logging.info(f"Successfully retrieved stream title: {state['titleforgmail']} contiune checking")  # Logging retrieved title
-            state['thread_in_use'] = False
-            time.sleep(30)
-          else:
-               state['titleforgmail'] = yt_title
-               if config.show_twitch_category:
-                  state['category'] = category
-               time.sleep(30)
-        except UnboundLocalError:  # Handling UnboundLocalError
-               if config.show_twitch_category:
-                  logging.warning("Encountered UnboundLocalError when getting title - disabling gmail checking and title/category checking continue at your own risk")  # Logging warning
-               else:
-                  logging.warning("Encountered UnboundLocalError when getting title - disabling gmail checking and title checking continue at your own risk")  # Logging warning
-               state['thread_in_use'] = False
-               state['gmail_checking'] = False
-               break
-        except Exception as e:  # Handling exceptions
-            if config.show_twitch_category:
-               logging.error(f"Error getting stream title: {str(e)} - disabling gmail checking and title/category checking continue at your own risk")  # Logging error message
-            else:
-                logging.error(f"Error getting stream title: {str(e)} - disabling gmail checking and title/category checking continue at your own risk")  # Logging error message
-            state['thread_in_use'] = False
-            state['gmail_checking'] = False
-            break
-
-    def find_gmail_title(state):  # Asynchronous function to find Gmail title
-        while True:  # Infinite loop
+    def refresh_stream_title(state):  # Function to continuously update YouTube stream title to match Twitch
+       while not state['ending']:
             try:
-                if not state['gmail_checking']:
-                  logging.info("gmail checking is disable")
-                  break
-                title = state['titleforgmail']  # Format title
-                service = get_gmail_service()  # Get Gmail service
+                twitch_title = get_twitch_stream_title()  # Get current Twitch stream title
+                yt_title = get_youtube_stream_title(state['live_url']) # Get current YouTube stream title
+                if not yt_title: # If unable to get YouTube title
+                    logging.info(f"Error and disabling gmail checking and title checking continue at your own risk")  # Log title retrieval failure
+                    state['gmail_checking'] = False
+                    break
+                TESTING = "[TESTING WILL BE REMOVE AFTER]" if config.exp_tesing else "" # Add testing suffix if enabled
+                newtitle = ''.join(char for char in twitch_title if char not in emoji.EMOJI_DATA).replace("<", "").replace(">", "")  # Remove emojis and problematic characters from title
+                newtitle = ' '.join(newtitle.split()) # Normalize whitespace in title
+                 
+                if newtitle and newtitle[0] == " ": # If title starts with space
+                    newtitle = newtitle[1:] # Remove leading space
+                if config.StreamerName == "Null": # If no custom streamer name set
+                    username = config.username # Use configured username
+                else: # If custom streamer name is set
+                    username = config.StreamerName # Use custom streamer name
+                part_suffix = f" (PART{state['numberpart']})" if state['numberpart'] > 0 else "" # Add part number if > 0
+                filename = f"{username} | {newtitle} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}" # Create formatted filename
+                if len(filename) > 100:  # If filename exceeds YouTube title limit
+                    max_title_len = 100 - len(username) - len(datetime.now().strftime('%Y-%m-%d')) - len(" | " * 2) - len(part_suffix) - len(TESTING) # Calculate max title length
+                    clean_title = newtitle[:max_title_len-3] + "..." # Truncate title and add ellipsis
+                    filename = f"{username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}" # Recreate filename with truncated title
+                if yt_title != filename:  # If YouTube title doesn't match expected format
+                    logging.info(f"Title discrepancy detected: {filename} does not match {yt_title}")  # Log title mismatch
+                    while state['thread_in_use']: # Wait for other threads to finish
+                        time.sleep(1)  # Wait 1 second before checking again
+                    state['thread_in_use'] = True # Mark thread as in use
+                    state['titleforgmail'] = api_create_edit_schedule(state['numberpart'], state['rtmp_server'], "EDIT", state['live_url'])  # Update stream title via API
+                    state['thread_in_use'] = False # Mark thread as no longer in use
+                    logging.info('edit finished continue the stream')  # Log successful title update
+                    logging.info(f"Successfully retrieved stream title: {state['titleforgmail']} contiune offline check")  # Log title retrieval success
+                    
+                    yt_title_after_edit = get_youtube_stream_title(state['live_url']) # Get YouTube title after edit
+                    if yt_title_after_edit != filename: # If title still doesn't match after edit
+                        logging.error(f"Title discrepancy still exists after edit: {filename} does not match {yt_title_after_edit}") # Log persistent mismatch
+                        logging.info("Stopping immediately due to persistent title discrepancy") # Log decision to stop
+                        state['gmail_checking'] = False # Disable Gmail checking
+                        break # Exit title refresh loop
+                    time.sleep(60)  # Wait 60 seconds before next check
+                else: # If titles match
+                    time.sleep(60) # Wait 60 seconds before next check
+            except UnboundLocalError:  # Handle UnboundLocalError exception
+                    logging.warning("Encountered UnboundLocalError when getting title - disabling gmail checking and title checking continue at your own risk")  # Log UnboundLocalError
+                    state['gmail_checking'] = False # Disable Gmail checking
+                    break # Exit title refresh loop
+            except Exception as e:  # Handle any other exceptions
+                    logging.error(f"Error getting stream title: {str(e)} - disabling gmail checking and title checking continue at your own risk")  # Log general error
+                    state['gmail_checking'] = False # Disable Gmail checking due to error
+                    break # Exit title refresh loop
+
+    def find_gmail_title(state):  # Function to monitor Gmail for YouTube notifications
+        while state['gmail_checking'] and not state['ending']:  # Loop while Gmail checking enabled and stream not ending
+            try: # Try to check Gmail for relevant messages
+                title = state['titleforgmail']  # Get current stream title for Gmail search
+                service = get_gmail_service()  # Get Gmail API service
                 now = datetime.now()  # Get current time
                 minutes_ago = now - timedelta(minutes=2)  # Calculate time 2 minutes ago
-                results = service.users().messages().list(userId='me', maxResults=2).execute()  # List messages
-                messages = results.get('messages', [])  # Get messages
-                if messages:  # Check if messages exist
-                    for message in messages:  # Iterate over messages
-                        msg = service.users().messages().get(userId='me', id=message['id']).execute()  # Get message details
-                        received_time = datetime.fromtimestamp(int(msg['internalDate']) / 1000)  # Get received time
-                        subject = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'subject'), '')  # Get subject
-                        sender = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'from'), '')  # Get sender
-                        if received_time >= minutes_ago and title in subject:  #   and "no-reply@youtube.com" in sender Check if message is recent, title matches, and from YouTube
-                            logging.info(f"Found email from YouTube: {subject}")  # Log found message
-                            while state['thread_in_use']:
-                               time.sleep(1)  # 每秒检查一次线程使用状态
-                            state['thread_in_use'] = True
-                            logging.info("Third-party notification detected - switching to backup stream...")  # Logging notification
-                            state['reason'] = "Third-party notification detected"
-                            switch_stream_config(state)  # Switching stream configuration
-                            state['thread_in_use'] = False
-                time.sleep(40)
-            except Exception as e:  # Handle exceptions
-                logging.error(f"Error in find_gmail_title: {e}")  # Log error
-                state['thread_in_use'] = False
-                time.sleep(60)  # Sleep for 5 seconds
+                results = service.users().messages().list(userId='me', maxResults=2).execute()  # Get latest 2 messages from Gmail
+                messages = results.get('messages', [])  # Extract messages from API response
+                if messages:  # If messages were found
+                    for message in messages:  # Loop through each message
+                        msg = service.users().messages().get(userId='me', id=message['id']).execute()  # Get full message details
+                        received_time = datetime.fromtimestamp(int(msg['internalDate']) / 1000)  # Convert timestamp to datetime
+                        subject = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'subject'), '')  # Extract email subject
+                        sender = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'from'), '')  # Extract sender information
+                        if received_time >= minutes_ago and title in subject:  # If message is recent and contains stream title
+                            logging.info(f"Found email from YouTube: {subject}")  # Log YouTube notification detection
+                            while state['thread_in_use']: # Wait for other threads to finish
+                                time.sleep(1)  # Wait 1 second before checking again
+                            state['thread_in_use'] = True # Mark thread as in use
+                            logging.info("Third-party notification detected - switching to backup stream...")  # Log notification detection
+                            state['reason'] = "Third-party notification detected" # Set reason for stream switch
+                            switch_stream_config(state)  # Switch to backup stream
+                            state['thread_in_use'] = False # Mark thread as no longer in use
+                time.sleep(40) # Wait 40 seconds before next Gmail check
+            except Exception as e:  # Handle Gmail checking exceptions
+                logging.error(f"Error in find_gmail_title: {e}")  # Log Gmail error
+                state['thread_in_use'] = False # Reset thread usage flag
+                time.sleep(60)  # Wait 60 seconds before retry
 
-    def handle_youtube_status(state):  # Asynchronous function to handle YouTube status
-      while True:
-        feedback = is_youtube_livestream_live(state['live_url'])
-        if feedback == "ERROR":  # Checking if YouTube livestream status is error
-            logging.info("YouTube API verification failed - check credentials and connectivity...")  # Logging error
-            time.sleep(15)  # Returning True
-        if feedback:  # Checking if YouTube livestream is live
-            time.sleep(15)  # Returning True
-        else:  # Checking if YouTube livestream is not live
-            streams = get_twitch_streams() # Getting Twitch streams and client
-            if not streams:  # Checking if streams are empty
-                while state['thread_in_use']:
-                  time.sleep(1)  # 每秒检查一次线程使用状态
-                state['thread_in_use'] = True
-                handle_stream_offline(state)
-                state['thread_in_use'] = False
-        logging.info("Stream connection terminated - initiating reload sequence...")  # Logging termination
-        if state['rtmp_server'] == "defrtmp":
-            ffmpeg_exe = config.ffmpeg1
-        else:
-            ffmpeg_exe = config.ffmpeg
-        subprocess.run(["taskkill", "/f", "/im", ffmpeg_exe])  # Killing ffmpeg process
-        time.sleep(30)  # Waiting for 30 seconds
-        logging.info("Checking for stream")  # Logging check
-        if is_youtube_livestream_live(state['live_url']):  # Checking if YouTube livestream is live
-            logging.info("Stream is back online return to offline check") # Logging return to offline check
-            time.sleep(15)  # Returning True
-        else:
-                logging.info("YouTube Connection Failed Start on backup stream")  # Logging error
-                while state['thread_in_use']:
-                  time.sleep(1)  # 每秒检查一次线程使用状态
-                state['thread_in_use'] = True
-                state['reason'] = "YouTube Connection Failed"
-                switch_stream_config(state)  # Switching stream configuration
-                state['thread_in_use'] = False
-                time.sleep(15)  # Returning True
+    def handle_youtube_status(state):  # Function to monitor YouTube stream status
+        while not state['ending']: # Loop until stream ending is signaled
+            feedback = is_youtube_livestream_live(state['live_url']) # Check if YouTube stream is live
+            if feedback == "ERROR":  # If error occurred checking stream status
+                logging.info("YouTube API verification failed - check credentials and connectivity...")  # Log API verification failure
+                time.sleep(15)  # Wait 15 seconds before retry
+            if feedback:  # If stream is live
+                time.sleep(15)  # Wait 15 seconds before next check
+            else:  # If stream is not live
+                streams = get_twitch_streams() # Check Twitch stream status
+                if not streams:  # If Twitch stream is also offline
+                    while state['thread_in_use']: # Wait for other threads to finish
+                        time.sleep(1)  # Wait 1 second before checking thread status again
+                    state['thread_in_use'] = True # Mark thread as in use
+                    handle_stream_offline(state) # Handle stream offline situation
+                    state['thread_in_use'] = False # Mark thread as no longer in use
+            logging.info("Stream connection terminated - initiating reload sequence...")  # Log stream reconnection attempt
+            if state['rtmp_server'] == "defrtmp": # If using default RTMP server
+                ffmpeg_exe = config.ffmpeg1 # Use backup FFmpeg executable
+            else: # If using backup RTMP server
+                ffmpeg_exe = config.ffmpeg # Use default FFmpeg executable
+            subprocess.run(["taskkill", "/f", "/im", ffmpeg_exe])  # Kill current FFmpeg process
+            time.sleep(30)  # Wait 30 seconds for cleanup
+            logging.info("Checking for stream")  # Log stream check attempt
+            if is_youtube_livestream_live(state['live_url']):  # Check if YouTube stream is back online
+                logging.info("Stream is back online return to offline check") # Log successful reconnection
+                time.sleep(15)  # Wait 15 seconds before continuing
+            else: # If YouTube stream is still offline
+                    logging.info("YouTube Connection Failed Start on backup stream")  # Log connection failure
+                    while state['thread_in_use']: # Wait for other threads to finish
+                        time.sleep(1)  # Wait 1 second before checking again
+                    state['thread_in_use'] = True # Mark thread as in use
+                    state['reason'] = "YouTube Connection Failed" # Set reason for stream switch
+                    switch_stream_config(state)  # Switch to backup stream
+                    state['thread_in_use'] = False # Mark thread as no longer in use
+                    time.sleep(15)  # Wait 15 seconds after switch
 
-    def hours_checker(state):
-      while True:
-        time.sleep(40700)
-        logging.info("Stream duration limit near 12h reached - initiating scheduled reload...")  # Logging scheduled reload
-        while state['thread_in_use']:
-            time.sleep(1)  # 每秒检查一次线程使用状态
-        state['thread_in_use'] = True
-        state['reason'] = "stream duration limit near 12h reached"
-        switch_stream_config(state)  # Switching stream configuration
-        state['thread_in_use'] = False
+    def hours_checker(state): # Function to handle 12-hour stream duration limit
+        while not state['ending']: # Loop until stream ending is signaled
+            time.sleep(40700) # Wait approximately 11 hours and 18 minutes
+            logging.info("Stream duration limit near 12h reached - initiating scheduled reload...")  # Log duration limit reached
+            while state['thread_in_use']: # Wait for other threads to finish
+                time.sleep(1)  # Wait 1 second before checking thread status again
+            state['thread_in_use'] = True # Mark thread as in use
+            state['reason'] = "stream duration limit near 12h reached" # Set reason for stream switch
+            switch_stream_config(state)  # Switch to backup stream
+            state['thread_in_use'] = False # Mark thread as no longer in use
 
-    def twitch_checking(state):
-      while True:  # Infinite loop
-        try:
-              streams = get_twitch_streams()  # Getting Twitch streams and client
-              if not streams:  # Checking if streams are empty
-                while state['thread_in_use']:
-                   time.sleep(1)  # 每秒检查一次线程使用状态
-                state['thread_in_use'] = True
-                handle_stream_offline(state)
-                state['thread_in_use'] = False
-              time.sleep(7)  # Sleeping for 10 seconds
-        except Exception as e:  # Catching exceptions
-            logging.error(f"Error in twitch check: {str(e)}", exc_info=True)  # Logging error
-            state['thread_in_use'] = False
-            time.sleep(25)  # Sleeping for 25 seconds
+    def twitch_checking(state): # Function to continuously monitor Twitch stream status
+        while not state['ending']:  # Loop until stream ending is signaled
+            try: # Try to check Twitch stream status
+                streams = get_twitch_streams()  # Get current Twitch stream information
+                if not streams:  # If no Twitch streams found (offline)
+                    while state['thread_in_use']: # Wait for other threads to finish
+                       time.sleep(1)  # Wait 1 second before checking again
+                    state['thread_in_use'] = True # Mark thread as in use
+                    handle_stream_offline(state) # Handle stream offline situation
+                    state['thread_in_use'] = False # Mark thread as no longer in use
+                time.sleep(7)  # Wait 7 seconds before next Twitch check
+            except Exception as e:  # Handle Twitch checking exceptions
+                logging.error(f"Error in twitch check: {str(e)}", exc_info=True)  # Log Twitch check error with traceback
+                state['thread_in_use'] = False # Reset thread usage flag
+                time.sleep(25)  # Wait 25 seconds before retry
 
-    # 定义函数用于处理用户输入
-    def handle_user_input(state):
-        while True:
-            user_input = input("DEBUG MODE IS ENABLE YOU CAN ONLY EXIT OR REFRESH: ").strip().upper()
-            if user_input == "EXIT":
-                logging.info("EXITING...")
-                state['exit_flag'] = True; return  # Exit
-            elif user_input == "REFRESH":
-                logging.info("REFRESH EXIT AND CREATE NEW CMD")
-                if state['rtmp_server'] == "defrtmp":
-                    rtmp = "bkrtmp"
-                else:
-                    rtmp = "defrtmp"
-                subprocess.Popen(["start", "cmd", "/k", "py", "check_tv.py", state['live_url'], rtmp, state['spare_link']], shell=True)  # Restarting script with spare link
-                state['exit_flag'] = True; return  # Exit
+    
+    def handle_user_input(state): # Function to handle user debug commands
+        while not state['ending']: # Loop until stream ending is signaled
+            user_input = input("DEBUG MODE IS ENABLE YOU CAN ONLY EXIT OR REFRESH: ").strip().upper() # Get user input command
+            if user_input == "EXIT": # If user wants to exit
+                logging.info("EXITING...") # Log exit command
+                state['exit_flag'] = True; return  # Set exit flag and return
+            elif user_input == "REFRESH": # If user wants to refresh
+                logging.info("REFRESH EXIT AND CREATE NEW CMD") # Log refresh command
+                if state['rtmp_server'] == "defrtmp": # If currently using default RTMP
+                    rtmp = "bkrtmp" # Switch to backup RTMP for new process
+                else: # If currently using backup RTMP
+                    rtmp = "defrtmp" # Switch to default RTMP for new process
+                subprocess.Popen(["start", "cmd", "/k", "py", "check_tv.py", state['live_url'], rtmp, state['spare_link']], shell=True)  # Start new monitoring process with different RTMP
+                state['exit_flag'] = True; return  # Set exit flag and return
 
 
-    if config.unliststream and config.public_notification and not REFRESH_TYPE:
-      logging.info("stream back to unlisted")
-      unlist_thread = threading.Thread(target=unlist_stream, args=(state['live_url'],), daemon=False)
-      unlist_thread.start()
+    if config.unliststream and config.public_notification: # If using unlisted mode with public notifications
+        logging.info("stream back to unlisted") # Log setting stream to unlisted
+        def unlist_wrapper(): # Wrapper function for unlisting stream
+            result = share_settings_api(state['live_url'], "unlisted") # Try to set stream to unlisted
+            if not result: # If API call failed
+                print("OMG") # Print error message
 
-    # Set critical threads to non-daemon to prevent abrupt termination
-    twitch_checking_thread = threading.Thread(target=twitch_checking, args=(state,), daemon=False)
-    twitch_checking_thread.start()
+        unlist_thread = threading.Thread(target=unlist_wrapper, daemon=False) # Create thread for unlisting
+        unlist_thread.start() # Start the unlisting thread
 
-    hours_checker_thread = threading.Thread(target=hours_checker, args=(state,), daemon=False)
-    hours_checker_thread.start()
+    
+    twitch_checking_thread = threading.Thread(target=twitch_checking, args=(state,), daemon=False) # Create Twitch monitoring thread
+    twitch_checking_thread.start() # Start Twitch monitoring thread
 
-    if state['countyt']:
-      handle_youtube_status_thread = threading.Thread(target=handle_youtube_status, args=(state,), daemon=False)
-      handle_youtube_status_thread.start()
+    hours_checker_thread = threading.Thread(target=hours_checker, args=(state,), daemon=False) # Create 12-hour duration checker thread
+    hours_checker_thread.start() # Start duration checker thread
 
-    find_gmail_title_thread = threading.Thread(target=find_gmail_title, args=(state,), daemon=False)
-    find_gmail_title_thread.start()
+    if state['countyt']: # If YouTube status checking is enabled
+        handle_youtube_status_thread = threading.Thread(target=handle_youtube_status, args=(state,), daemon=False) # Create YouTube status monitoring thread
+        handle_youtube_status_thread.start() # Start YouTube status monitoring thread
 
-    refresh_stream_title_and_category_thread = threading.Thread(target=refresh_stream_title_and_category, args=(state,), daemon=False)
-    refresh_stream_title_and_category_thread.start()
+    find_gmail_title_thread = threading.Thread(target=find_gmail_title, args=(state,), daemon=False) # Create Gmail monitoring thread
+    find_gmail_title_thread.start() # Start Gmail monitoring thread
 
-    if config.exp_tesing:# 启动一个线程来处理用户输入
-       input_thread = threading.Thread(target=handle_user_input, args=(state,), daemon=True)
-       input_thread.start()
+    refresh_stream_title_thread = threading.Thread(target=refresh_stream_title, args=(state,), daemon=False) # Create title refresh thread
+    refresh_stream_title_thread.start() # Start title refresh thread
 
-    # Main exit handler loop
-    while not state.get('exit_flag', False):
-        time.sleep(1)
+    input_thread = threading.Thread(target=handle_user_input, args=(state,), daemon=True) # Create user input handling thread as daemon
+    input_thread.start() # Start user input thread
 
-    logging.info("Stopping the entire script...")
+    
+    while not state.get('exit_flag', False): # Main loop waiting for exit signal
+        time.sleep(1) # Wait 1 second before checking exit flag again
 
-    current_pid = os.getpid()
-    process = psutil.Process(current_pid)
-    process.terminate()
+    logging.info("Stopping the entire script...") # Log script termination
 
-###########################################offline_check ENDED###########################################
+    current_pid = os.getpid() # Get current process ID
+    process = psutil.Process(current_pid) # Create process object for current process
+    process.terminate() # Terminate the current process
 
-def get_twitch_streams(): # Function to get Twitch streams data by making API requests
-  ERROR = 0
-  while True:
-    try:
-        token_response = requests.post(token_url, timeout=10) # Make POST request to get Twitch access token
-        token_response.raise_for_status() # Raise exception if request failed
-        token_data = token_response.json() # Parse JSON response to get token data
-        access_token = token_data.get('access_token') # Extract access token from response
-        if not access_token: # Raise error if no token found
-            logging.info("Access token not found in response")
-            return "ERROR"
-    except requests.exceptions.ConnectionError as e:
-      logging.error(f"No internet connection or connection error: {e}")
-      return "ERROR"
-    except requests.exceptions.Timeout as e:
-      logging.error(f"Request timed out: {e}")
-      return "ERROR"
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Error obtaining Twitch access token: {e}") # Log error if request fails
-        return "ERROR"
-    except ValueError as ve:
-        logging.error(f"Error in response data: {ve}") # Log error if response data is invalid
-        return "ERROR"
-    headers = {'Authorization': f'Bearer {access_token}', 'Client-ID': config.client_id} # type: ignore Set up request headers with access token and client ID
-    streams_response = requests.get(f'https://api.twitch.tv/helix/streams?user_login={config.username}', headers=headers, timeout=10) # Make GET request to Twitch API to get stream data
-    streams_data = streams_response.json() # Parse JSON response
-    if streams_response.status_code == 401 and streams_data.get('message') == 'Invalid OAuth token':
-        logging.error("Invalid OAuth token: Unauthorized access to Twitch API (Normal Error Sometimes)")
-        ERROR += 1
-        if ERROR == 3:
-            logging.info("3 times Invalid OAuth token: NOT SO NORMAL")
-            return "ERROR"
-    elif 'data' not in streams_data:
-        logging.error("'data' key not found in Twitch API response") # Log error if data key missing
-        logging.error(f"Invalid Twitch API response: {streams_data}")
-        ERROR += 1
-        if ERROR == 3:
-            logging.info("3 times Unknown Error: NOT NORMAL")
-            return "ERROR"
-    else:
-        return streams_data['data'] # Return stream data if successful
 
-def get_twitch_stream_title_maybe_category(INPUT=None): # Function to get Twitch stream title with retries
-    MAX_RETRIES = 3
-    RETRY_DELAY = 5
-    for attempt in range(MAX_RETRIES): # Try up to MAX_RETRIES times
-        try:
-            streams = get_twitch_streams() # Get stream data
-            if not streams or streams == "ERROR": # 如果没有找到直播流或者返回错误，延迟后重试
-                logging.info(f"No streams found (attempt {attempt + 1}/{MAX_RETRIES})")
-                time.sleep(RETRY_DELAY)
-                continue
-            if INPUT == "ALL":
-              if isinstance(streams, list) and len(streams) > 0:
-                return True, streams
-              else:
-                logging.error(f"Error getting Twitch stream info (attempt {attempt + 1}/{MAX_RETRIES}): {streams}") # Log error on failure
-                if attempt < MAX_RETRIES - 1: # Retry if not at max attempts
-                    time.sleep(RETRY_DELAY)
-                else:
-                    logging.error("Max retries reached, returning fallback title") # Return fallback title if all retries failed
-                    return False, f"Stream_{datetime.now().strftime('%Y-%m-%d')}"
-            if streams and INPUT == None:
-                    return streams[0]['title']
-        except Exception as e:
-            logging.error(f"Error getting Twitch stream info (attempt {attempt + 1}/{MAX_RETRIES}): {e}") # Log error on failure
-            if attempt < MAX_RETRIES - 1: # Retry if not at max attempts
-                time.sleep(RETRY_DELAY)
-            else:
-                logging.error("Max retries reached, returning fallback title") # Return fallback title if all retries failed
-                return f"Stream_{datetime.now().strftime('%Y-%m-%d')}"
 
-def check_process_running():  # Function to check if process is running
-    process_name = "countdriver.exe"  # Name of the process to check
-    logging.info("Checking for existing browser automation processes...")  # Logging checking processes
-    for process in psutil.process_iter(['pid', 'name']):  # Iterating over processes
-        if process.info['name'] == process_name:  # Checking if process name matches
-            logging.info("Browser automation process already running - waiting for completion...")  # Logging process running
-            time.sleep(15)  # Waiting before checking again
-            check_process_running()  # Recursively checking process
-    logging.info("No conflicting processes found - proceeding...")  # Logging no conflicting processes
-    return  # Returning from function
+def get_twitch_streams():  # Function to get Twitch stream information via API
+    ERROR = 0 # Initialize error counter
+    while True: # Infinite loop to retry on errors
+        try: # Try to get Twitch OAuth token
+            token_response = requests.post(token_url, timeout=10)  # Request OAuth token from Twitch
+            token_response.raise_for_status()  # Raise exception if HTTP error
+            token_data = token_response.json()  # Parse JSON response
+            access_token = token_data.get('access_token')  # Extract access token
+            if not access_token:  # If no access token in response
+                logging.info("Access token not found in response") # Log missing token error
+                return "ERROR" # Return error status
+        except requests.exceptions.ConnectionError as e: # Handle network connection errors
+            logging.error(f"No internet connection or connection error: {e}") # Log connection error
+            return "ERROR" # Return error status
+        except requests.exceptions.Timeout as e: # Handle request timeout errors
+            logging.error(f"Request timed out: {e}") # Log timeout error
+            return "ERROR" # Return error status
+        except requests.exceptions.RequestException as e: # Handle other request errors
+            logging.error(f"Error obtaining Twitch access token: {e}")  # Log request error
+            return "ERROR" # Return error status
+        except ValueError as ve: # Handle JSON parsing errors
+            logging.error(f"Error in response data: {ve}")  # Log JSON error
+            return "ERROR" # Return error status
+        headers = {'Authorization': f'Bearer {access_token}', 'Client-ID': config.client_id}  # Create headers for stream API request
+        streams_response = requests.get(f'https://api.twitch.tv/helix/streams?user_login={config.username}', headers=headers, timeout=10)  # Request stream data from Twitch API
+        streams_data = streams_response.json()  # Parse JSON response from streams API
+        if streams_response.status_code == 401 and streams_data.get('message') == 'Invalid OAuth token': # Check for invalid token error
+            logging.error("Invalid OAuth token: Unauthorized access to Twitch API (Normal Error Sometimes)") # Log OAuth error
+            ERROR += 1 # Increment error counter
+            if ERROR == 3: # Check if maximum errors reached
+                logging.info("3 times Invalid OAuth token: NOT SO NORMAL") # Log repeated OAuth failures
+                return "ERROR" # Return error status
+        elif 'data' not in streams_data: # Check if response has expected data structure
+            logging.error("'data' key not found in Twitch API response")  # Log missing data key
+            logging.error(f"Invalid Twitch API response: {streams_data}") # Log invalid response structure
+            ERROR += 1 # Increment error counter
+            if ERROR == 3: # Check if maximum errors reached
+                logging.info("3 times Unknown Error: NOT NORMAL") # Log repeated unknown errors
+                return "ERROR" # Return error status
+        else: # If response is valid
+            return streams_data['data']  # Return stream data array
 
-def get_service():  # Function to get YouTube service
-    creds = None  # Initialize credentials to None
-    from google_auth_oauthlib.flow import InstalledAppFlow  # Import InstalledAppFlow for OAuth2
-    try:
-        if os.path.exists(USER_TOKEN_FILE):  # Check if user token file exists
-          if not config.brandacc:  # Check if brand account is False
-            creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES)  # Load credentials from user token file
-          if config.brandacc:  # Check if brand account is True
-            creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES_BRAND)  # Load credentials for brand account
-        if not creds or not creds.valid:  # Check if credentials are invalid
-            if creds and creds.expired and creds.refresh_token:  # Check if credentials are expired and refreshable
-                creds.refresh(Request())  # Refresh credentials
-            else:
-              if not config.brandacc:  # Check if brand account is False
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
-                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
-              if config.brandacc:  # Check if brand account is True
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow for brand account
-                creds = flow.run_local_server(port=6971, brandacc="havebrand")  # Run local server for authentication
-              with open(USER_TOKEN_FILE, 'w') as token:  # Open user token file for writing
-                token.write(creds.to_json())  # type: ignore Write credentials to file
-        return build('youtube', 'v3', credentials=creds)  # Return YouTube service
-    except Exception as e:  # Handle exceptions
-        if "invalid_grant" in str(e):  # Check if exception is invalid grant
-              if not config.brandacc:  # Check if brand account is False
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
-                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
-              if config.brandacc:  # Check if brand account is True
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow for brand account
-                creds = flow.run_local_server(port=6971, brandacc="havebrand")  # Run local server for authentication
-              with open(USER_TOKEN_FILE, 'w') as token:  # Open user token file for writing
-                token.write(creds.to_json())  # type: ignore Write credentials to file
-              return build('youtube', 'v3', credentials=creds)  # Return YouTube service
-        else:
-          logging.error(f"Error in get_service: {e}")  # Log error
-          exit(1)  # Exit with error
+def get_twitch_stream_title():  # Function to get the title of the current Twitch stream
+    MAX_RETRIES = 3 # Maximum number of retry attempts
+    RETRY_DELAY = 5 # Delay between retries in seconds
+    for attempt in range(MAX_RETRIES):  # Loop through retry attempts
+        try: # Try to get stream title
+            streams = get_twitch_streams()  # Get stream data from Twitch API
+            if not streams or streams == "ERROR":  # If no streams or error occurred
+                logging.info(f"No streams found (attempt {attempt + 1}/{MAX_RETRIES})") # Log attempt number for no streams found
+                time.sleep(RETRY_DELAY) # Wait before retrying
+                continue # Skip to next attempt
+            if streams:  # If streams were found
+                return streams[0]['title'] # Return title of first stream
+        except Exception as e: # Handle exceptions during stream retrieval
+            logging.error(f"Error getting Twitch stream info (attempt {attempt + 1}/{MAX_RETRIES}): {e}")  # Log error with attempt number
+            if attempt < MAX_RETRIES - 1:  # If not the last attempt
+                time.sleep(RETRY_DELAY) # Wait before retrying
+            else: # If this is the last attempt
+                logging.error("Max retries reached, returning fallback title")  # Log fallback title usage
+                return f"Stream_{datetime.now().strftime('%Y-%m-%d')}" # Return fallback title with current date
 
-def get_gmail_service():  # Function to get Gmail service
-    creds = None  # Initialize credentials to None
-    from google_auth_oauthlib.flow import InstalledAppFlow  # Import InstalledAppFlow for OAuth2
-    try:
-        if config.brandacc:  # Check if brand account is True
-          if os.path.exists(GMAIL_TOKEN_FILE):  # Check if Gmail token file exists
-            creds = Credentials.from_authorized_user_file(GMAIL_TOKEN_FILE, SCOPES_GMAIL)  # Load credentials from Gmail token file
-        if not config.brandacc:  # Check if brand account is False
-          if os.path.exists(USER_TOKEN_FILE):  # Check if user token file exists
-            creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES)  # Load credentials from user token file
-        if not creds or not creds.valid:  # Check if credentials are invalid
-            if creds and creds.expired and creds.refresh_token:  # Check if credentials are expired and refreshable
-                creds.refresh(Request())  # Refresh credentials
-            else:
-              if config.brandacc:  # Check if brand account is True
-                logging.info("Gmail token not found. Starting authentication flow...")  # Log info
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
-                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+def check_process_running():  # Function to check if Chrome driver process is already running
+    process_name = "countdriver.exe"  # Name of the Chrome driver process to check
+    logging.info("Checking for existing browser automation processes...")  # Log process check start
+    for process in psutil.process_iter(['pid', 'name']):  # Iterate through all running processes
+        if process.info['name'] == process_name:  # If Chrome driver process is found
+            logging.info("Browser automation process already running - waiting for completion...")  # Log process conflict
+            time.sleep(15)  # Wait 15 seconds for process to complete
+            check_process_running()  # Recursively check again
+    logging.info("No conflicting processes found - proceeding...")  # Log clear to proceed
+    return  # Return from function
+
+def get_service():  # Function to get authenticated YouTube API service
+    creds = None  # Initialize credentials variable
+    from google_auth_oauthlib.flow import InstalledAppFlow  # Import OAuth flow for Google authentication
+    try: # Try to authenticate with Google APIs
+        if os.path.exists(USER_TOKEN_FILE):  # If user token file exists
+            if not config.brandacc:  # If not using brand account
+                creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES)  # Load regular account credentials
+            if config.brandacc:  # If using brand account
+                creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES_BRAND)  # Load brand account credentials
+        if not creds or not creds.valid:  # If no valid credentials
+            if creds and creds.expired and creds.refresh_token:  # If credentials expired but have refresh token
+                creds.refresh(Request())  # Refresh the credentials
+            else: # If no valid credentials, need to authenticate
+                if not config.brandacc:  # If not using brand account
+                    flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth flow for regular account
+                    creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                if config.brandacc:  # If using brand account
+                    flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth flow for brand account
+                    creds = flow.run_local_server(port=6971, brandacc="havebrand")  # Run local server for brand authentication
+                with open(USER_TOKEN_FILE, 'w') as token:  # Open token file for writing
+                    token.write(creds.to_json())  # Save credentials to file
+        return build('youtube', 'v3', credentials=creds)  # Return authenticated YouTube API service
+    except Exception as e:  # Handle authentication exceptions
+        if "invalid_grant" in str(e):  # If invalid grant error (expired refresh token)
+            if not config.brandacc:  # If not using brand account
+                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create new OAuth flow
+                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Re-authenticate for regular account
+            if config.brandacc:  # If using brand account
+                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create new OAuth flow for brand
+                creds = flow.run_local_server(port=6971, brandacc="havebrand")  # Re-authenticate for brand account
+            with open(USER_TOKEN_FILE, 'w') as token:  # Open token file for writing
+                token.write(creds.to_json())  # Save new credentials
+            return build('youtube', 'v3', credentials=creds)  # Return authenticated service with new credentials
+        else: # Handle other authentication errors
+            logging.error(f"Error in get_service: {e}")  # Log authentication error
+            exit(1)  # Exit program on authentication failure
+
+def get_gmail_service():  # Function to authenticate and create Gmail API service
+    creds = None  # Initialize credentials variable
+    from google_auth_oauthlib.flow import InstalledAppFlow # Import OAuth flow for Google authentication
+    try: # Try to authenticate with Gmail API
+        if config.brandacc:  # If using brand account
+            if os.path.exists(GMAIL_TOKEN_FILE):  # Check if Gmail token file exists
+                creds = Credentials.from_authorized_user_file(GMAIL_TOKEN_FILE, SCOPES_GMAIL)  # Load Gmail credentials for brand account
+        if not config.brandacc:  # If using regular account
+            if os.path.exists(USER_TOKEN_FILE):  # Check if user token file exists
+                creds = Credentials.from_authorized_user_file(USER_TOKEN_FILE, SCOPES)  # Load credentials for regular account
+        if not creds or not creds.valid:  # If no valid credentials exist
+            if creds and creds.expired and creds.refresh_token:  # If credentials expired but have refresh token
+                creds.refresh(Request())  # Refresh the credentials
+            else: # If no credentials or can't refresh
+                if config.brandacc:  # If using brand account
+                    logging.info("Gmail token not found. Starting authentication flow...")  # Log start of brand account auth
+                    flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth flow for Gmail brand account
+                    creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                    with open(GMAIL_TOKEN_FILE, 'w') as token:  # Open Gmail token file for writing
+                        token.write(creds.to_json())  # Save Gmail credentials to file
+                if not config.brandacc:  # If using regular account
+                    logging.info("Gmail token not found. Start...")  # Log start of regular account auth
+                    flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth flow for regular account
+                    creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                    with open(USER_TOKEN_FILE, 'w') as token:  # Open user token file for writing
+                        token.write(creds.to_json())  # Save user credentials to file
+        return build('gmail', 'v1', credentials=creds)  # Return authenticated Gmail API service
+    except Exception as e:  # Handle authentication exceptions
+        if "invalid_grant" in str(e):  # If invalid grant error (expired refresh token)
+            if config.brandacc:  # If using brand account
+                logging.info("Gmail token not found. Starting authentication flow...")  # Log restart of brand account auth
+                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create new OAuth flow for Gmail brand account
+                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Re-run authentication server
                 with open(GMAIL_TOKEN_FILE, 'w') as token:  # Open Gmail token file for writing
-                   token.write(creds.to_json())  # Write credentials to file
-              if not config.brandacc:  # Check if brand account is False
-                logging.info("Gmail token not found. Start...")  # Log info
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
-                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
+                    token.write(creds.to_json())  # Save new Gmail credentials
+            if not config.brandacc:  # If using regular account
+                logging.info("Gmail token not found. Starting authentication flow...")  # Log restart of regular account auth
+                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create new OAuth flow for regular account
+                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Re-run authentication server
                 with open(USER_TOKEN_FILE, 'w') as token:  # Open user token file for writing
-                   token.write(creds.to_json())  # Write credentials to file
-        return build('gmail', 'v1', credentials=creds)  # Return Gmail service
-    except Exception as e:  # Handle exceptions
-        if "invalid_grant" in str(e):  # Check if exception is invalid grant
-              if config.brandacc:  # Check if brand account is True
-                logging.info("Gmail token not found. Starting authentication flow...")  # Log info
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
-                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
-                with open(GMAIL_TOKEN_FILE, 'w') as token:  # Open Gmail token file for writing
-                   token.write(creds.to_json())  # Write credentials to file
-              if not config.brandacc:  # Check if brand account is False
-                logging.info("Gmail token not found. Starting authentication flow...")  # Log info
-                flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  # Create OAuth2 flow
-                creds = flow.run_local_server(port=6971, brandacc="Nope")  # Run local server for authentication
-                with open(USER_TOKEN_FILE, 'w') as token:  # Open user token file for writing
-                   token.write(creds.to_json())  # Write credentials to file
-              return build('gmail', 'v1', credentials=creds)  # Return Gmail service
-        else:
-          logging.error(f"Error in get_gmail_service: {e}")  # Log error
-          exit(1)  # Exit with error
+                    token.write(creds.to_json())  # Save new user credentials
+            return build('gmail', 'v1', credentials=creds)  # Return authenticated service with new credentials
+        else: # Handle other authentication errors
+            logging.error(f"Error in get_gmail_service: {e}")  # Log authentication error
+            exit(1)  # Exit program on authentication failure
 
-def detect_script(
-    text
-    ):
-    for char in text:
-        name = unicodedata.name(char, '')
-        if 'CJK' in name or 'HIRAGANA' in name or 'KATAKANA' in name or 'IDEOGRAPH' in name:
-            return 'CJK'
-        elif 'HANGUL' in name:
-            return 'Hangul'
-        elif 'ARABIC' in name:
-            return 'Arabic'
-        elif 'DEVANAGARI' in name:
-            return 'Devanagari'
-    return 'default'
+def detect_script( # Function to detect the writing script/language of text
+    text # Input text to analyze
+    ): # Function definition end
+    for char in text: # Loop through each character in the text
+        name = unicodedata.name(char, '') # Get Unicode name of the character
+        if 'CJK' in name or 'HIRAGANA' in name or 'KATAKANA' in name or 'IDEOGRAPH' in name: # Check for Chinese/Japanese/Korean characters
+            return 'CJK' # Return CJK script type
+        elif 'HANGUL' in name: # Check for Korean Hangul characters
+            return 'Hangul' # Return Hangul script type
+        elif 'ARABIC' in name: # Check for Arabic characters
+            return 'Arabic' # Return Arabic script type
+        elif 'DEVANAGARI' in name: # Check for Devanagari characters (Hindi/Sanskrit)
+            return 'Devanagari' # Return Devanagari script type
+    return 'default' # Return default script type if no special characters found
 
-def ensure_font_for_text(
-    text
-    ):
-    script = detect_script(text)
-    font_info = FONT_MAP.get(script, FONT_MAP['default'])
-    font_path = font_info['file']
-    if not os.path.exists(font_path):
-        logging.info(f"Downloading font for script: {script}")
-        urllib.request.urlretrieve(font_info['url'], font_path)
-    return font_path
+def ensure_font_for_text( # Function to ensure appropriate font is available for text
+    text # Input text to get font for
+    ): # Function definition end
+    script = detect_script(text) # Detect the script type of the text
+    font_info = FONT_MAP.get(script, FONT_MAP['default']) # Get font information for detected script
+    font_path = font_info['file'] # Get local font file path
+    if not os.path.exists(font_path): # If font file doesn't exist locally
+        logging.info(f"Downloading font for script: {script}") # Log font download
+        urllib.request.urlretrieve(font_info['url'], font_path) # Download font from URL
+    return font_path # Return path to font file
 
-def create_thumbnail(
-    title
-    ):
+def create_thumbnail( # Function to create custom thumbnail image for YouTube stream
+    title # Stream title to display on thumbnail
+    ): # Function definition end
     """Create a thumbnail image for the YouTube stream."""
-    try:
-        # Create a new image with a dark background
-        width, height = 1280, 720
-        background_color = (20, 20, 20)  # Dark gray
-        image = Image.new('RGB', (width, height), background_color)
-        draw = ImageDraw.Draw(image)
+    try: # Try to create thumbnail image
+        
+        width, height = 1280, 720 # Set thumbnail dimensions (YouTube standard)
+        background_color = (20, 20, 20)  # Set dark background color (RGB)
+        image = Image.new('RGB', (width, height), background_color) # Create new image with dark background
+        draw = ImageDraw.Draw(image) # Create drawing context for the image
 
-        # Automatically select font for the title's language
-        font_path = ensure_font_for_text(title)
-        max_title_width = width - 100  # No need to leave space for logo now
-        font_size = 60
-        try:
-            title_font = ImageFont.truetype(font_path, font_size)
-        except:
-            title_font = ImageFont.load_default()
+        
+        font_path = ensure_font_for_text(title) # Get appropriate font for the title text
+        max_title_width = width - 100  # Calculate maximum width for title text
+        font_size = 60 # Set font size for title
+        try: # Try to load TrueType font
+            title_font = ImageFont.truetype(font_path, font_size) # Load font with specified size
+        except: # If font loading fails
+            title_font = ImageFont.load_default() # Use default system font
 
-        # Wrap title into multiple centered lines if too long
-        def wrap_text(text, font, max_width):
-            words = text.split()
-            lines = []
+        
+        def wrap_text(text, font, max_width): # Inner function to wrap text to multiple lines
+            words = text.split() # Split text into words
+            lines = [] # Initialize lines array
             current_line = ''
-            for word in words:
-                test_line = current_line + (' ' if current_line else '') + word
-                bbox = draw.textbbox((0, 0), test_line, font=font)
-                w = bbox[2] - bbox[0]
-                if w <= max_width:
-                    current_line = test_line
-                else:
-                    if current_line:
-                        lines.append(current_line)
-                    current_line = word
-            if current_line:
-                lines.append(current_line)
-            return lines
+            for word in words: # Process each word in the text
+                test_line = current_line + (' ' if current_line else '') + word # Add word to current line with space if needed
+                bbox = draw.textbbox((0, 0), test_line, font=font) # Calculate text bounding box
+                w = bbox[2] - bbox[0] # Get width of the test line
+                if w <= max_width: # If text fits within maximum width
+                    current_line = test_line # Keep the word on current line
+                else: # If text would exceed maximum width
+                    if current_line: # If there's text on current line
+                        lines.append(current_line) # Save current line to array
+                    current_line = word # Start new line with current word
+            if current_line: # If there's remaining text after loop
+                lines.append(current_line) # Add final line to array
+            return lines # Return array of wrapped text lines
 
-        title_lines = wrap_text(title, title_font, max_title_width)
-        # Calculate total height of the title block
-        title_block_height = 0
-        line_heights = []
-        for line in title_lines:
-            bbox = draw.textbbox((0, 0), line, font=title_font)
-            h = bbox[3] - bbox[1]
-            title_block_height += h + 10
-            line_heights.append(h)
-        title_block_height -= 10  # Remove extra space after last line
+        title_lines = wrap_text(title, title_font, max_title_width) # Wrap title text to multiple lines if needed
+        
+        title_block_height = 0 # Initialize total height of title block
+        line_heights = [] # Store height of each line for positioning
+        for line in title_lines: # Calculate height for each wrapped line
+            bbox = draw.textbbox((0, 0), line, font=title_font) # Get bounding box for line
+            h = bbox[3] - bbox[1] # Calculate line height
+            title_block_height += h + 10 # Add line height plus spacing
+            line_heights.append(h) # Store individual line height
+        title_block_height -= 10 # Remove extra spacing from last line  
 
-        # Archive username font (use same font as title for compatibility)
-        try:
-            subtitle_font = ImageFont.truetype(font_path, 40)
-        except:
-            subtitle_font = ImageFont.load_default()
-        archive_text = f"VOD of {config.username}"
-        archive_bbox = draw.textbbox((0, 0), archive_text, font=subtitle_font)
-        archive_h = archive_bbox[3] - archive_bbox[1]
+        
+        try: # Attempt to load subtitle font
+            subtitle_font = ImageFont.truetype(font_path, 40) # Load font at 40px for subtitle
+        except: # If subtitle font loading fails
+            subtitle_font = ImageFont.load_default() # Use default system font
+        archive_text = f"VOD of {config.username}" # Create archive subtitle text
+        archive_bbox = draw.textbbox((0, 0), archive_text, font=subtitle_font) # Calculate subtitle text dimensions
+        archive_h = archive_bbox[3] - archive_bbox[1] # Get height of subtitle text
 
-        # If title is too long (more than 3 lines), only show 'VOD of ...'
-        show_title = len(title_lines) <= 3
-        if show_title:
-            block_height = title_block_height + 30 + archive_h
-            block_y = (height - block_height) // 2
-            # Draw each line of the title, centered
-            y = block_y
-            for i, line in enumerate(title_lines):
-                bbox = draw.textbbox((0, 0), line, font=title_font)
-                w = bbox[2] - bbox[0]
-                h = bbox[3] - bbox[1]
-                x = (width - w) // 2
-                draw.text((x, y), line, fill=(255, 255, 255), font=title_font)
-                y += h + 10
-            # Draw the archive username centered below the title
-            archive_w = archive_bbox[2] - archive_bbox[0]
-            archive_x = (width - archive_w) // 2
-            draw.text((archive_x, y + 20), archive_text, fill=(200, 200, 200), font=subtitle_font)
-        else:
-            # Only show 'VOD of ...' centered vertically and horizontally
-            archive_w = archive_bbox[2] - archive_bbox[0]
-            archive_x = (width - archive_w) // 2
-            archive_y = (height - archive_h) // 2
-            draw.text((archive_x, archive_y), archive_text, fill=(200, 200, 200), font=subtitle_font)
+        
+        show_title = len(title_lines) <= 3 # Only show title if 3 lines or fewer
+        if show_title: # If title should be displayed
+            block_height = title_block_height + 30 + archive_h # Calculate total block height with spacing
+            block_y = (height - block_height) // 2 # Center the text block vertically
+            
+            y = block_y # Start drawing from top of centered block
+            for i, line in enumerate(title_lines): # Draw each line of the title
+                bbox = draw.textbbox((0, 0), line, font=title_font) # Get dimensions of current line
+                w = bbox[2] - bbox[0] # Calculate line width
+                h = bbox[3] - bbox[1] # Calculate line height
+                x = (width - w) // 2 # Center line horizontally
+                draw.text((x, y), line, fill=(255, 255, 255), font=title_font) # Draw title line in white
+                y += h + 10 # Move to next line position with spacing
+            
+            archive_w = archive_bbox[2] - archive_bbox[0] # Get width of archive text
+            archive_x = (width - archive_w) // 2 # Center archive text horizontally
+            draw.text((archive_x, y + 20), archive_text, fill=(200, 200, 200), font=subtitle_font) # Draw archive text below title
+        else: # If title is too long to display
+            
+            archive_w = archive_bbox[2] - archive_bbox[0] # Get width of archive text
+            archive_x = (width - archive_w) // 2 # Center archive text horizontally
+            archive_y = (height - archive_h) // 2 # Center archive text vertically
+            draw.text((archive_x, archive_y), archive_text, fill=(200, 200, 200), font=subtitle_font) # Draw only archive text centered
 
-        # Channel logo in the top-left corner
-        logo_size = (200, 200)
-        try:
-            logo = Image.open("channel_logo.png")
-            logo = logo.resize(logo_size, Image.Resampling.LANCZOS)
-            image.paste(logo, (50, 50), logo if logo.mode == 'RGBA' else None)
-        except:
-            logging.info("No channel logo found, continuing without it")
+        
+        logo_size = (200, 200) # Set standard logo dimensions
+        try: # Attempt to add channel logo to thumbnail
+            logo = Image.open("channel_logo.png") # Load channel logo image
+            logo = logo.resize(logo_size, Image.Resampling.LANCZOS) # Resize logo to standard size with high quality
+            image.paste(logo, (50, 50), logo if logo.mode == 'RGBA' else None) # Paste logo in top-left corner with transparency
+        except: # If logo file not found or fails to load
+            logging.info("No channel logo found, continuing without it") # Log info and continue without logo
 
-        # Date and time at the bottom center
-        from datetime import datetime
-        date_str = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}(GMT+8)"
-        try:
-            date_font = ImageFont.truetype(font_path, 40)
-        except:
-            date_font = ImageFont.load_default()
-        date_bbox = draw.textbbox((0, 0), date_str, font=date_font)
-        date_w = date_bbox[2] - date_bbox[0]
-        date_x = (width - date_w) // 2
-        date_y = height - 100
-        draw.text((date_x, date_y), date_str, fill=(200, 200, 200), font=date_font)
+        
+        from datetime import datetime # Import datetime for timestamp
+        date_str = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}(GMT+8)" # Format current date and time with timezone
+        try: # Attempt to load date font
+            date_font = ImageFont.truetype(font_path, 40) # Load font at 40px for date
+        except: # If date font loading fails
+            date_font = ImageFont.load_default() # Use default system font
+        date_bbox = draw.textbbox((0, 0), date_str, font=date_font) # Calculate date text dimensions
+        date_w = date_bbox[2] - date_bbox[0] # Get width of date text
+        date_x = (width - date_w) // 2 # Center date text horizontally
+        date_y = height - 100 # Position date near bottom of image
+        draw.text((date_x, date_y), date_str, fill=(200, 200, 200), font=date_font) # Draw timestamp in light gray
 
-        # Save the thumbnail
-        thumbnail_path = "stream_thumbnail.jpg"
-        image.save(thumbnail_path, "JPEG", quality=95)
-        return thumbnail_path
-    except Exception as e:
-        logging.error(f"Error creating thumbnail: {e}")
-        return None
+        
+        thumbnail_path = "stream_thumbnail.jpg" # Define output filename for thumbnail
+        image.save(thumbnail_path, "JPEG", quality=95) # Save image as high-quality JPEG
+        return thumbnail_path # Return path to created thumbnail
+    except Exception as e: # If any error occurs during thumbnail creation
+        logging.error(f"Error creating thumbnail: {e}") # Log the error details
+        return None # Return None to indicate failure
 
-def edit_live_stream(
-    video_id, 
-    new_title, 
-    new_description
-    ):  # Function to edit live stream
-  hitryagain = 0  # Initialize retry counter
-  while True:  # Infinite loop
-    try:
-       service = get_service()  # Get YouTube service
-       category_id = '24'  # Set category ID
-           
-       request = service.videos().update(  # Create update request
-             part="snippet",
-             body={
-                 "id": video_id,
-                 "snippet": {
-                     "title": new_title,
-                     "description": new_description,
-                     "categoryId": category_id
-            }
-        }
-    )
-       response = request.execute()  # Execute request
+def edit_live_stream( # Function to update YouTube livestream title and description
+    video_id, # YouTube video ID to update
+    new_title, # New title for the stream
+    new_description # New description for the stream
+    ):  
+    hitryagain = 0 # Initialize retry counter
+    while True: # Keep trying until success or max retries
+        try: # Attempt to update the livestream
+            service = get_service() # Get authenticated YouTube API service
+            category_id = '24' # Set category to Gaming
+            request = service.videos().update( # Create video update request
+                part="snippet", # Update only the snippet part
+                body={ # Request body with video data
+                "id": video_id, # Video ID to update
+                "snippet": { # Video metadata
+                    "title": new_title, # Set new title
+                    "description": new_description, # Set new description
+                    "categoryId": category_id # Set gaming category
+                    }
+               }
+            )
+            response = request.execute() # Execute the API request  
 
-       # Create and set thumbnail only if enabled in config
-       if config.thumbnail:
-           thumbnail_path = create_thumbnail(new_title)
-           if thumbnail_path and os.path.exists(thumbnail_path):
-               try:
-                   service.thumbnails().set(
-                       videoId=video_id,
-                       media_body=thumbnail_path
-                   ).execute()
-                   logging.info("Successfully set custom thumbnail")
-                   # Delete the thumbnail file after successful upload
-                   os.remove(thumbnail_path)
-                   logging.info("Thumbnail file removed after upload")
-               except Exception as e:
-                   logging.error(f"Failed to set thumbnail: {e}")
-                   # Try to remove the file even if upload failed
-                   if os.path.exists(thumbnail_path):
-                       os.remove(thumbnail_path)
-       else:
-           logging.info("Thumbnail upload disabled in config")
+            
+            if config.thumbnail: # If thumbnail generation is enabled in config
+                thumbnail_path = create_thumbnail(new_title) # Create custom thumbnail with stream title
+                if thumbnail_path and os.path.exists(thumbnail_path): # If thumbnail was created successfully
+                    try: # Attempt to upload thumbnail to YouTube
+                        service.thumbnails().set( # Set custom thumbnail via API
+                           videoId=video_id, # Video to update
+                           media_body=thumbnail_path # Path to thumbnail file
+                        ).execute() # Execute thumbnail upload request
+                        logging.info("Successfully set custom thumbnail") # Log successful upload
+                        
+                        os.remove(thumbnail_path) # Delete local thumbnail file after upload
+                        logging.info("Thumbnail file removed after upload") # Log file cleanup
+                    except Exception as e: # If thumbnail upload fails
+                        logging.error(f"Failed to set thumbnail: {e}") # Log thumbnail error
+                        
+                        if os.path.exists(thumbnail_path): # If thumbnail file still exists
+                            os.remove(thumbnail_path) # Clean up failed thumbnail file
+            else: # If thumbnail generation is disabled
+                logging.info("Thumbnail upload disabled in config") # Log that thumbnails are disabled
 
-       return response['id']  # Return video ID
-       break  # Break loop
-    except Exception as e:  # Handle exceptions
-     if hitryagain == 3:  # Check if retry limit is reached
-      logging.info(f"Error and stoping because of error that can't fix")  # Log error
-      if 'quotaExceeded' in str(e):  # Check if quota is exceeded
-        logging.info(f"Error and stoping because of api limited")  # Log quota exceeded
-        exit()
-     hitryagain += 1  # Increment retry counter
-     logging.info(f"Error: {e}")  # Log error
-     time.sleep(5)  # Sleep for 5 seconds
+            return response['id'] # Return updated video ID on success
+        except Exception as e: # If API request fails
+            if hitryagain == 3: # If maximum retry attempts reached
+                logging.info(f"Error and stoping because of error that can't fix") # Log final failure
+            if 'quotaExceeded' in str(e): # If YouTube API quota is exceeded
+                logging.info(f"Error and stoping because of api limited") # Log quota exhaustion
+                exit() # Exit program due to quota limit
+            hitryagain += 1 # Increment retry counter
+            logging.info(f"Error: {e}") # Log the error details
+            time.sleep(5) # Wait 5 seconds before retrying  
 
 def get_youtube_stream_title(
     video_id
     ):
     """Get the title of a YouTube live stream from its video ID"""
-    try_count = 0
-    while True:
-        try:
-            service = get_service()
-            request = service.videos().list(
-                part="snippet",
-                id=video_id
+    try_count = 0 # Initialize retry counter
+    while True: # Keep trying until success or max retries
+        try: # Attempt to get stream title
+            service = get_service() # Get authenticated YouTube API service
+            request = service.videos().list( # Create request to get video details
+                part="snippet", # Request only snippet data
+                id=video_id # Specify video ID to query
             )
-            response = request.execute()
+            response = request.execute() # Execute the API request
             
-            if response['items']:
-                return response['items'][0]['snippet']['title']
-            return None
+            if response['items']: # If video was found
+                return response['items'][0]['snippet']['title'] # Return the video title
+            return "ERROR GETTING TITLE SORRY" # Return error message if no video found
             
-        except Exception as e:
-          if 'quotaExceeded' in str(e):  # Check if quota is exceeded
-            logging.info(f"Error and stoping because of api limited")  # Log quota exceeded
-            exit()
-          if try_count == 3:  # Check if retry limit is reached
-            logging.info(f"Error and stoping because of error that can't fix")  # Log error
-            exit()
-          try_count += 1  # Increment retry counter
-          logging.info(f"Error: {e}")  # Log error
-          time.sleep(5)  # Sleep for 5 seconds
+        except Exception as e: # If API request fails
+            if 'quotaExceeded' in str(e): # If YouTube API quota exceeded
+                logging.info(f"Error and stoping because of api limited") # Log quota limit error
+                return False # Return False to indicate failure
+            if try_count == 3: # If maximum retry attempts reached
+                logging.info(f"Error and stoping because of error that can't fix") # Log final failure
+                return False # Return False to indicate failure
+            try_count += 1 # Increment retry counter
+            logging.info(f"Error: {e}") # Log the error details
+            time.sleep(5) # Wait 5 seconds before retrying  
 
-def create_live_stream(
-    title, 
-    description, 
-    kmself
-    ):  # Function to create live stream
-    hitryagain = 0  # Initialize retry counter
-    while True:  # Infinite loop
-        try:
-            service = get_service()  # Get YouTube service
-            scheduled_start_time = datetime.now(timezone.utc).isoformat()  # Get current time in ISO format
+def create_live_stream( # Function to create a new YouTube livestream
+    title, # Title for the new livestream
+    description, # Description for the new livestream
+    kmself # Privacy status (public/private/unlisted)
+    ):  
+    hitryagain = 0 # Initialize retry counter
+    while True: # Keep trying until success or max retries
+        try: # Attempt to create livestream
+            service = get_service() # Get authenticated YouTube API service
+            scheduled_start_time = datetime.now(timezone.utc).isoformat() # Set start time to now in UTC
                 
-            request = service.liveBroadcasts().insert(  # Create insert request
-                part="snippet,status,contentDetails",
-                body={
-                    "snippet": {
-                        "title": title,
-                        "description": description,
-                        "scheduledStartTime": scheduled_start_time,
+            request = service.liveBroadcasts().insert( # Create new livestream broadcast request
+                part="snippet,status,contentDetails", # Specify parts to update
+                body={ # Request body with broadcast data
+                    "snippet": { # Basic broadcast information
+                        "title": title, # Set stream title
+                        "description": description, # Set stream description
+                        "scheduledStartTime": scheduled_start_time, # Set start time
                     },
-                    "status": {
-                        "privacyStatus": kmself,
-                        "selfDeclaredMadeForKids": False
+                    "status": { # Stream privacy and content settings
+                        "privacyStatus": kmself, # Set privacy level
+                        "selfDeclaredMadeForKids": False # Declare not made for kids
                     },
-                    "contentDetails": {
-                        "enableAutoStart": True,
-                        "enableAutoStop": True if config.livestreamautostop else False,
-                        "latencyPrecision": "ultraLow"
+                    "contentDetails": { # Stream technical settings
+                        "enableAutoStart": True, # Enable automatic stream start
+                        "enableAutoStop": True if config.livestreamautostop else False, # Enable auto-stop based on config
+                        "latencyPrecision": "ultraLow" # Set ultra-low latency for real-time streaming
                     }
                 }
             )
-            response = request.execute()  # Execute request
-            video_id = response['id']  # Get video ID
+            response = request.execute() # Execute the broadcast creation request
+            video_id = response['id'] # Extract video ID from response  
             
-            if config.playlist or config.playlist == "DOUBLE":  # Check if playlist is enabled
-                try:
-                    playlist_request = service.playlistItems().insert(  # Create playlist insert request
-                        part="snippet",
-                        body={
-                            "snippet": {
-                                "playlistId": config.playlist_id0,
-                                "resourceId": {
-                                    "kind": "youtube#video",
-                                    "videoId": video_id
+            if config.playlist or config.playlist == "DOUBLE": # If playlist addition is enabled
+                try: # Attempt to add video to first playlist
+                    playlist_request = service.playlistItems().insert( # Create playlist item insertion request
+                        part="snippet", # Only update snippet data
+                        body={ # Request body with playlist item data
+                            "snippet": { # Playlist item details
+                                "playlistId": config.playlist_id0, # Target playlist ID
+                                "resourceId": { # Video resource information
+                                    "kind": "youtube#video", # Resource type is video
+                                    "videoId": video_id # Video ID to add
                                 }
                             }
                         }
                     )
-                    playlist_request.execute()  # Execute playlist request
-                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id0}")  # Log success
-                except Exception as playlist_error:  # Handle exceptions
-                    logging.error(f"Failed to add video to playlist: {playlist_error}")  # Log error
-            if config.playlist == "DOUBLE":  # Check if double playlist is enabled
-                try:
-                    playlist_request = service.playlistItems().insert(  # Create playlist insert request
-                        part="snippet",
-                        body={
-                            "snippet": {
-                                "playlistId": config.playlist_id1,
-                                "resourceId": {
-                                    "kind": "youtube#video",
-                                    "videoId": video_id
+                    playlist_request.execute() # Execute playlist addition request
+                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id0}") # Log successful addition
+                except Exception as playlist_error: # If playlist addition fails
+                    logging.error(f"Failed to add video to playlist: {playlist_error}") # Log playlist error
+            if config.playlist == "DOUBLE": # If double playlist mode is enabled
+                try: # Attempt to add video to second playlist
+                    playlist_request = service.playlistItems().insert( # Create second playlist item insertion request
+                        part="snippet", # Only update snippet data
+                        body={ # Request body with playlist item data
+                            "snippet": { # Playlist item details
+                                "playlistId": config.playlist_id1, # Target second playlist ID
+                                "resourceId": { # Video resource information
+                                    "kind": "youtube#video", # Resource type is video
+                                    "videoId": video_id # Video ID to add
                                 }
                             }
                         }
                     )
-                    playlist_request.execute()  # Execute playlist request
-                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id1}")  # Log success
-                except Exception as playlist_error:  # Handle exceptions
-                    logging.error(f"Failed to add video to playlist: {playlist_error}")  # Log error
-            return video_id  # Return video ID
-        except Exception as e:  # Handle exceptions
-          if 'quotaExceeded' in str(e):  # Check if quota is exceeded
-            logging.info(f"Error and stoping because of api limited")  # Log quota exceeded
-            exit()
-          if hitryagain == 3:  # Check if retry limit is reached
-           logging.info(f"Error and stoping because of error that can't fix")  # Log error
-           exit()
-          hitryagain += 1  # Increment retry counter
-          logging.info(f"Error: {e}")  # Log error
-          time.sleep(5)  # Sleep for 5 seconds
+                    playlist_request.execute() # Execute second playlist addition request
+                    logging.info(f"Successfully added video {video_id} to playlist {config.playlist_id1}") # Log successful addition to second playlist
+                except Exception as playlist_error: # If second playlist addition fails
+                    logging.error(f"Failed to add video to playlist: {playlist_error}") # Log second playlist error  
+            return video_id # Return the created video ID on success
+        except Exception as e: # If livestream creation fails
+            if 'quotaExceeded' in str(e): # If YouTube API quota exceeded
+                logging.info(f"Error and stoping because of api limited") # Log quota limit error
+                exit() # Exit program due to quota limit
+            if hitryagain == 3: # If maximum retry attempts reached
+                logging.info(f"Error and stoping because of error that can't fix") # Log final failure
+                exit() # Exit program due to unresolvable error
+            hitryagain += 1 # Increment retry counter
+            logging.info(f"Error: {e}") # Log the error details
+            time.sleep(5) # Wait 5 seconds before retrying  
 
-def api_load(
-    url, 
-    brandacc
-    ):  # Function to load API
-      from logger_config import check_tv_logger as logging # Importing logging module for logging messages
-      logging.info("create api keying ---edit_tv---")  # Log info
-      home_dir = os.path.expanduser("~")  # Get home directory
-      logging.info("run with countdriver.exe and check")  # Log info
-      check_process_running()  # Check if process is running
-      subprocess.Popen(["start", "countdriver.exe"], shell=True)  # Start countdriver.exe
-      options = Options()  # Create Chrome options
-      chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")  # Get Chrome user data directory
-      options.add_argument(f"user-data-dir={chrome_user_data_dir}")  # Add user data directory to options
-      options.add_argument(f"profile-directory={config.Chrome_Profile}")  # Add profile directory to options
-      driver = webdriver.Chrome(options=options)  # Create Chrome driver
-      driver.get(url)  # Open URL in Chrome
-      time.sleep(3)  # Sleep for 3 seconds
-      if brandacc == "Nope":  # Check if brand account is Nope
-          nameofaccount = f"//div[contains(text(),'{config.accountname}')]"  # Get account name
-      else:  # Check if brand account is havebrand
-          nameofaccount = f"//div[contains(text(),'{config.brandaccname}')]"  # Get brand account name
-      button_element = driver.find_element("xpath", nameofaccount)  # Find account button
-      button_element.click()  # Click account button
-      time.sleep(3)  # Sleep for 3 seconds
-      element = driver.find_element("xpath", "//*[@id='submit_approve_access']/div/button/div[3]")  # Find button element
-      element.click()  # Click button element
-      subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Kill countdriver.exe
-      logging.info("finish idk ---edit_tv---")  # Log info
-      time.sleep(10)  # Sleep for 5 seconds
-      driver.quit()  # Quit Chrome driver
+def api_load( # Function to handle API authentication through browser automation
+    url, # OAuth URL to navigate to
+    brandacc # Whether to use brand account or regular account
+    ):  
+    from logger_config import check_tv_logger as logging # Import logging configuration
+    logging.info("create api keying ---edit_tv---") # Log start of API authentication process
+    home_dir = os.path.expanduser("~") # Get user home directory path
+    logging.info("run with countdriver.exe and check") # Log countdriver startup
+    check_process_running() # Check if Chrome processes are already running
+    subprocess.Popen(["start", "countdriver.exe"], shell=True) # Start Chrome driver executable
+    options = Options() # Initialize Chrome options
+    chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data") # Set Chrome user data directory path
+    options.add_argument(f"user-data-dir={chrome_user_data_dir}") # Add user data directory option
+    options.add_argument(f"profile-directory={config.Chrome_Profile}") # Add Chrome profile directory option
+    driver = webdriver.Chrome(options=options) # Initialize Chrome WebDriver with options
+    driver.get(url) # Navigate to OAuth authorization URL
+    time.sleep(3) # Wait for page to load
+    if brandacc == "Nope": # If using regular account
+        nameofaccount = f"//div[contains(text(),'{config.accountname}')]" # XPath for regular account name
+    else: # If using brand account
+        nameofaccount = f"//div[contains(text(),'{config.brandaccname}')]" # XPath for brand account name
+    button_element = driver.find_element("xpath", nameofaccount) # Find account selection button
+    button_element.click() # Click on account to select it
+    time.sleep(3) # Wait for account selection to process
+    element = driver.find_element("xpath", "//*[@id='submit_approve_access']/div/button/div[3]") # Find approve access button
+    element.click() # Click approve button to authorize access
+    subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"]) # Terminate countdriver process
+    logging.info("finish idk ---edit_tv---") # Log completion of authentication
+    time.sleep(10) # Wait for authorization to complete
+    driver.quit() # Close browser and clean up WebDriver  
 
-def check_is_live_api(
-    url, 
-    ffmpeg, 
-    rtmp_server
-    ):  # Function to check if stream is live using API
-    logging.info("Waiting for 40sec live on YouTube")  # Logging wait message
-    time.sleep(40)  # Waiting for 40 seconds
-    new_url = f"https://youtube.com/watch?v={url}"  # Constructing new URL
-    count_error = 0  # Initializing error counter
-    MAX_RETRIES = 3  # Maximum number of retries
-    if rtmp_server == "defrtmp":
-        text = "this"
-    else:
-        text = "api_this"  # Setting text based on RTMP server
-    while True:  # Infinite loop for retrying
-        try:
-            streams = streamlink.streams(new_url)  # type: ignore Getting streams from URL
-            hls_stream = streams["best"]  # Selecting best stream
-            logging.info('It is live now')  # Logging live status
-            break  # Breaking the loop
-        except KeyError as e:  # Handling KeyError exceptions
-            logging.error(f'Stream not available: {str(e)}')  # Logging error message
-            logging.info('The stream is messed up. Trying again...')  # Logging retry message
-            time.sleep(2)  # Waiting for 2 seconds
-            subprocess.run(["taskkill", "/f", "/im", ffmpeg])  # Killing ffmpeg process
-            subprocess.Popen(["start", "python", "relive_tv.py", text], shell=True)  # Restarting relive_tv script
-            time.sleep(35)  # Waiting for 35 seconds
-            count_error += 1  # Incrementing error counter
-        if count_error >= MAX_RETRIES:  # Checking if retry limit is reached
-            logging.info("Retry limit exceeded. Shutting down.")  # Logging shutdown message
-            subprocess.Popen(["start", "python", "check_tv.py", "KILL"], shell=True)  # Restarting check_tv script with KILL
-            exit()
+def check_is_live_api( # Function to verify YouTube stream is live and handle failures
+    url, # YouTube video ID to check
+    ffmpeg, # FFmpeg process name for termination
+    rtmp_server # RTMP server type being used
+    ):  
+    logging.info("Waiting for 40sec live on YouTube") # Log waiting period for stream to go live
+    time.sleep(40) # Wait 40 seconds for YouTube to process stream
+    new_url = f"https://youtube.com/watch?v={url}" # Construct full YouTube watch URL
+    count_error = 0 # Initialize error counter
+    MAX_RETRIES = 3 # Set maximum retry attempts
+    if rtmp_server == "defrtmp": # If using default RTMP server
+        text = "this" # Set parameter for default server restart
+    else: # If using API-created RTMP server
+        text = "api_this" # Set parameter for API server restart
+    while True: # Keep checking until stream is live or max retries
+        try: # Attempt to detect live stream
+            streams = streamlink.streams(new_url) # Get available streams using streamlink
+            hls_stream = streams["best"] # Try to access best quality stream
+            logging.info('It is live now') # Log successful stream detection
+            break # Exit loop when stream is confirmed live
+        except KeyError as e: # If stream is not available or not live
+            logging.error(f'Stream not available: {str(e)}') # Log stream unavailability
+            logging.info('The stream is messed up. Trying again...') # Log retry attempt
+            time.sleep(2) # Brief wait before cleanup
+            subprocess.run(["taskkill", "/f", "/im", ffmpeg]) # Kill existing FFmpeg process
+            subprocess.Popen(["start", "python", "relive_tv.py", text], shell=True) # Restart stream relay script
+            time.sleep(35) # Wait for relay script to initialize
+            count_error += 1 # Increment error counter
+        if count_error >= MAX_RETRIES: # If maximum retry attempts exceeded
+            logging.info("Retry limit exceeded. Shutting down.") # Log shutdown due to retry limit
+            subprocess.Popen(["start", "python", "check_tv.py", "KILL"], shell=True) # Start shutdown script
+            exit() # Exit current process
 
-def api_create_edit_schedule(
-    part_number, 
-    rtmp_server, 
-    is_reload, 
-    stream_url, 
-    reason=None
-    ):  # Asynchronous function to create/edit schedule via API
-    if config.StreamerName == "Null":
-        username = config.username
-    else:
-        username = config.StreamerName
-    TESTING = "[TESTING WILL BE REMOVE AFTER]" if config.exp_tesing else ""
-    if not is_reload or is_reload == "EDIT":  # Checking if reload is False or EDIT
-        if config.show_twitch_category:
-            response, streams = get_twitch_stream_title_maybe_category("ALL")  # Getting Twitch stream title
-            if response:
-                stream_title = streams[0]['title']
-                category = streams[0].get('game_name', 'Game name not found')
-            elif not response:
-                stream_title = streams
-                category = "Unknown"
-        else:
-            stream_title = get_twitch_stream_title_maybe_category()  # Getting Twitch stream title
-        clean_title = ''.join(char for char in stream_title if char not in emoji.EMOJI_DATA).replace("<", "").replace(">", "")
-        if clean_title and clean_title[0] == " ":
-              clean_title = clean_title[1:]# Cleaning title
-        part_suffix = f" (PART{part_number})" if part_number > 0 else ""
-        filename = f"{username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
-        if len(filename) > 100:
-            max_title_len = 100 - len(username) - len(datetime.now().strftime('%Y-%m-%d')) - len(" | " * 2) - len(part_suffix) - len(TESTING)
-            clean1_title = clean_title[:max_title_len-3] + "..."
-            filename = f"{username} | {clean1_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
-        if len(filename) > 100:
-            filename = f"{username} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}"
-        # DON'T REMOVE THIS WATERMARK
-        ITISUNLISTED = "[THIS RESTREAMING PROCESS IS DONE UNLISTED]" if config.unliststream else ""
+def api_create_edit_schedule( # Function to create, edit, or schedule YouTube livestreams
+    part_number, # Part number for multi-part streams
+    rtmp_server, # RTMP server type being used
+    is_reload, # Whether this is a reload, edit, or new stream
+    stream_url, # Existing stream URL or "Null" for new streams
+    reason=None # Optional reason for stream creation
+    ):  
+    if config.StreamerName == "Null": # If no custom streamer name set
+        username = config.username # Use default username
+    else: # If custom streamer name is configured
+        username = config.StreamerName # Use custom streamer name
+    TESTING = "[TESTING WILL BE REMOVE AFTER]" if config.exp_tesing else "" # Add testing prefix if in testing mode
+    if not is_reload or is_reload == "EDIT": # If creating new stream or editing existing
+        stream_title = get_twitch_stream_title() # Get current Twitch stream title
+        
+        clean_title = ''.join(char for char in stream_title if char not in emoji.EMOJI_DATA).replace("<", "").replace(">", "") # Remove emojis and HTML brackets from title
+        
+        clean_title = ' '.join(clean_title.split()) # Normalize whitespace in title
+        
+        if clean_title and clean_title[0] == " ": # If title starts with space
+            clean_title = clean_title[1:] # Remove leading space
+        part_suffix = f" (PART{part_number})" if part_number > 0 else "" # Add part number suffix for multi-part streams
+        filename = f"{username} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}" # Format complete filename with username, title, date
+        if len(filename) > 100: # If filename exceeds YouTube's 100 character limit
+            max_title_len = 100 - len(username) - len(datetime.now().strftime('%Y-%m-%d')) - len(" | " * 2) - len(part_suffix) - len(TESTING) # Calculate max allowed title length
+            clean1_title = clean_title[:max_title_len-3] + "..." # Truncate title and add ellipsis
+            filename = f"{username} | {clean1_title} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}" # Rebuild filename with truncated title
+        if len(filename) > 100: # If filename still exceeds limit after truncation
+            filename = f"{username} | {datetime.now().strftime('%Y-%m-%d')}{part_suffix}{TESTING}" # Use minimal filename with just username and date
+        
+        ITISUNLISTED = "[THIS RESTREAMING PROCESS IS DONE UNLISTED]" if config.unliststream else "" # Add unlisted notice if stream is unlisted
         reason_description = f"""
-{reason}""" if reason is not None else ""
-        QA = "Q&A(Question The Same In Comment Won't Reply): https://sites.google.com/view/questionthatsomepeopleask" if config.QandA else ""
-        Twitch_sub_or_turbo = "[AD-FREE: SUB/TURBO]" if config.brought_twitch_sub_or_turbo else "[ADS INCLUDE WILL AFFECT THE VIEWING EXPERIENCE]"
-        ADSqa = "Info about commercial break here: https://sites.google.com/view/qa-for-ads-problems/"  if config.ADSqa else ""
-        ADSqaN = "If you want to help out you can make a direct sub to username: karsteniee on Twitch to have no ads on a streamer(if you want to)" if not config.Filian else ""
-        stream_category = f"[Stream Category: {category}]" if config.show_twitch_category else ""
+{reason}""" if reason is not None else "" # Add reason for stream creation if provided
+        QA = "Q&A(Question The Same In Comment Won't Reply): https://sites.google.com/view/questionthatsomepeopleask" if config.QandA else "" # Add Q&A link if enabled
+        Twitch_sub_or_turbo = "[AD-FREE: SUB/TURBO]" if config.brought_twitch_sub_or_turbo else "[ADS INCLUDE WILL AFFECT THE VIEWING EXPERIENCE]" # Add ad warning based on Twitch subscription status
+        ADSqa = "Info about commercial break here: https://sites.google.com/view/qa-for-ads-problems/"  if config.ADSqa else "" # Add ads info link if enabled
+        ADSqaN = "If you want to help out you can make a direct sub to username: karsteniee on Twitch to have no ads on a streamer(if you want to)" if not config.Filian else "" # Add subscription help text if not Filian
         description = f"""{TESTING}{ITISUNLISTED}{Twitch_sub_or_turbo}
 Original broadcast from https://twitch.tv/{config.username} {reason_description}
-[Stream Title: {clean_title}]{stream_category}
+[Stream Title: {clean_title}]
 {ADSqa}
 {QA}
 Archived using open-source tools: https://is.gd/archivescript Service by Karsten Lee, 
 Join My Community Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v
-{ADSqaN}"""  # Constructing description
-    try:
-        if is_reload is True:  # Checking if reload is True
-            filename = f"{username} (WAITING FOR STREAMER){TESTING}"  # Constructing waiting filename
-            description = f"{TESTING}Waiting for https://twitch.tv/{config.username}, Archived using open-source tools: https://is.gd/archivescript Service by Karsten Lee, Join My Community Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v"  # Constructing waiting description
-        if stream_url == "Null":  # Checking if stream URL is Null
-            logging.info('Initiating API request for stream creation...')  # Logging API request initiation
-            privacy_status = "public" if not config.unliststream else "unlisted"  # Setting privacy status
-            if config.unliststream and config.public_notification:
-                privacy_status = "public"
-            stream_url = create_live_stream(filename, description, privacy_status)  # Creating live stream
-            logging.info("==================================================")  # Logging separator
-            if config.playlist:  # Checking if playlist is True
-                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url} AND ADD TO PLAYLIST: {config.playlist_id0}")  # Logging playlist addition
-            elif config.playlist == "DOUBLE":  # Checking if playlist is DOUBLE
-                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url} AND ADD TO PLAYLIST: {config.playlist_id0} AND {config.playlist_id1}")  # Logging double playlist addition
-            else:
-                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url}")  # Logging stream creation
-            logging.info("==================================================")  # Logging separator
-            setup_stream_settings(stream_url, rtmp_server)  # Setting up stream settings
-        if is_reload == "EDIT":  # Checking if reload is EDIT
-            logging.info("Updating stream metadata and title...")  # Logging metadata update
-            edit_live_stream(stream_url, filename, description)  # Editing live stream
-            return filename  # Returning filename
-        if is_reload is True:  # Checking if reload is True
-            return stream_url  # Returning stream URL
-        if not is_reload:  # Checking if reload is False
-            logging.info("Start stream relay")
-            initialize_stream_relay(stream_url, rtmp_server, filename)  # Initializing stream relay
-            edit_live_stream(stream_url, filename, description)  # Editing live stream
-            return filename  # Returning filename
-    except Exception as e:  # Handling exceptions
-        logging.error(f"Critical error encountered during execution: {e}")  # Logging critical error
-        exit()
+{ADSqaN}""" # Build complete description with all configured elements  
+    try: # Attempt to execute stream creation or editing logic
+        if is_reload is True: # If this is a reload waiting for streamer
+            filename = f"{username} (WAITING FOR STREAMER){TESTING}" # Set waiting message as filename
+            description = f"{TESTING}Waiting for https://twitch.tv/{config.username}, Archived using open-source tools: https://is.gd/archivescript Service by Karsten Lee, Join My Community Discord Server(discussion etc./I need help for coding :helpme:): https://discord.gg/Ca3d8B337v" # Set simple waiting description
+        if stream_url == "Null": # If creating a new stream
+            logging.info('Initiating API request for stream creation...') # Log stream creation start
+            privacy_status = "public" if not config.unliststream else "unlisted" # Set privacy based on config
+            if config.unliststream and config.public_notification: # If unlisted but with public notifications
+                privacy_status = "public" # Override to public for notifications
+            stream_url = create_live_stream(filename, description, privacy_status) # Create new YouTube livestream
+            logging.info("==================================================") # Log separator
+            if config.playlist: # If single playlist mode enabled
+                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url} AND ADD TO PLAYLIST: {config.playlist_id0}") # Log stream creation with playlist
+            elif config.playlist == "DOUBLE": # If double playlist mode enabled
+                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url} AND ADD TO PLAYLIST: {config.playlist_id0} AND {config.playlist_id1}") # Log stream creation with both playlists
+            else: # If no playlist mode
+                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url}") # Log stream creation without playlists
+            logging.info("==================================================") # Log separator
+            setup_stream_settings(stream_url, rtmp_server) # Configure stream settings and RTMP  
+        if is_reload == "EDIT": # If this is an edit operation
+            logging.info("Updating stream metadata and title...") # Log metadata update start
+            edit_live_stream(stream_url, filename, description) # Update existing stream with new title and description
+            return filename # Return updated filename
+        if is_reload is True: # If this is a reload operation
+            return stream_url # Return stream URL for reload
+        if not is_reload: # If this is a new stream creation
+            logging.info("Start stream relay") # Log stream relay initialization
+            initialize_stream_relay(stream_url, rtmp_server, filename) # Start FFmpeg relay to YouTube
+            edit_live_stream(stream_url, filename, description) # Update stream with final title and description
+            return filename # Return filename for new stream
+    except Exception as e: # If any critical error occurs
+        logging.error(f"Critical error encountered during execution: {e}") # Log critical error
+        exit() # Exit program due to critical failure
 
-def setup_stream_settings(
-    stream_url, 
-    rtmp_server
-    ):  # Asynchronous function to set up stream settings
-    check_process_running()  # Checking if process is running
-    subprocess.Popen(["start", "countdriver.exe"], shell=True)  # Starting countdriver process
-    options = Options()  # Creating Chrome options
-    chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")  # Setting Chrome user data directory
-    options.add_argument(f"user-data-dir={chrome_user_data_dir}")  # Adding user data directory to options
-    options.add_argument(f"profile-directory={config.Chrome_Profile}")  # Adding profile directory to options
-    driver = None  # Initializing driver
-    try_count = 0  # Initializing try count
-    while True:  # Infinite loop
-       try:
-            time.sleep(3)
-            driver = webdriver.Chrome(options=options)  # Creating Chrome WebDriver
-            url_to_live = f"https://studio.youtube.com/video/{stream_url}/livestreaming"  # Constructing URL to live stream
-            driver.get(url_to_live)  # Navigating to URL
-            while True:
-                   try:
-                       WebDriverWait(driver, 30).until(
-                           EC.presence_of_element_located((By.XPATH, '/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[1]/div[1]/ytls-live-control-room-renderer/div[1]/div/div/ytls-broadcast-metadata/div[2]/ytcp-button/ytcp-button-shape/button/yt-touch-feedback-shape/div/div[2]'))
-                       )
-                       break
-                   except TimeoutException:
-                       try:
-                           error_element = driver.find_element(By.XPATH, '/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[3]/ytls-live-dashboard-error-renderer/div/yt-icon')
-                           if error_element:
-                               logging.info("Error element found - YouTube Studio is in error state")
-                               driver.refresh()
-                               time.sleep(2)
-                               try_count += 1
-                               if try_count >= 3:
-                                   logging.error("3 consecutive errors detected - KILLING ALL PROCESSES")
-                                   os.system("start check_tv.py KILL")
-                                   exit(1)
-                       except:
-                           logging.info("Element not found after 30s, refreshing page...")
-                           driver.refresh()
-                           time.sleep(2)
-                           try_count += 1
-                           if try_count >= 3:
-                               logging.error("3 consecutive timeouts detected - KILLING ALL PROCESSES")
-                               os.system("start check_tv.py KILL")
-                               exit(1)
-            logging.info("Configuring RTMP key and chat settings...")  # Logging configuration message
-            driver.find_element(By.XPATH, "//tp-yt-paper-radio-button[2]").click()
-            time.sleep(5)
-            driver.find_element(By.XPATH, "//tp-yt-iron-icon[@icon='yt-icons:arrow-drop-down']").click()  # Clicking dropdown icon
-            time.sleep(3)  # Waiting for 3 seconds
-            if rtmp_server == "bkrtmp":  # Checking if RTMP key is "defrtmp"
-                element2 = driver.find_element(By.XPATH, "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname1 + " (')]]")  # Finding element for "bkrtmp"
-                element2.click()  # Clicking the element
-                time.sleep(7)  # Waiting for 7 seconds
-            if rtmp_server == "defrtmp":  # Checking if RTMP key is "bkfrtmp"
-                element3 = driver.find_element(By.XPATH, "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname + " (')]]")  # Finding element for "defrtmp"
-                element3.click()  # Clicking the element
-                time.sleep(7)  # Waiting for 7 seconds
-            if config.disablechat:  # Checking if chat should be disabled
-                driver.find_element(By.XPATH, "//ytcp-button[@id='edit-button']").click()  # Clicking edit button
-                time.sleep(3)  # Waiting for 3 seconds
-                driver.find_element(By.XPATH, "//li[@id='customization']").click()  # Clicking customization tab
-                time.sleep(2)  # Waiting for 2 seconds
-                driver.find_element(By.XPATH, "/html/body/ytls-broadcast-edit-dialog/ytcp-dialog/tp-yt-paper-dialog/div[2]/div/ytcp-navigation/div[2]/tp-yt-iron-pages/ytls-advanced-settings/div/ytcp-form-live-chat/div[3]/div[1]/div[1]/ytcp-form-checkbox/ytcp-checkbox-lit/div/div[1]/div").click()  # Clicking chat-enabled checkbox
-                time.sleep(1)  # Waiting for 1 second
-                driver.find_element(By.XPATH, "//ytcp-button[@id='save-button']").click()  # Clicking save button
-            if not config.disablechat:  # Checking if chat should be replayable
-                driver.find_element(By.XPATH, "//ytcp-button[@id='edit-button']").click()  # Clicking edit button
-                time.sleep(3)  # Waiting for 3 seconds
-                driver.find_element(By.XPATH, "//li[@id='customization']").click()  # Clicking customization tab
-                time.sleep(2)  # Waiting for 2 seconds
-                driver.find_element(By.XPATH, "/html/body/ytls-broadcast-edit-dialog/ytcp-dialog/tp-yt-paper-dialog/div[2]/div/ytcp-navigation/div[2]/tp-yt-iron-pages/ytls-advanced-settings/div/ytcp-form-live-chat/div[3]/div[2]/div[1]/ytcp-form-checkbox/ytcp-checkbox-lit/div/div[1]/div").click()  # Clicking chat-enabled checkbox
-                time.sleep(1)  # Waiting for 1 second
-                driver.find_element(By.XPATH, "//ytcp-button[@id='save-button']").click()  # Clicking save button
+def setup_stream_settings( # Function to configure YouTube Studio livestream settings via browser automation
+    stream_url, # YouTube video ID to configure
+    rtmp_server # RTMP server type to use for streaming
+    ):  
+    check_process_running() # Check for existing Chrome processes
+    subprocess.Popen(["start", "countdriver.exe"], shell=True) # Start Chrome driver executable
+    options = Options() # Initialize Chrome browser options
+    chrome_user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data") # Set Chrome user data directory path
+    options.add_argument(f"user-data-dir={chrome_user_data_dir}") # Add user data directory option
+    options.add_argument(f"profile-directory={config.Chrome_Profile}") # Add Chrome profile directory option
+    driver = None # Initialize driver variable
+    try_count = 0 # Initialize retry counter for error handling
+    while True: # Keep trying until successful configuration
+        try: # Attempt to configure stream settings
+            time.sleep(3) # Wait before starting WebDriver
+            driver = webdriver.Chrome(options=options) # Initialize Chrome WebDriver with options
+            url_to_live = f"https://studio.youtube.com/video/{stream_url}/livestreaming" # Construct YouTube Studio livestreaming URL
+            driver.get(url_to_live) # Navigate to livestream configuration page  
+            while True: # Keep trying until livestream interface loads successfully
+                    try: # Attempt to wait for livestream controls to appear
+                        WebDriverWait(driver, 30).until( # Wait up to 30 seconds
+                            EC.presence_of_element_located((By.XPATH, '/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[1]/div[1]/ytls-live-control-room-renderer/div[1]/div/div/ytls-broadcast-metadata/div[2]/ytcp-button/ytcp-button-shape/button/yt-touch-feedback-shape/div/div[2]')) # Wait for stream metadata edit button
+                        )
+                        break # Exit loop when element is found
+                    except TimeoutException: # If element doesn't appear within timeout
+                        try: # Check if YouTube Studio is in error state
+                            error_element = driver.find_element(By.XPATH, '/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[3]/ytls-live-dashboard-error-renderer/div/yt-icon') # Look for error indicator
+                            if error_element: # If error element is found
+                                logging.info("Error element found - YouTube Studio is in error state") # Log error state detection
+                                driver.refresh() # Refresh page to try recovering
+                                time.sleep(2) # Wait after refresh
+                                try_count += 1 # Increment error counter
+                                if try_count >= 3: # If too many consecutive errors
+                                    logging.error("3 consecutive errors detected - KILLING ALL PROCESSES") # Log critical error
+                                    os.system("start check_tv.py KILL") # Start kill script
+                                    exit(1) # Exit with error code
+                        except: # If error element not found (general timeout)
+                            logging.info("Element not found after 30s, refreshing page...") # Log timeout and refresh
+                            driver.refresh() # Refresh page to retry loading
+                            time.sleep(2) # Wait after refresh
+                            try_count += 1 # Increment timeout counter
+                            if try_count >= 3: # If too many consecutive timeouts
+                                logging.error("3 consecutive timeouts detected - KILLING ALL PROCESSES") # Log critical timeout
+                                os.system("start check_tv.py KILL") # Start kill script
+                                exit(1) # Exit with error code
+            logging.info("Configuring RTMP key and chat settings...") # Log start of RTMP and chat configuration
+            driver.find_element(By.XPATH, "//tp-yt-paper-radio-button[2]").click() # Select stream key option (second radio button)
+            time.sleep(5) # Wait for stream key selection to process
+            driver.find_element(By.XPATH, "//tp-yt-iron-icon[@icon='yt-icons:arrow-drop-down']").click() # Click dropdown to select RTMP server
+            time.sleep(3) # Wait for dropdown to open
+            if rtmp_server == "bkrtmp": # If using backup RTMP server
+                element2 = driver.find_element(By.XPATH, "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname1 + " (')]]") # Find backup RTMP server option
+                element2.click() # Select backup RTMP server
+                time.sleep(7) # Wait for server selection to process
+            if rtmp_server == "defrtmp": # If using default RTMP server
+                element3 = driver.find_element(By.XPATH, "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname + " (')]]") # Find default RTMP server option
+                element3.click() # Select default RTMP server
+                time.sleep(7) # Wait for server selection to process
+            if config.disablechat: # If chat should be disabled
+                driver.find_element(By.XPATH, "//ytcp-button[@id='edit-button']").click() # Click edit button to access settings
+                time.sleep(3) # Wait for edit dialog to open
+                driver.find_element(By.XPATH, "//li[@id='customization']").click() # Click customization tab
+                time.sleep(2) # Wait for tab to load
+                driver.find_element(By.XPATH, "/html/body/ytls-broadcast-edit-dialog/ytcp-dialog/tp-yt-paper-dialog/div[2]/div/ytcp-navigation/div[2]/tp-yt-iron-pages/ytls-advanced-settings/div/ytcp-form-live-chat/div[3]/div[1]/div[1]/ytcp-form-checkbox/ytcp-checkbox-lit/div/div[1]/div").click() # Click checkbox to disable chat
+                time.sleep(1) # Wait for checkbox state change
+                driver.find_element(By.XPATH, "//ytcp-button[@id='save-button']").click() # Save chat disabled setting
+            if not config.disablechat: # If chat should be enabled
+                driver.find_element(By.XPATH, "//ytcp-button[@id='edit-button']").click() # Click edit button to access settings
+                time.sleep(3) # Wait for edit dialog to open
+                driver.find_element(By.XPATH, "//li[@id='customization']").click() # Click customization tab
+                time.sleep(2) # Wait for tab to load
+                driver.find_element(By.XPATH, "/html/body/ytls-broadcast-edit-dialog/ytcp-dialog/tp-yt-paper-dialog/div[2]/div/ytcp-navigation/div[2]/tp-yt-iron-pages/ytls-advanced-settings/div/ytcp-form-live-chat/div[3]/div[2]/div[1]/ytcp-form-checkbox/ytcp-checkbox-lit/div/div[1]/div").click() # Click checkbox to enable chat
+                time.sleep(1) # Wait for checkbox state change
+                driver.find_element(By.XPATH, "//ytcp-button[@id='save-button']").click() # Save chat enabled setting  
+            while True: # Wait for configuration to save successfully
+                try: # Attempt to detect save confirmation
+                    WebDriverWait(driver, 30).until( # Wait up to 30 seconds
+                        EC.presence_of_element_located((By.XPATH, "/html/body/ytcp-app/ytcp-toast-manager/tp-yt-paper-toast")) # Wait for toast notification
+                    )
+                    logging.info("Toast notification appeared") # Log successful save confirmation
+                    break # Exit wait loop when toast appears
+                except TimeoutException: # If toast doesn't appear
+                    logging.info("Toast notification not found, continuing to wait...") # Log timeout and continue waiting
+            logging.info("RTMP key configuration updated successfully...") # Log successful RTMP configuration
+            driver.quit() # Close browser instance
+            subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"]) # Terminate countdriver process
+            if driver: # If driver still exists
+                driver.quit() # Ensure driver is properly closed
+            break # Exit main retry loop on success  
+        except SessionNotCreatedException as e: # If Chrome WebDriver session fails to create
+            try_count += 1 # Increment retry counter
+            if try_count >= 3: # If maximum retries reached
+                logging.error(f"Session not created: [{e}] Critical Error KILL ALL") # Log critical failure
+                os.system("start check_tv.py KILL") # Start kill script
+                exit(1) # Exit with error code
+            if "DevToolsActivePort file doesn't exist" in str(e): # If specific Chrome startup error
+                logging.error(f"Chrome WebDriver failed to start: [{e}] DevToolsActivePort file doesn't exist. Terminating all Chrome processes and retry.") # Log specific error
+            else: # For other session creation errors
+                logging.error(f"Session not created: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") # Log general session error
+            subprocess.run(["taskkill", "/f", "/im", "chrome.exe"]) # Kill all Chrome processes
+            time.sleep(5) # Wait before retry
+        except Exception as e: # If any other error occurs
+            try_count += 1 # Increment retry counter
+            if try_count >= 3: # If maximum retries reached
+                logging.error(f"Session not created: [{e}] Critical Error KILL ALL") # Log critical failure
+                os.system("start check_tv.py KILL") # Start kill script
+                exit(1) # Exit with error code
+            logging.error(f"Unexpected error: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") # Log unexpected error
+            subprocess.run(["taskkill", "/f", "/im", "chrome.exe"]) # Kill all Chrome processes
+            time.sleep(5) # Wait before retry
+
+def initialize_stream_relay( # Function to start FFmpeg relay between Twitch and YouTube
+    stream_url, # YouTube video ID for the stream
+    rtmp_server, # RTMP server type being used
+    filename # Filename for local archive if enabled
+    ):  
+    if rtmp_server == "defrtmp": # If using default RTMP server
+        rtmp_relive = "this" # Set parameter for default server relay
+    else: # If using backup RTMP server
+        rtmp_relive = "api_this" # Set parameter for backup server relay
+    subprocess.Popen(["start", "python", "relive_tv.py", rtmp_relive], shell=True) # Start stream relay script
+    if config.local_archive: # If local archiving is enabled
+        subprocess.Popen(["start", "python", "relive_tv.py", filename], shell=True) # Start local archive relay
+    if rtmp_server == "defrtmp": # If using default RTMP server
+        ffmpeg_exe = config.ffmpeg # Use primary FFmpeg executable
+        ffmpeg_1exe = config.ffmpeg1 # Set secondary FFmpeg for cleanup
+    else: # If using backup RTMP server
+        ffmpeg_exe = config.ffmpeg1 # Use secondary FFmpeg executable
+        ffmpeg_1exe = config.ffmpeg # Set primary FFmpeg for cleanup
+    check_is_live_api(stream_url, ffmpeg_exe, rtmp_server) # Verify stream goes live successfully
+    subprocess.run(["taskkill", "/f", "/im", ffmpeg_1exe]) # Kill alternate FFmpeg process
+    if rtmp_server == "bkrtmp": # If using backup RTMP server
+        rtmp_key = config.rtmp_key # Use backup RTMP key
+    else: # If using default RTMP server
+        rtmp_key = config.rtmp_key_1 # Use default RTMP key
+    if config.playvideo: # If video playback is enabled
+        os.system(f'start {ffmpeg_1exe} -re -i blackscreen.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp_key}') # Start black screen video to RTMP  
+
+def initialize_and_monitor_stream(): # Main function to initialize and monitor the streaming process
+    if not check_chrome_version(): # If Chrome version check fails
+        logging.info("Error try fixing your chrome version guide on github") # Log Chrome version error
+        exit() # Exit due to incompatible Chrome version
+    try: # Attempt to initialize monitoring system
+        yt_link = "Null" # Initialize YouTube link variable
+        rtmp_info = "Null" # Initialize RTMP server info variable
+        IFTHEREISMORE = "" # Initialize additional arguments display string
+        THEREISMORE = "Null" # Initialize flag for additional streams
+        bk_rtmp_info = "Null" # Initialize backup RTMP info variable
+        bk_yt_link = "Null" # Initialize backup YouTube link variable
+        arguments = sys.argv # Get command line arguments  
+        if len(arguments) < 2: # If no command line arguments provided
+            logging.info("==================================================") # Log separator
+            logging.info("NO ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)") # Log no arguments message
+            logging.info(f"ARCHIVE USER: {config.username}") # Log target username
+            logging.info("==================================================") # Log separator
+        else: # If command line arguments are provided
+            yt_link = arguments[1] # Get first argument (YouTube video ID)
+            if yt_link == "KILL": # If kill command is provided
+                logging.info("close all exe") # Log process termination
+                subprocess.run(["taskkill", "/f", "/im", config.apiexe]) # Kill API executable
+                subprocess.run(["taskkill", "/f", "/im", config.ffmpeg]) # Kill primary FFmpeg process
+                subprocess.run(["taskkill", "/f", "/im", config.ffmpeg1]) # Kill secondary FFmpeg process
+                subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"]) # Kill Chrome driver
+                exit(1) # Exit after killing all processes
+            rtmp_info = arguments[2] # Get second argument (RTMP server type)
+            if len(arguments) < 3: # If RTMP argument is missing
+                logging.error("Missing required RTMP argument") # Log missing argument error
+                exit(1) # Exit due to missing argument
+            if len(yt_link) != 11: # If YouTube video ID is wrong length
+                logging.error(f"Invalid argument for ARG1: {yt_link}. Must be 11 characters long YouTube Video ID") # Log invalid video ID error
+                exit(1) # Exit due to invalid video ID
+            if rtmp_info not in ["defrtmp", "bkrtmp"]: # If RTMP server type is invalid
+                logging.error(f"Invalid argument for ARG2: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'") # Log invalid RTMP server error
+                exit(1) # Exit due to invalid RTMP server  
+            
+            if len(arguments) == 4: # If backup stream argument is provided
+                bk_yt_link = arguments[3] # Get third argument (backup YouTube video ID)
+                if len(bk_yt_link) != 11: # If backup video ID is wrong length
+                    logging.error(f"Invalid argument for ARG3: {bk_yt_link}. Must be 11 characters long YouTube Video ID") # Log invalid backup video ID error
+                    exit(1) # Exit due to invalid backup video ID
+                IFTHEREISMORE = f"ARG3: {bk_yt_link}(SKIP CREATING BK STREAM AND RESTORE MONITORING)" # Set display string for backup stream
+                THEREISMORE = True # Set flag indicating backup stream is provided
+            logging.info("==================================================") # Log separator
+            logging.info("INPUT ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)") # Log arguments available message
+            logging.info(f"ARG1: {yt_link} ARG2: {rtmp_info} {IFTHEREISMORE}") # Log all provided arguments
+            logging.info(f"ARCHIVE USER: {config.username}") # Log target username
+            logging.info("==================================================") # Log separator  
+        if rtmp_info not in ["defrtmp", "bkrtmp", "Null"]: # If RTMP server type is invalid
+            logging.error(f"Invalid RTMP server type: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'") # Log invalid RTMP server error
+            exit(1) # Exit due to invalid RTMP server
+        live_url = None # Initialize live stream URL variable
+        rtmp_server = None # Initialize RTMP server variable
+        if yt_link == "Null": # If no YouTube link provided (creating new stream)
+            logging.info("Starting live API check to get initial stream URL") # Log new stream creation
+            rtmp_server = "defrtmp" # Use default RTMP server for new streams
+            try: # Attempt to create new stream
+                live_url = api_create_edit_schedule(0, rtmp_server, True, "Null") # Create new waiting stream
+                logging.info(f"Successfully created new stream with URL: {live_url}") # Log successful stream creation
+            except Exception as e: # If stream creation fails
+                logging.error(f"Failed to create stream via API: {str(e)}") # Log stream creation error
+                raise # Re-raise exception for upper level handling
+        else: # If YouTube link is provided (using existing stream)
+            live_url = yt_link # Use provided YouTube video ID
+            rtmp_server = rtmp_info # Use provided RTMP server type
+            # Log that we're using an existing YouTube stream with its URL and RTMP server
+            logging.info(f"Using provided YouTube link: {live_url} with RTMP server: {rtmp_server}")
+        
+        # If no additional stream info provided, wait for stream to go live
+        if THEREISMORE == "Null":
+            logging.info("Waiting for stream to go live...")
+            status = False
+            
+            # Function to handle user input commands during debug mode
+            def handle_input(status, live_url, rtmp_server):
+                # Define valid debug commands and their descriptions
+                valid_commands = {
+                    "EXIT": "Exiting the script...",
+                    "REFRESH": "Refreshing and creating new process...",
+                    "STOP": "Stopping debug mode..."
+                }
+                
+                # Keep listening for input while status is false
+                while not status:
+                    try:
+                        # Get user input and convert to uppercase
+                        user_input = input("DEBUG MODE [Valid commands: EXIT, REFRESH, STOP]: ").strip().upper()
+                        
+                        # Check if input is a valid command
+                        if user_input in valid_commands:
+                            logging.info(valid_commands[user_input])
+                            
+                            # Handle EXIT command - terminate process
+                            if user_input == "EXIT":
+                                logging.info("Terminating script...")
+                                process = psutil.Process(os.getpid())
+                                process.terminate()
+                                
+                            # Handle REFRESH command - start new process and terminate current
+                            elif user_input == "REFRESH":
+                                logging.info("Starting new process...")
+                                cmd = ["start", "cmd", "/k", "py", "check_tv.py", live_url, rtmp_server]
+                                subprocess.Popen(cmd, shell=True)
+                                logging.info("Terminating current process...")
+                                process = psutil.Process(os.getpid())
+                                process.terminate()
+                                
+                            # Handle STOP command - exit input handling
+                            elif user_input == "STOP":
+                                return
+                        else:
+                            # Log warning for invalid commands
+                            logging.warning(f"Invalid command: {user_input}")
+                            
+                    except Exception as e:
+                        # Log any errors in input handling
+                        logging.error(f"Error in input handling: {str(e)}")
+                        time.sleep(1)
+
+            # Create and start daemon thread for handling user input
+            input_thread = threading.Thread(
+                target=handle_input,
+                args=(status, live_url, rtmp_server),
+                daemon=True
+            )
+            input_thread.start()
+
+            # Initialize retry parameters for stream checking
+            retry_count = 0
+            max_retries = 3
+            retry_delay = 30
+
+            # Keep checking until stream is detected
             while True:
                 try:
-                    WebDriverWait(driver, 30).until(
-                        EC.presence_of_element_located((By.XPATH, "/html/body/ytcp-app/ytcp-toast-manager/tp-yt-paper-toast"))
-                    )
-                    logging.info("Toast notification appeared")
-                    break
-                except TimeoutException:
-                    logging.info("Toast notification not found, continuing to wait...")
-            logging.info("RTMP key configuration updated successfully...")  # Logging success message
-            driver.quit()  # Quitting the driver
-            subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Killing countdriver process
-            if driver:  # Checking if driver is initialized
-                 driver.quit()  # Quitting the driver
-            break  # Breaking the loop
-       except SessionNotCreatedException as e:
-           try_count += 1  # Incrementing try count
-           if try_count >= 3:  # Checking if try count exceeds limit
-               logging.error(f"Session not created: [{e}] Critical Error KILL ALL")
-               os.system("start check_tv.py KILL")
-               exit(1)  # Exiting the script
-           if "DevToolsActivePort file doesn't exist" in str(e):
-               logging.error(f"Chrome WebDriver failed to start: [{e}] DevToolsActivePort file doesn't exist. Terminating all Chrome processes and retry.")
-           else:
-               logging.error(f"Session not created: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN")
-           subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  # Killing CHROME PROCESS
-           time.sleep(5)
-       except Exception as e:
-           try_count += 1  # Incrementing try count
-           if try_count >= 3:  # Checking if try count exceeds limit
-               logging.error(f"Session not created: [{e}] Critical Error KILL ALL")
-               os.system("start check_tv.py KILL")
-               exit(1)  # Exiting the script
-           logging.error(f"Unexpected error: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN")
-           subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  # Killing CHROME PROCESS
-           time.sleep(5)
+                    # Get Twitch stream info
+                    streams = get_twitch_streams()
+                    
+                    # If stream is found and not error
+                    if streams and streams != "ERROR":
+                        stream = streams[0]
+                        logging.info(f"Stream detected! Title: {stream['title']}")
+                        status = True
+                        break
+                        
+                    # Handle retry logic
+                    retry_count += 1
+                    if retry_count >= max_retries:
+                        logging.warning(f"Retrying stream check ({retry_count}/{max_retries})")
+                        retry_count = 0
+                        
+                    time.sleep(retry_delay)
+                    
+                except Exception as e:
+                    # Log errors checking stream status
+                    logging.error(f"Error checking stream status: {str(e)}")
+                    time.sleep(retry_delay)
+            
+            # Initialize spare URL as None
+            live_spare_url = None  
+            logging.info("Starting stream monitoring process...")  
 
-def initialize_stream_relay(
-    stream_url, 
-    rtmp_server,
-    filename
-    ):  # Asynchronous function to initialize stream relay
-    if rtmp_server == "defrtmp":
-        rtmp_relive = "this"
-    else:
-        rtmp_relive = "api_this"  # Setting RTMP server for relay
-    subprocess.Popen(["start", "python", "relive_tv.py", rtmp_relive], shell=True)  # Starting relive_tv script
-    if config.local_archive:
-        subprocess.Popen(["start", "python", "relive_tv.py", filename], shell=True)  # Starting relive_tv script
-    if rtmp_server == "defrtmp":
-        ffmpeg_exe = config.ffmpeg
-        ffmpeg_1exe = config.ffmpeg1
-    else: 
-        ffmpeg_exe = config.ffmpeg1
-        ffmpeg_1exe = config.ffmpeg
-    check_is_live_api(stream_url, ffmpeg_exe, rtmp_server)  # Checking live API
-    subprocess.run(["taskkill", "/f", "/im", ffmpeg_1exe])  # Killing ffmpeg process
-    if rtmp_server == "bkrtmp":
-        rtmp_key = config.rtmp_key
-    else:
-        rtmp_key = config.rtmp_key_1
-    if config.playvideo:
-        os.system(f'start {ffmpeg_1exe} -re -i blackscreen.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp_key}')  # Starting ffmpeg for normal stream
+            # Validate required parameters
+            if not live_url:  
+                logging.error("Missing live URL - cannot start monitoring")  
+                exit(1)  
+            if rtmp_server not in ["defrtmp", "bkrtmp"]:  
+                logging.error(f"Invalid RTMP server type: {rtmp_server}")  
+                exit(1)  
 
-def initialize_and_monitor_stream():  # Asynchronous function to initialize and monitor stream
-    if not check_chrome_version():
-        logging.info("Error try fixing your chrome version guide on github")
-        exit()
-    try:
-        yt_link = "Null"
-        rtmp_info = "Null"
-        IFTHEREISMORE = ""  # Setting IFTHEREISMORE to empty string
-        THEREISMORE = "Null"  # Setting THEREISMORE to empty string
-        bk_rtmp_info = "Null"  # Setting bk_rtmp_info to None
-        bk_yt_link = "Null"  # Setting bk_yt_link to None
-        arguments = sys.argv  # Getting system arguments
-        if len(arguments) < 2:  # Checking if insufficient arguments are provided
-                logging.info("==================================================")  # Logging separator
-                logging.info("NO ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")  # Logging no argument available
-                logging.info(f"ARCHIVE USER: {config.username}")  # Logging archive user
-                logging.info("==================================================")  # Logging separator
-        else:
-                yt_link = arguments[1]  # Setting YouTube link from arguments
-                if yt_link == "KILL":  # Checking if KILL command is given
-                    logging.info("close all exe")  # Logging close all executables
-                    subprocess.run(["taskkill", "/f", "/im", config.apiexe])  # Killing API executable
-                    subprocess.run(["taskkill", "/f", "/im", config.ffmpeg])  # Killing ffmpeg process
-                    subprocess.run(["taskkill", "/f", "/im", config.ffmpeg1])  # Killing ffmpeg1 process
-                    subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  # Killing countdriver process
-                    exit(1)
-                rtmp_info = arguments[2]  # Setting RTMP info from arguments
-                if len(arguments) < 3:  # Checking if RTMP argument is missing
-                    logging.error("Missing required RTMP argument")  # Logging missing RTMP argument
-                    exit(1)  # Exiting with error code
-                if len(yt_link) != 11:  # Checking if YouTube link is invalid
-                    logging.error(f"Invalid argument for ARG1: {yt_link}. Must be 11 characters long YouTube Video ID")  # Logging invalid YouTube link
-                    exit(1)  # Exiting with error code
-                if rtmp_info not in ["defrtmp", "bkrtmp"]:  # Checking if RTMP info is invalid
-                    logging.error(f"Invalid argument for ARG2: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'")  # Logging invalid RTMP info
-                    exit(1)  # Exiting with error code
-                # 检查是否有4个输入参数
-                if len(arguments) == 4:  # Checking if additional arguments are provided
-                    bk_yt_link = arguments[3]  # Setting bk_yt_link from arguments
-                    if len(bk_yt_link) != 11:  # Checking if bk_yt_link is invalid
-                        logging.error(f"Invalid argument for ARG3: {bk_yt_link}. Must be 11 characters long YouTube Video ID")  # Logging invalid bk_yt_link
-                        exit(1)  # Exiting with error code
-                    IFTHEREISMORE = f"ARG3: {bk_yt_link}(SKIP CREATING BK STREAM AND RESTORE MONITORING)"
-                    THEREISMORE = True
-                logging.info("==================================================")  # Logging separator
-                logging.info("INPUT ARGUMENT AVAILABLE (CONFIG VIEW IN CONFIG_TV.PY)")  # Logging input argument available
-                logging.info(f"ARG1: {yt_link} ARG2: {rtmp_info} {IFTHEREISMORE}")  # Logging arguments
-                logging.info(f"ARCHIVE USER: {config.username}")  # Logging archive user
-                logging.info("==================================================")  # Logging separator
-        if rtmp_info not in ["defrtmp", "bkrtmp", "Null"]:  # Checking if RTMP server type is invalid
-            logging.error(f"Invalid RTMP server type: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'")  # Logging invalid RTMP server type
-            exit(1)  # Exiting with error code
-        live_url = None  # Initializing live URL
-        rtmp_server = None  # Initializing RTMP server
-        if yt_link == "Null":  # Checking if YouTube link is Null
-            logging.info("Starting live API check to get initial stream URL")  # Logging starting live API check
-            rtmp_server = "defrtmp"  # Setting RTMP server to default
+            # Start API process
+            logging.info("Launching streaming API process...")  
             try:
-                live_url = api_create_edit_schedule(0, rtmp_server, True, "Null")  # Creating/editing schedule via API
-                logging.info(f"Successfully created new stream with URL: {live_url}")  # Logging successful stream creation
-            except Exception as e:  # Handling API exceptions
-                logging.error(f"Failed to create stream via API: {str(e)}")  # Logging API error
-                raise  # Raising exception
+                subprocess.Popen(["start", config.apiexe], shell=True)  
+            except Exception as e:  
+                logging.error(f"Failed to start API process: {str(e)}")  
+                exit(1)  
+
+            # Start appropriate relay process based on RTMP server type
+            try:
+                if rtmp_server == "bkrtmp":  
+                    logging.info("Starting with backup stream rtmp... and check")  
+                    subprocess.Popen(["start", "python", "relive_tv.py", "api_this"], shell=True)  
+                    check_is_live_api(live_url, config.ffmpeg1, rtmp_server) 
+                elif rtmp_server == "defrtmp":  
+                    logging.info("Starting with default stream rtmp... and check")  
+                    subprocess.Popen(["start", "python", "relive_tv.py", "this"], shell=True)  
+                    check_is_live_api(live_url, config.ffmpeg, rtmp_server) 
+
+                # Start local archive if enabled
+                if config.local_archive:
+                    logging.info("Starting local archive process...")
+                    filename = f"{datetime.now().strftime('%Y-%m-%d')}_{stream['title']}"
+                    subprocess.Popen(["start", "python", "relive_tv.py", filename], shell=True)
+
+            except Exception as e:  
+                logging.error(f"Failed to start relay process: {str(e)}")  
+                exit(1)  
+                logging.info("Stream relay process started successfully")  
         else:
-            live_url = yt_link  # Setting live URL to YouTube link
-            rtmp_server = rtmp_info  # Setting RTMP server to RTMP info
-            logging.info(f"Using provided YouTube link: {live_url} with RTMP server: {rtmp_server}")  # Logging provided YouTube link and RTMP server
-        if THEREISMORE == "Null":
-          logging.info("Waiting for stream to go live...")  # Logging waiting for stream
-          while True:  # Infinite loop
-              try:
-                  streams = get_twitch_streams()  # Getting Twitch streams and client
-                  if streams:  # Checking if streams are available
-                      if not streams == "ERROR":
-                        stream = streams[0]  # Getting the first stream
-                        logging.info(f"Stream is now live! Title From Twitch: {stream['title']}")  # Logging stream is live
-                        break  # Breaking the loop
-                      else:
-                         logging.error(f"Error checking stream status")  # Logging error
-                         time.sleep(30)  # Waiting before retrying
-                  else:
-                      time.sleep(10)  # Waiting before retrying
-              except Exception as e:  # Handling exceptions
-                  logging.error(f"Error checking stream status: {str(e)}")  # Logging error
-                  time.sleep(30)  # Waiting before retrying
-          # Start stream monitoring process
-          live_spare_url = None  # Initializing spare URL
-          logging.info("Starting stream monitoring process...")  # Logging start message
-          if not live_url:  # Checking if live URL is missing
-            logging.error("Missing live URL - cannot start monitoring")  # Logging error message
-            exit(1)  # Exiting with error code
-          if rtmp_server not in ["defrtmp", "bkrtmp"]:  # Checking if RTMP server is invalid
-            logging.error(f"Invalid RTMP server type: {rtmp_server}")  # Logging error message
-            exit(1)  # Exiting with error code
-          logging.info("Launching streaming API process...")  # Logging API launch message
-          try:
-            subprocess.Popen(["start", config.apiexe], shell=True)  # Starting API executable
-          except Exception as e:  # Handling exceptions
-            logging.error(f"Failed to start API process: {str(e)}")  # Logging error message
-            exit(1)  # Exiting with error code
-          try:
-            if rtmp_server == "bkrtmp":  # Checking if RTMP server is "bkrtmp"
-                logging.info("Starting with backup stream rtmp... and check")  # Logging relay start message
-                subprocess.Popen(["start", "python", "relive_tv.py", "api_this"], shell=True)  # Starting relive_tv script for "bkrtmp"
-                check_is_live_api(live_url, config.ffmpeg1, rtmp_server) # Checking the stream using the streamlink
-            elif rtmp_server == "defrtmp":  # Checking if RTMP server is "defrtmp"
-                logging.info("Starting with default stream rtmp... and check")  # Logging relay start message
-                subprocess.Popen(["start", "python", "relive_tv.py", "this"], shell=True)  # Starting relive_tv script for "defrtmp"
-                check_is_live_api(live_url, config.ffmpeg, rtmp_server) # Checking the stream using the streamlink
-            if config.local_archive:
-                logging.info("Starting local archive process...")
-                filename = f"{datetime.now().strftime('%Y-%m-%d')}_{stream['title']}"
-                subprocess.Popen(["start", "python", "relive_tv.py", filename], shell=True)
-          except Exception as e:  # Handling exceptions
-            logging.error(f"Failed to start relay process: {str(e)}")  # Logging error message
-            exit(1)  # Exiting with error code
-          logging.info("Stream relay process started successfully")  # Logging success message
-        else:
+            # Skip if additional stream info exists
             pass
-            #m3u8_url = get_m3u8_urls(config.username)
+            
         try:
+            # Get or update stream title based on whether additional info exists
             if THEREISMORE == "Null":
-              REFRESH_TYPE = True
-              titlegmail = api_create_edit_schedule(0, rtmp_server, "EDIT", live_url)  # Creating/editing schedule via API
+              titlegmail = api_create_edit_schedule(0, rtmp_server, "EDIT", live_url)  
             else:
-              REFRESH_TYPE = True
               titlegmail = get_youtube_stream_title(live_url)
-            logging.info('edit finished continue the stream')  # Logging edit completion
-        except UnboundLocalError:  # Handling UnboundLocalError
-            logging.warning("Encountered UnboundLocalError when getting title - continuing with default continue at your own risk")  # Logging warning
-        except Exception as e:  # Handling exceptions
-            logging.error(f"Error getting stream title: {str(e)} - Error continue at your own risk")  # Logging error message
+            logging.info('edit finished continue the stream')  
+        except UnboundLocalError:  
+            # Handle missing local variable error
+            logging.warning("Encountered UnboundLocalError when getting title - continuing with default continue at your own risk")  
+        except Exception as e:  
+            # Handle other errors getting stream title
+            logging.error(f"Error getting stream title: {str(e)} - Error continue at your own risk")  
+
         try:
-            logging.info("Loading backup stream configuration...")  # Logging backup configuration
+            # Configure backup stream
+            logging.info("Loading backup stream configuration...")  
+            # Switch RTMP server type for backup
             if rtmp_server == "bkrtmp":
                 rtmp_server = "defrtmp"
             elif rtmp_server == "defrtmp":
                 rtmp_server = "bkrtmp"
-            if bk_yt_link == "Null" and bk_rtmp_info == "Null":
-                live_spare_url = api_create_edit_schedule(0, rtmp_server, True, "Null")  # Creating backup schedule
-            else:
-                live_spare_url = bk_yt_link  # Setting backup URL to provided URL
-            logging.info(f"Backup stream URL configured: {live_spare_url}")  # Logging backup URL
-        except Exception as e:  # Catching any exceptions that occur
-            logging.error(f"Failed to create backup stream: {str(e)}")  # Logging error message with exception details
-        logging.info("Starting offline detection...")  # Logging the start of offline detection
-        offline_check_functions(live_url, live_spare_url, rtmp_server, titlegmail, REFRESH_TYPE)  # type: ignore Initiating offline check functions with provided parameters
 
-    except Exception as e:  # Handling exceptions
-        logging.error(f"Error in initialize_and_monitor_stream: {str(e)}", exc_info=True)  # Logging error
-        logging.error("Critical error encountered - terminating script execution")  # Logging critical error
-        exit(1)  # Exiting with error code
+            # Create new backup stream or use provided backup link
+            if bk_yt_link == "Null" and bk_rtmp_info == "Null":
+                live_spare_url = api_create_edit_schedule(0, rtmp_server, True, "Null")  
+            else:
+                live_spare_url = bk_yt_link  
+            logging.info(f"Backup stream URL configured: {live_spare_url}")  
+        except Exception as e:  
+            # Handle errors creating backup stream
+            logging.error(f"Failed to create backup stream: {str(e)}")  
+
+        # Start monitoring for stream going offline
+        logging.info("Starting offline detection...")  
+        offline_check_functions(live_url, live_spare_url, rtmp_server, titlegmail)  
+    except Exception as e:  
+        # Handle any critical errors in main function
+        logging.error(f"Error in initialize_and_monitor_stream: {str(e)}", exc_info=True)  
+        logging.error("Critical error encountered - terminating script execution")  
+        exit(1)  
 
 def check_chrome_version(target_version=(130, 0, 6723, 70)):
     """Check if installed Chrome version is <= target version (default: 130.0.6723.70)"""
     try:
-        # Get Chrome version from registry
+        # Open Chrome registry key to get version info
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Google\Chrome\BLBeacon') as key:
-            version_str, _ = winreg.QueryValueEx(key, 'version')
-            version = tuple(map(int, version_str.split('.')))
+            version_str, _ = winreg.QueryValueEx(key, 'version')  # Get Chrome version string from registry
+            version = tuple(map(int, version_str.split('.')))  # Convert version string to tuple of integers
             
-        # Compare versions
+        # Compare installed version with target version
         if version <= target_version:
-            return True
+            return True  # Chrome version is compatible
         else:
-            logging.info(f"Chrome version {version_str} is > {'.'.join(map(str, target_version))}")
+            logging.info(f"Chrome version {version_str} is > {'.'.join(map(str, target_version))}")  # Log incompatible version
             return False
     
-    except FileNotFoundError:
+    except FileNotFoundError:  # Handle case where Chrome is not installed
         logging.info("Chrome is not installed or version could not be detected.")
         return False
-    except (ValueError, Exception) as e:
+    except (ValueError, Exception) as e:  # Handle other errors checking version
         logging.info(f"Error checking Chrome version: {str(e)}")
         return False
 
 def get_m3u8_urls(username):
-    def check_1080p_quality(m3u8_url):
+    def check_1080p_quality(m3u8_url):  # Inner function to check for 1080p stream URL
         try:
-            response = requests.get(m3u8_url, timeout=10)
-            response.raise_for_status()
-            lines = response.text.splitlines()
-            for i, line in enumerate(lines):
+            response = requests.get(m3u8_url, timeout=10)  # Get m3u8 playlist
+            response.raise_for_status()  # Check for HTTP errors
+            lines = response.text.splitlines()  # Split playlist into lines
+            for i, line in enumerate(lines):  # Check each line for 1080p stream
                 if line.startswith('#EXT-X-STREAM-INF:') and 'RESOLUTION=1920x1080' in line:
-                    # Get the next line which contains the 1080p stream URL
+                    # If 1080p stream found, return the URL from next line
                     if i + 1 < len(lines):
                         return lines[i + 1].strip()
-            return None  # Return None if 1080p stream not found
-        except Exception as e:
+            return None  # No 1080p stream found
+        except Exception as e:  # Handle errors checking quality
             logging.info(f"Error checking quality for {m3u8_url}: {str(e)}")
             return None
-    # Start BrowserMob Proxy
-    from browsermobproxy import Server
-    from webdriver_manager.chrome import ChromeDriverManager
-
+    
+    # Import required proxy and webdriver management libraries
+    from browsermobproxy import Server #type: ignore[import]
+    from webdriver_manager.chrome import ChromeDriverManager #type: ignore[import]
+    
+    # Set up paths for proxy server
     current_dir = os.getcwd()
     server_path = os.path.join(current_dir, "browsermob-proxy-2.1.4", "bin", "browsermob-proxy.bat")
     
-    # Check if browsermob-proxy exists
+    # Download and extract proxy if not present
     if not os.path.exists(os.path.join(current_dir, "browsermob-proxy-2.1.4")):
         logging.info("browsermob-proxy not found, downloading...")
-        # Download BrowserMob Proxy
-        download_url = "https://github.com/lightbody/browsermob-proxy/releases/download/browsermob-proxy-2.1.4/browsermob-proxy-2.1.4-bin.zip"
-        response = requests.get(download_url, stream=True)
-        response.raise_for_status()
         
-        # Extract the zip file
+        download_url = "https://github.com/lightbody/browsermob-proxy/releases/download/browsermob-proxy-2.1.4/browsermob-proxy-2.1.4-bin.zip"
+        response = requests.get(download_url, stream=True)  # Download proxy zip
+        response.raise_for_status()  # Check for download errors
+        
+        # Extract proxy files
         with zipfile.ZipFile(BytesIO(response.content), 'r') as zip_ref:
             zip_ref.extractall(current_dir)
         logging.info("BrowserMob Proxy downloaded and extracted successfully")
     
+    # Start proxy server
     server = Server(server_path)
     server.start()
     proxy = server.create_proxy()
     logging.info(proxy.proxy)
-    # Configure Chrome to use the proxy
+    
+    # Configure Chrome options with proxy
     chrome_options = Options()
-    chrome_options.add_argument(f'--proxy-server={proxy.proxy}')
-    chrome_options.add_argument('--ignore-certificate-errors')
-    chrome_options.add_argument('--ignore-ssl-errors')
-    chrome_options.add_argument('--ignore-certificate-errors-spki-list')
-    chrome_options.add_argument('--autoplay-policy=no-user-gesture-required')
+    chrome_options.add_argument(f'--proxy-server={proxy.proxy}')  # Set proxy server
+    chrome_options.add_argument('--ignore-certificate-errors')  # Ignore SSL errors
+    chrome_options.add_argument('--ignore-ssl-errors')  # Ignore SSL errors
+    chrome_options.add_argument('--ignore-certificate-errors-spki-list')  # Ignore certificate errors
+    chrome_options.add_argument('--autoplay-policy=no-user-gesture-required')  # Allow autoplay
 
-    # Initialize WebDriver
+    # Initialize Chrome WebDriver
     driver = webdriver.Chrome(
         service=Service(ChromeDriverManager().install()),
         options=chrome_options
     )
     
-        # Capture network traffic
+    # Start capturing network traffic    
     proxy.new_har("m3u8_capture", options={"captureContent": False})
-    driver.get(f"https://www.twitch.tv/{username}")
-        # 等待页面加载完成，直到找到包含指定用户名的元素
+    driver.get(f"https://www.twitch.tv/{username}")  # Navigate to Twitch channel
+        
+    # Wait for stream to be live
     while True:
         try:
-          # 查找包含 "LIVE" 文本的元素
+          # Look for LIVE indicator
           driver.find_element("xpath", "//div[@class='Layout-sc-1xcs6mc-0 liveIndicator--x8p4l']//span[text()='LIVE']")
           break
         except NoSuchElementException:
             try:
+                # Try clicking chat tab to refresh
                 driver.find_element("xpath", "//a[@tabname='chat' and @data-a-target='channel-home-tab-Chat' and contains(@href, '/" + username + "')]").click()
-                while True:  # Infinite loop
+                while True:  
                  try:
-                   streams = get_twitch_streams()  # Getting Twitch streams and client
-                   if streams:  # Checking if streams are available
+                   streams = get_twitch_streams()  # Check stream status via API
+                   if streams:  
                     if not streams == "ERROR":
-                      stream = streams[0]  # Getting the first stream
-                      logging.info(f"Stream is now live! Title From Twitch: {stream['title']}")  # Logging stream is live
-                      break  # Breaking the loop
+                      stream = streams[0]  # Get first stream
+                      logging.info(f"Stream is now live! Title From Twitch: {stream['title']}")  
+                      break  
                    else:
-                    time.sleep(10)  # Waiting before retrying
-                 except Exception as e:  # Handling exceptions
-                    logging.error(f"Error checking stream status: {str(e)}")  # Logging error
-                    time.sleep(30)  # Waiting before retrying
-                driver.refresh()
+                    time.sleep(10)  # Wait before retrying
+                 except Exception as e:  
+                    logging.error(f"Error checking stream status: {str(e)}")  
+                    time.sleep(30)  # Wait longer on error
+                driver.refresh()  # Refresh page
             except NoSuchElementException:
-                time.sleep(3)
-        # Extract m3u8 URLs from HAR data
+                time.sleep(3)  # Brief wait before retry
+        
+    # Extract m3u8 URLs from network traffic
     har_data = proxy.har
     m3u8_urls = []
-    m3u8_pattern = re.compile(r'.*\.m3u8(\?.*)?$', re.IGNORECASE)
+    m3u8_pattern = re.compile(r'.*\.m3u8(\?.*)?$', re.IGNORECASE)  # Pattern to match m3u8 URLs
     for entry in har_data['log']['entries']:
         if 'request' in entry and 'url' in entry['request']:
             url = entry['request']['url']
-            if m3u8_pattern.match(url):
+            if m3u8_pattern.match(url):  # If URL is m3u8
                 m3u8_urls.append(url)
     
-    # Process found m3u8 URLs
-    for url in list(set(m3u8_urls)):
-        if username in url:
-            # Check if the URL contains the username and is a master playlist
-            stream_url = check_1080p_quality(url)
+    # Find 1080p stream URL
+    for url in list(set(m3u8_urls)):  # Check unique URLs
+        if username in url:  # Only check URLs for target channel
+            
+            stream_url = check_1080p_quality(url)  # Check for 1080p stream
             if stream_url:
                 logging.info(f"Found 1080p URL: {stream_url}")
-                driver.quit()
-                server.stop()
-                return stream_url
+                driver.quit()  # Clean up WebDriver
+                server.stop()  # Stop proxy server
+                return stream_url  # Return 1080p stream URL
     
-    # If no 1080p URL found
+    # Clean up if no 1080p URL found
     driver.quit()
     server.stop()
     return None
 
-# Function to show agreement screen and get user's acceptance
-
 def show_agreement_screen():
-    """
-    Shows an agreement screen on first run and saves acceptance status.
-    Returns True if agreement was accepted or already accepted before.
-    """
-    # Check if agreement has already been accepted in config_tv.py
+    """Shows an EULA dialog and manages user acceptance"""
+    
+    # Skip if already accepted
     if hasattr(config, 'agreement_accepted') and config.agreement_accepted:
         return True
 
-    # Create agreement window
+    # Create main window
     root = tk.Tk()
     root.title("End User License Agreement For Twitch Stream to YouTube")
     root.geometry("600x400")
-    # Handle high-DPI displays and scaling
+    
+    # Enable DPI awareness
     try:
-        # For Windows high-DPI support
         windll.shcore.SetProcessDpiAwareness(1)
     except:
-        pass  # Ignore if not on Windows or if shcore isn't available
+        pass  
 
-    # Set minimum window size with scaling consideration
-    root.minsize(width=600, height=450)  # Slightly reduced but still functional minimum
+    # Configure window properties
+    root.minsize(width=600, height=450)  
     root.resizable(True, True)
     root.configure(bg="white")
 
-    # Create a main canvas with scrollbar for the entire window content
+    # Create scrollable canvas
     main_canvas = tk.Canvas(root, bg="white")
     main_scrollbar = tk.Scrollbar(root, orient="vertical", command=main_canvas.yview)
     main_scrollbar.pack(side="right", fill="y")
     main_canvas.pack(side="left", fill="both", expand=True)
     main_canvas.configure(yscrollcommand=main_scrollbar.set)
 
-    # Create a frame to contain all content
+    # Create content frame
     content_frame = tk.Frame(main_canvas, bg="white")
     main_canvas.create_window((0, 0), window=content_frame, anchor="nw")
 
-    # Center window on screen with appropriate size for 2.5k display
+    # Update window size and position
     root.update_idletasks()
-    # Get screen dimensions
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
-    # Set initial window size to 60% of screen width and 70% of screen height, but not smaller than minimums
     width = max(600, int(screen_width * 0.5))
     height = max(450, int(screen_height * 0.6))
     x = (screen_width // 2) - (width // 2)
     y = (screen_height // 2) - (height // 2)
     root.geometry('{}x{}+{}+{}'.format(width, height, x, y))
 
-    # Bind configure events to update scrollbar
+    # Configure scrollbar update function
     def update_scrollbar(event):
         main_canvas.configure(scrollregion=main_canvas.bbox("all"))
 
     content_frame.bind("<Configure>", update_scrollbar)
 
-    # Agreement title with larger font for high-res screens
-    title_label = tk.Label(content_frame, text="End User License Agreement For Twitch Stream to YouTube", font=('Helvetica', 18, 'bold'), bg="white")
+    # Add title label
+    title_label = tk.Label(content_frame, text="End User License Agreement For Twitch Stream to YouTube", 
+                          font=('Helvetica', 18, 'bold'), bg="white")
     title_label.pack(pady=(30, 20), padx=30, anchor="w")
 
-    # Agreement text with scrollbar
+    # Create text area frame
     text_frame = tk.Frame(content_frame, bg="white")
     text_frame.pack(fill=tk.BOTH, expand=True, padx=30)
 
     scrollbar = tk.Scrollbar(text_frame)
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-    # Font size for readability
-    agreement_text = tk.Text(text_frame, wrap=tk.WORD, yscrollcommand=scrollbar.set, font=('Helvetica', 11), bg="white")
+    # Create text area for agreement content
+    agreement_text = tk.Text(text_frame, wrap=tk.WORD, yscrollcommand=scrollbar.set, 
+                           font=('Helvetica', 11), bg="white")
     agreement_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
     scrollbar.config(command=agreement_text.yview)
 
-    # Function to download agreement content from GitHub
+    # Function to download agreement content
     def download_agreement_content():
         agreement_url = 'https://raw.githubusercontent.com/karstenlee10/Twitch_Stream_To_YouTube/refs/heads/main/END%20USER%20LICENSE%20AGREEMENT'
         try:
             response = requests.get(agreement_url, timeout=10)
-            response.raise_for_status()  # Raise an exception for HTTP errors
+            response.raise_for_status()
             return response.text
         except requests.exceptions.RequestException as e:
             logging.info(f"Error downloading agreement: {e}")
             exit()
 
-    # Download the agreement content
+    # Get and display agreement content
     agreement_content = download_agreement_content()
-
     agreement_text.insert(tk.END, agreement_content)
-    agreement_text.config(state=tk.DISABLED)  # Make text read-only
+    agreement_text.config(state=tk.DISABLED)
 
-    # Button frame with fixed height to ensure visibility
+    # Create button frame
     button_frame = tk.Frame(content_frame, bg="white", height=80)
     button_frame.pack(fill=tk.X, pady=20, padx=30)
-    button_frame.pack_propagate(False)  # Prevent frame from shrinking
+    button_frame.pack_propagate(False)
 
-    # Create a spacer frame to push buttons to the right
+    # Add spacer for button alignment
     spacer = tk.Frame(button_frame, bg="white")
     spacer.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-    # Accept button
+    # Function to handle agreement acceptance
     def accept_agreement():
-        # Update config with acceptance status
         config.agreement_accepted = True
-        # Save config changes
         try:
-            # Read the current config file
+            # Update config file
             with open('config_tv.py', 'r') as f:
                 config_lines = f.readlines()
 
-            # Find and update the agreement_accepted line
             with open('config_tv.py', 'w') as f:
                 for line in config_lines:
                     if line.startswith('agreement_accepted ='):
@@ -1721,33 +1860,33 @@ def show_agreement_screen():
                     else:
                         f.write(line)
 
-            # Reload config to apply changes
+            # Reload config module
             importlib.reload(config)
         except Exception as e:
             logging.info(f"Error saving agreement status: {e}")
         root.destroy()
 
-    # Decline button
+    # Function to handle agreement decline
     def decline_agreement():
         messagebox.showerror("Agreement Declined", "You must accept the agreement to use this software.")
         root.destroy()
         exit()
 
-    # Buttons with appropriate size
+    # Create accept/decline buttons
     accept_button = tk.Button(button_frame, text="I Accept", command=accept_agreement, 
-                             bg="#4CAF50", fg="white", font=('Helvetica', 12, 'bold'), padx=20, pady=8, 
-                             width=10)
+        bg="4CAF50", fg="white", font=('Helvetica', 12, 'bold'), padx=20, pady=8, 
+        width=10)
     accept_button.pack(side=tk.RIGHT, padx=5)
 
     decline_button = tk.Button(button_frame, text="I Decline", command=decline_agreement, 
-                              bg="#f44336", fg="white", font=('Helvetica', 12, 'bold'), padx=20, pady=8, 
-                              width=10)
+        bg="f44336", fg="white", font=('Helvetica', 12, 'bold'), padx=20, pady=8, 
+        width=10)
     decline_button.pack(side=tk.RIGHT, padx=5)
 
     root.mainloop()
 
-if __name__ == "__main__":  # Checking if the script is run directly
-    # Check agreement before starting the application
+if __name__ == "__main__":  
+    # Show agreement screen on first run
     show_agreement_screen()
-    initialize_and_monitor_stream()  # Running the function to initialize and monitor stream
-    exit()  # Exiting the script
+    initialize_and_monitor_stream()  # Start main program
+    exit()  # Exit cleanly

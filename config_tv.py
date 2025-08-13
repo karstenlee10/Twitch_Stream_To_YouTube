@@ -2,14 +2,14 @@
 username = "" #twitch or bilibili username
 ##########################################################################
 #ARCHIVE SETTINGS
-playvideo = "True" #if true will play ending screen and error screen
-livestreamautostop = "False" #if true than youtube will auto stop stream
-unliststream = "False" #after stream will be public
-disablechat = "True"  #disable chat on live stream
-playlist = "False"  # True or DOUBLE IF YOU WANT TO SAVE TO MULTIPLE PLAYLIST disable to False
+playvideo = True #if true will play ending screen and error screen
+livestreamautostop = False #if true than youtube will auto stop stream
+unliststream = False #after stream will be public
+disablechat = True  #disable chat on live stream
+playlist = False  # True or DOUBLE IF YOU WANT TO SAVE TO MULTIPLE PLAYLIST disable to False
 playlist_id0 = "YOUR_PLAYLIST_ID"  # Replace with your First YouTube playlist ID
 playlist_id1 = "YOUR_PLAYLIST_ID"  # Replace with your actual second YouTube playlist ID
-thumbnail = "False"  # Whether to upload custom thumbnails for streams
+thumbnail = False  # Whether to upload custom thumbnails for streams
 ##########################################################################
 #YOUTUBE STUDIO RTMP SETTINGS
 rtmpkeyname1 = "1" + "username" + "mult" #first yt rtmp key name
@@ -22,7 +22,7 @@ Chrome_Profile = "" #chrome profile folder name
 ##########################################################################
 #API SETTINGS
 accountname = "" #google account name(not brand acc have email) when login to google api
-brandacc = "False" #do you use the brand acc as the archive channel
+brandacc = False #do you use the brand acc as the archive channel
 brandaccname = "Null" #if you have brand acc copy the google account name when login to google api
 #TWITCH API SETTINGS
 client_id = "" #twitch api client id
