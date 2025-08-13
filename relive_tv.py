@@ -1,6 +1,6 @@
 import os
 import sys
-from logger_config import check_tv_logger as logging # Importing logging module for logging messages
+from logger_config import relive_tv_logger as logging # Importing logging module for logging messages
 import time
 import psutil
 import config_tv as config
@@ -58,7 +58,6 @@ def local_save(title):
   counter = 0
   script_dir = os.path.dirname(os.path.abspath(__file__))
   archive_dir = os.path.join(script_dir, "local_archive")
-  # 检查 local_archive 文件夹是否存在，不存在则创建
   if not os.path.exists(archive_dir):
       os.makedirs(archive_dir)
   filename = os.path.join(archive_dir, f"{title}.mp4")
