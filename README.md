@@ -63,13 +63,9 @@ Here're some of the project's disadvantage:
 * This project is still in ***beta*** may have some bugs that didn't fix or found
 * Setup can be difficult for people who are not computer savvy
 
-<h2>🤔 Code main functionality explained by ai</h2>
-
-[READ](explain.md)
-
 <h2>🛠️ Installation Steps:</h2>
 
-read the guide
+read the guide(NOT UPDATED UNTIL V1 RELEASE)
 
 [GUIDE](readthisguide.md)
 
