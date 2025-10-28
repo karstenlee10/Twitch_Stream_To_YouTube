@@ -276,7 +276,7 @@ def setup_stream_settings( # Function to configure YouTube Studio livestream set
             logging.info("Configuring RTMP key and chat settings...") # Log start of RTMP and chat configuration
             driver.find_element(By.XPATH, "//tp-yt-paper-radio-button[2]").click() # Select stream key option (second radio button)
             time.sleep(5) # Wait for stream key selection to process
-            driver.find_element(By.XPATH, "/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[1]/div[1]/ytls-live-control-room-renderer/div[1]/ytls-widget-section/ytls-stream-settings-widget-renderer/div[2]/div[1]/ytls-metadata-collection-renderer/div[2]/div/ytls-metadata-control-renderer[2]/div/ytls-ingestion-dropdown-trigger-renderer/tp-yt-paper-input/tp-yt-paper-input-container/div[2]/span[2]/tp-yt-iron-icon").click() # Click dropdown to select RTMP server
+            driver.find_element(By.XPATH, "/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[1]/div[1]/ytls-live-control-room-renderer/div[1]/ytls-widget-section/ytls-stream-settings-widget-renderer/div[2]/div[1]/ytls-metadata-collection-renderer/div[2]/div/ytls-metadata-control-renderer[2]/div/ytls-ingestion-dropdown-trigger-renderer/tp-yt-paper-input/tp-yt-paper-input-container/div[2]/span[2]/yt-icon/span/div").click() # Click dropdown to select RTMP server
             time.sleep(3) # Wait for dropdown to open
             if rtmp_server == "bkrtmp": # If using backup RTMP server
                 element2 = driver.find_element(By.XPATH, "//ytls-menu-service-item-renderer[.//tp-yt-paper-item[contains(@aria-label, '" + config.rtmpkeyname1 + " (')]]") # Find backup RTMP server option
@@ -1903,3 +1903,4 @@ if __name__ == "__main__":
     show_agreement_screen()
     initialize_and_monitor_stream()  # Start main program
     exit()  # Exit cleanly
+
