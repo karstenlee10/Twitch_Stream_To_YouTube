@@ -13,6 +13,11 @@ username = ""
 # ARCHIVE BEHAVIOR SETTINGS
 ##########################################################################
 
+# Enable automatic stream title updates
+# If True: periodically refreshes stream title from Twitch
+# If False: keeps initial stream title throughout broadcast
+refresh_stream_title = True
+
 # Enable ending video playback when stream goes offline
 # If True: plays ending.mp4 when stream ends
 # If False: stream ends immediately without ending screen
@@ -170,6 +175,11 @@ brought_twitch_sub_or_turbo = False
 # Only relevant when unliststream = True
 public_notification = False
 
+# Twitch account OAuth token for API access
+# If set to "Null": uses client ID/secret only
+# If set to actual token: uses that token for no ads if you're subscribed to turbo or subs
+twitch_account_token = "Null"
+
 ##########################################################################
 # AGREEMENT SETTINGS - DO NOT MODIFY MANUALLY
 ##########################################################################
@@ -178,3 +188,4 @@ public_notification = False
 # This is automatically set when you accept the EULA
 # Do not modify this setting manually
 agreement_accepted = False
+
