@@ -98,8 +98,4 @@ Technologies used in the project:
 
 <h2>💲 Donation</h2>
 
-The donation will be for the project or support me buying twitch turbo for the channel.
-
-Or just make a direct gift sub to karsteniee on twitch to a specific user(https://twitch.tv/karsteniee)
-
-https://streamlabs.com/karsteniee/tips
+[How to donate?](https://sites.google.com/view/howtodonate/main-page)
