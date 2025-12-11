@@ -54,7 +54,7 @@ import config_tv as config # For configuration settings
 ########################################################################
 
 # SCRIPT VERSION
-script_version = "0.7.1 BETA"
+script_version = "0.7.1"
 
 # Twitch API token URL
 token_url = f"https://id.twitch.tv/oauth2/token?client_id={config.client_id}&client_secret={config.client_secret}&grant_type=client_credentials" # Construct Twitch OAuth2 token URL with credentials
@@ -428,12 +428,14 @@ def handle_stream_offline(
         else: 
             ffmpeg = config.ffmpeg   
         subprocess.run(["taskkill", "/f", "/im", ffmpeg])
-        #logging.info("Stream offline status detected - initiating shutdown sequence... and play ending screen and start new process")  
-    base64_TITLE = base64.b64encode(json.dumps(TITLE, ensure_ascii=False).encode('utf-8')).decode('utf-8')
-    base64_PART = base64.b64encode(json.dumps(PART, ensure_ascii=False).encode('utf-8')).decode('utf-8')
-    base64_state = base64.b64encode(json.dumps(state, ensure_ascii=False).encode('utf-8')).decode('utf-8')
-    DATA_OMG = json.dumps({"TITLE": base64_TITLE,"PART": base64_PART,"state": base64_state})
-    DATA_OMG_BASE64 = base64.b64encode(DATA_OMG.encode('utf-8')).decode('utf-8')
+    else:
+        logging.info("Stream offline status detected - initiating shutdown sequence... and play ending screen and start new process")  
+        base64_TITLE = base64.b64encode(json.dumps(TITLE, ensure_ascii=False).encode('utf-8')).decode('utf-8')
+        base64_PART = base64.b64encode(json.dumps(PART, ensure_ascii=False).encode('utf-8')).decode('utf-8')
+        base64_state = base64.b64encode(json.dumps(state, ensure_ascii=False).encode('utf-8')).decode('utf-8')
+        DATA_OMG = json.dumps({"TITLE": base64_TITLE,"PART": base64_PART,"state": base64_state})
+        DATA_OMG_BASE64 = base64.b64encode(DATA_OMG.encode('utf-8')).decode('utf-8')
+        subprocess.Popen(["start", "cmd" , "/c", "py", "check_tv.py", state["spare_link"], state["rtmp_server"], "Prev", DATA_OMG_BASE64], shell=True)
     if PART["partnumber"] >= 0 and PART["part0"] is not None and TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and state['gmail_checking']:  
         logging.info("Updating stream description to mark the end of the stream...BOTH")
         threading.Thread(
@@ -468,8 +470,7 @@ def handle_stream_offline(
         logging.info("Setting stream visibility to public...")  
         share_settings_api(state['live_url'], "public")
     logging.info("ending the stream...")  
-    ending_stream(state['live_url'])  
-    subprocess.Popen(["start", "cmd" , "/c", "py", "check_tv.py", state["spare_link"], state["rtmp_server"], "Prev", DATA_OMG_BASE64], shell=True)
+    ending_stream(state['live_url']) 
     state['exit_flag'] = True; return  
 
 def switch_stream_config(
@@ -1551,8 +1552,8 @@ def initialize_and_monitor_stream():
                                     global TITLE
                                     PART = prev_PART_JSON
                                     TITLE = prev_TITLE_JSON
-                                    logging.info(f"Restored PART: {PART}")
-                                    logging.info(f"Restored TITLE: {TITLE}")
+                                    #logging.info(f"Restored PART: {PART}")
+                                    #logging.info(f"Restored TITLE: {TITLE}")
                                 def title_and_edit(prev_state_JSON, reason):
                                     if TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and prev_state_JSON['gmail_checking']:
                                         api_create_edit_schedule(PART["partnumber"], None, "PREVDECRIPTION", prev_state_JSON["live_url"], reason, False, None, TITLE[f"part{TITLE['currentnumber']}"])
@@ -1600,7 +1601,7 @@ def initialize_and_monitor_stream():
         else:
             pass
         try:
-            logging.info(f"prev = {prev} THEREISMORE = {THEREISMORE}")
+            #logging.info(f"prev = {prev} THEREISMORE = {THEREISMORE}")
             if THEREISMORE == "Null" and not prev:
               titlegmail = api_create_edit_schedule(0, rtmp_server, "EDIT", live_url)
             if THEREISMORE != "Null":
