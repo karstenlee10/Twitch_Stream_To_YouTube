@@ -23,11 +23,6 @@ refresh_stream_title = True
 # If False: stream ends immediately without ending screen
 playvideo = True
 
-# Enable YouTube's automatic stream stop feature
-# If True: YouTube will automatically stop the stream when source ends
-# If False: manual stream ending is required
-livestreamautostop = False
-
 # Control initial stream visibility
 # If True: stream starts as unlisted (private link sharing)
 # If False: stream starts as public (visible in search/channel)
@@ -180,6 +175,12 @@ public_notification = False
 # If set to actual token: uses that token for no ads if you're subscribed to turbo or subs
 twitch_account_token = "Null"
 
+# YouTube video tags for archived streams
+# List of tags to add to YouTube videos
+# Example: "#ai #neurosama #vedal #Archive"
+# If no tags needed, set to ""
+tags_for_youtube = ""
+
 ##########################################################################
 # AGREEMENT SETTINGS - DO NOT MODIFY MANUALLY
 ##########################################################################
@@ -188,3 +189,4 @@ twitch_account_token = "Null"
 # This is automatically set when you accept the EULA
 # Do not modify this setting manually
 agreement_accepted = False
+
