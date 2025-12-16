@@ -6,15 +6,18 @@ BY USING THIS SOFTWARE, YOU AGREE TO BE BOUND BY THE TERMS OF THIS AGREEMENT.
    This software is provided for personal and commercial use.
 
 2. LIABILITY
-   This software is provided "as is" without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the project owner be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software, including but not limited to any liability for direct, indirect, incidental, special, exemplary, or consequential damages (including, but not limited to, procurement of substitute goods or services; loss of use, data, or profits; or business interruption) however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence or otherwise) even if the project owner has been advised of the possibility of such damage. The project owner specifically disclaims any liability for any actions, damages, or consequences resulting from the use or misuse of this software, including any liability arising from the manner or method in which the software is used.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. THE PROJECT OWNER SPECIFICALLY DISCLAIMS ANY LIABILITY FOR ANY
+ACTIONS, DAMAGES, OR CONSEQUENCES RESULTING FROM THE USE OR MISUSE OF THIS
+SOFTWARE.
 
-3.ADDITIONAL TERMS:
-   3a. Credit Requirement: When using this Software on your channel, you must credit the original author by including the GitHub project link in your channel description.
-       Example: "This channel uses the Twitch Stream to YouTube archiving script by karstenlee10 - https://is.gd/archivescript"
-   3b. Commercial Use: This Software may be used for commercial purposes. Commercial use still requires compliance with the credit requirement stated in ADDITIONAL TERMS section 1.
-
-4. PRIVACY
+3. PRIVACY
    This software won't collect and store information in any place other than your local drive, but using Google or Twitch API may collect and store information on their server.
 
-5. TERMINATION
+4. TERMINATION
    This license is effective until terminated. You may terminate it by destroying the software.
