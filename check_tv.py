@@ -206,7 +206,7 @@ def local_save(title):
             counter += 1 
             filename = os.path.join(archive_dir, f"{title}({counter}).mp4") 
         if config.twitch_account_token != "Null":
-            token = f'"--twitch-api-header=Authorization=OAuth {config.twitch_account_token} "'
+            token = f'"--twitch-api-header=Authorization=OAuth {config.twitch_account_token}" '
         else:
             token = ""
         command = f'''start /wait cmd /c "streamlink https://www.twitch.tv/{config.username} best {token}-o {filename}"''' 
@@ -428,7 +428,7 @@ def handle_stream_offline(
         else: 
             ffmpeg = config.ffmpeg   
         subprocess.run(["taskkill", "/f", "/im", ffmpeg])
-    else:
+    if force_offline == "DEBUG" or force_offline == None:
         logging.info("Stream offline status detected - initiating shutdown sequence... and play ending screen and start new process")  
         base64_TITLE = base64.b64encode(json.dumps(TITLE, ensure_ascii=False).encode('utf-8')).decode('utf-8')
         base64_PART = base64.b64encode(json.dumps(PART, ensure_ascii=False).encode('utf-8')).decode('utf-8')
@@ -570,7 +570,7 @@ def refresh_stream_title():
                 while state['thread_in_use']: 
                     time.sleep(1)  
                 state['thread_in_use'] = True 
-                state['titleforgmail'] = api_create_edit_schedule(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], None, False, None, newtitle)  
+                state['titleforgmail'] = api_create_edit_schedule(PART["partnumber"]+1, state['rtmp_server'], "EDIT", state['live_url'], None, False, None, newtitle)  
                 state['thread_in_use'] = False 
                 TITLE["currentnumber"] += 1
                 TITLE[f"part{TITLE["currentnumber"]}"] = newtitle
@@ -611,7 +611,7 @@ def find_thrid_party_notification():
                     received_time = datetime.fromtimestamp(int(msg['internalDate']) / 1000)  
                     subject = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'subject'), '')  
                     sender = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'from'), '')  
-                    if received_time >= minutes_ago and title in subject and ("no-reply@youtube.com" in sender or "karstenlee20@gmail.com" in sender):  
+                    if received_time >= minutes_ago and title in subject and ("no-reply@youtube.com" in sender or "neurosamaarchive@gmail.com" in sender):  
                         logging.info(f"Found email from YouTube: {subject}")  
                         while state['thread_in_use']: 
                             time.sleep(1)  
@@ -640,7 +640,7 @@ def find_thrid_party_notification():
 
 def hours_checker(): 
     while not state['ending']: 
-        for _ in range(4119):
+        for _ in range(4122):
             if state['restart_timer']:  
                 state['restart_timer'] = False  
                 logging.info("Restart timer detected - resetting 12-hour timer...")  
@@ -657,7 +657,7 @@ def hours_checker():
     logging.info("hours checker has stopped")  
     
 def handle_user_input(): 
-    print("DEBUG MODE IS ENABLE YOU CAN ONLY EXIT OR REFRESH OR FORCE OFFINE OR STATE OR FORCE SWITCH")
+    print("DEBUG MODE IS ENABLE YOU CAN ONLY EXIT OR FORCE OFFINE OR STATE OR FORCE SWITCH")
     print("> ", end='', flush=True)
     user_input = ""
     while not state['ending']:
@@ -671,14 +671,14 @@ def handle_user_input():
                 if user_input.strip().upper() == "EXIT":
                     logging.info("Terminating script...")
                     state['exit_flag'] = True; return  
-                elif user_input == "REFRESH":
-                    logging.info("REFRESH EXIT AND CREATE NEW CMD") 
-                    if state['rtmp_server'] == "defrtmp": 
-                        rtmp = "bkrtmp" 
-                    else: 
-                        rtmp = "defrtmp" 
-                    subprocess.Popen(["start", "cmd" , "/c", "py", "check_tv.py", state['live_url'], rtmp, state['spare_link']], shell=True)  
-                    state['exit_flag'] = True; return  
+                #elif user_input == "REFRESH":
+                    #logging.info("REFRESH EXIT AND CREATE NEW CMD") 
+                    #if state['rtmp_server'] == "defrtmp": 
+                        #rtmp = "bkrtmp" 
+                    #else: 
+                        #rtmp = "defrtmp" 
+                    #subprocess.Popen(["start", "cmd" , "/c", "py", "check_tv.py", state['live_url'], rtmp, state['spare_link']], shell=True)  
+                    #state['exit_flag'] = True; return  
                 elif user_input == "STOP":
                     break
                 elif user_input == "FORCE OFFLINE":
@@ -686,7 +686,7 @@ def handle_user_input():
                     while state['thread_in_use']: 
                         time.sleep(1)  
                     state['thread_in_use'] = True 
-                    handle_stream_offline(True) 
+                    handle_stream_offline("DEBUG") 
                     state['thread_in_use'] = False
                     break
                 elif user_input == "STATE":
@@ -758,7 +758,6 @@ def handle_input(status, live_url, rtmp_server):
         time.sleep(0.1)
     while msvcrt.kbhit():
         msvcrt.getwch()
-            
     logging.info("handle user input has stopped")
 
 def get_twitch_streams():  
@@ -818,9 +817,8 @@ def get_twitch_stream_title():
         try: 
             streams = get_twitch_streams()  
             if not streams or streams == "ERROR":  
-                logging.info(f"No streams found (attempt {attempt + 1}/{MAX_RETRIES})") 
-                time.sleep(RETRY_DELAY) 
-                continue 
+                logging.error("Error API, returning fallback title")  
+                return f"Stream_{datetime.now().strftime('%Y-%m-%d')}" 
             if streams:  
                 return streams[0]['title'] 
         except Exception as e: 
@@ -857,9 +855,11 @@ def get_service():
                 creds.refresh(Request())  
             else: 
                 if not config.brandacc:  
+                    logging.info("Token not found or invalid. Starting authentication flow...")  
                     flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                     creds = flow.run_local_server(port=6971, brandacc="Nope")  
                 if config.brandacc:  
+                    logging.info("YouTube token not found or invalid. Starting authentication flow...")  
                     flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                     creds = flow.run_local_server(port=6971, brandacc="havebrand")  
                 with open(USER_TOKEN_FILE, 'w') as token:  
@@ -868,9 +868,11 @@ def get_service():
     except Exception as e:  
         if "invalid_grant" in str(e):  
             if not config.brandacc:  
+                logging.info("Token not found or invalid. Starting authentication flow...")  
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                 creds = flow.run_local_server(port=6971, brandacc="Nope")  
             if config.brandacc:  
+                logging.info("YouTube token not found or invalid. Starting authentication flow...")  
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                 creds = flow.run_local_server(port=6971, brandacc="havebrand")  
             with open(USER_TOKEN_FILE, 'w') as token:  
@@ -895,13 +897,13 @@ def get_gmail_service():
                 creds.refresh(Request())  
             else: 
                 if config.brandacc:  
-                    logging.info("Gmail token not found. Starting authentication flow...")  
+                    logging.info("Gmail token not found or invalid. Starting authentication flow...")  
                     flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                     creds = flow.run_local_server(port=6971, brandacc="Nope")  
                     with open(GMAIL_TOKEN_FILE, 'w') as token:  
                         token.write(creds.to_json())  
                 if not config.brandacc:  
-                    logging.info("Gmail token not found. Start...")  
+                    logging.info("Token not found or invalid. Starting authentication flow...")  
                     flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                     creds = flow.run_local_server(port=6971, brandacc="Nope")  
                     with open(USER_TOKEN_FILE, 'w') as token:  
@@ -910,13 +912,13 @@ def get_gmail_service():
     except Exception as e:  
         if "invalid_grant" in str(e):  
             if config.brandacc:  
-                logging.info("Gmail token not found. Starting authentication flow...")  
+                logging.info("Gmail token not found or invalid. Starting authentication flow...")  
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                 creds = flow.run_local_server(port=6971, brandacc="Nope")  
                 with open(GMAIL_TOKEN_FILE, 'w') as token:  
                     token.write(creds.to_json())  
             if not config.brandacc:  
-                logging.info("Gmail token not found. Starting authentication flow...")  
+                logging.info("Token not found or invalid. Starting authentication flow...")  
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                 creds = flow.run_local_server(port=6971, brandacc="Nope")  
                 with open(USER_TOKEN_FILE, 'w') as token:  
@@ -955,7 +957,6 @@ def ensure_font_for_text(
 def create_thumbnail( 
     title 
     ): 
-    """Create a thumbnail image for the YouTube stream."""
     try: 
         width, height = 1280, 720 
         background_color = (20, 20, 20)  
@@ -1029,7 +1030,6 @@ def create_thumbnail(
             image.paste(logo, (50, 50), logo if logo.mode == 'RGBA' else None) 
         except: 
             logging.info("No channel logo found, continuing without it") 
-        from datetime import datetime 
         date_str = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}(GMT+8)" 
         try: 
             date_font = ImageFont.truetype(font_path, 40) 
@@ -1078,7 +1078,6 @@ def edit_live_stream(
                            media_body=thumbnail_path 
                            ).execute() 
                         logging.info("Successfully set custom thumbnail") 
-                        
                         os.remove(thumbnail_path) 
                         logging.info("Thumbnail file removed after upload") 
                     except Exception as e: 
@@ -1105,7 +1104,6 @@ def edit_live_stream(
 def get_youtube_stream_title(
     video_id
     ):
-    """Get the title of a YouTube live stream from its video ID"""
     try_count = 0 
     while True: 
         try: 
@@ -1309,7 +1307,7 @@ def api_create_edit_schedule(
                     if clean_title and clean_title[0] == " ": 
                         clean_title = clean_title[1:] 
                 state["latest_cleantitle"] = clean_title
-                part_suffix = f"PART{part_number}" if part_number > 0 else "" 
+                part_suffix = f"PART{part_number}" if part_number > 0 else "PART0" 
                 if part_number > 0:
                     filename = f"{username} | {part_suffix} | {clean_title} | {datetime.now().strftime('%Y-%m-%d')}{TESTING}" 
                 else:
@@ -1389,12 +1387,16 @@ TITLE CHANGE LIST:
             if is_reload != "PREVDECRIPTION":
                 filename = state['titleforgmail']
         if finish_title == "BOTH":
-            description = f"""{DESCRIPTION["description_first"]}\n{part_list_description}\n====={DESCRIPTION_list_description}\n{DESCRIPTION["description_second"]}"""
+            description = f"""{DESCRIPTION["description_first"]}\n{part_list_description}====={DESCRIPTION_list_description}\n{DESCRIPTION["description_second"]}"""
             filename = state['titleforgmail']
     try: 
         if is_reload is True: 
             filename = f"{username} (WAITING FOR STREAMER){TESTING}" 
-            description = f"{TESTING}Waiting for https://twitch.tv/{config.username}, Archived using open-source tools: https://is.gd/archivescript Service by Karsten Lee, More info: https://linktr.ee/karstenlee" 
+            description = f"""{TESTING}
+Waiting for https://twitch.tv/{config.username}
+Archived using open-source tools: https://is.gd/archivescript Service by Karsten Lee
+More info: https://linktr.ee/karstenlee
+Twitch Stream to YouTube Script Version: {script_version}""" 
         if stream_url == "Null": 
             logging.info('Initiating API request for stream creation...') 
             privacy_status = "public" if not config.unliststream else "unlisted" 
@@ -1435,8 +1437,6 @@ def initialize_stream_relay(
     else: 
         rtmp_relive = "api_this" 
     threading.Thread(target=start_restreaming, args=(rtmp_relive, stream_url), daemon=False).start()
-    if config.local_archive: 
-        threading.Thread(target=local_save, args=(filename,), daemon=False).start()
     if rtmp_server == "defrtmp": 
         ffmpeg_1exe = config.ffmpeg1 
     else: 
@@ -1498,13 +1498,16 @@ def initialize_and_monitor_stream():
                 bk_yt_link = arguments[3]
                 if bk_yt_link == "Prev":
                     bk_yt_link = "Null"
-                    prev_json = json.loads(base64.b64decode(arguments[4]).decode('utf-8'))
-                    prev_state_JSON = json.loads(base64.b64decode(prev_json["state"]).decode('utf-8'))
-                    prev_PART_JSON = json.loads(base64.b64decode(prev_json["PART"]).decode('utf-8'))
-                    prev_TITLE_JSON = json.loads(base64.b64decode(prev_json["TITLE"]).decode('utf-8'))
-                    if len(prev_state_JSON["live_url"]) == 11:
-                        IFTHEREISMORE = f"ARG3: recieved previous data for peaceful period"
-                        prev = True
+                    try:
+                        prev_json = json.loads(base64.b64decode(arguments[4]).decode('utf-8'))
+                        prev_state_JSON = json.loads(base64.b64decode(prev_json["state"]).decode('utf-8'))
+                        prev_PART_JSON = json.loads(base64.b64decode(prev_json["PART"]).decode('utf-8'))
+                        prev_TITLE_JSON = json.loads(base64.b64decode(prev_json["TITLE"]).decode('utf-8'))
+                        if len(prev_state_JSON["live_url"]) == 11:
+                            IFTHEREISMORE = f"ARG3: recieved previous data for peaceful period"
+                            prev = True
+                    except Exception as e:
+                        logging.info(f"Error reading previous script data, pass")
             logging.info("==================================================") 
             logging.info(f"INPUT ARGUMENT AVAILABLE (Ver.{script_version}) (CONFIG VIEW IN CONFIG_TV.PY)") 
             logging.info(f"ARG1: {yt_link} ARG2: {rtmp_info}")
@@ -1552,8 +1555,6 @@ def initialize_and_monitor_stream():
                                     global TITLE
                                     PART = prev_PART_JSON
                                     TITLE = prev_TITLE_JSON
-                                    #logging.info(f"Restored PART: {PART}")
-                                    #logging.info(f"Restored TITLE: {TITLE}")
                                 def title_and_edit(prev_state_JSON, reason):
                                     if TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and prev_state_JSON['gmail_checking']:
                                         api_create_edit_schedule(PART["partnumber"], None, "PREVDECRIPTION", prev_state_JSON["live_url"], reason, False, None, TITLE[f"part{TITLE['currentnumber']}"])
@@ -1601,7 +1602,6 @@ def initialize_and_monitor_stream():
         else:
             pass
         try:
-            #logging.info(f"prev = {prev} THEREISMORE = {THEREISMORE}")
             if THEREISMORE == "Null" and not prev:
               titlegmail = api_create_edit_schedule(0, rtmp_server, "EDIT", live_url)
             if THEREISMORE != "Null":
@@ -1653,7 +1653,6 @@ def check_chrome_version(target_version=(130, 0, 6723, 70)):
         return False
 
 def show_agreement_screen():
-    """Shows an EULA dialog and manages user acceptance"""
     if hasattr(config, 'agreement_accepted') and config.agreement_accepted:
         return True
     root = tk.Tk()
