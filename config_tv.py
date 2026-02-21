@@ -1,3 +1,4 @@
+# Config updated at 8:30:50 2026/2/21
 # Twitch Stream to YouTube Archive Configuration File
 # This file contains all settings for the stream archiving system
 
@@ -47,6 +48,39 @@ playlist_id1 = "Null"
 # If True: generates custom thumbnails with stream title
 # If False: uses YouTube's default thumbnail
 thumbnail = False
+
+# Custom streamer name override for titles
+# If set to "Null": uses the Twitch username in titles
+# If set to custom name: uses that name instead in titles
+StreamerName = "Null"
+
+# Enable local archive saving
+# If True: saves a copy of the stream to local_archive folder
+# If False: only streams to YouTube (no local copy)
+# WARNING: Requires significant disk space
+local_archive = False
+
+# Twitch account OAuth token for API access
+# If set to "Null": uses client ID/secret only
+# If set to actual token: uses that token for no ads if you're subscribed to turbo or subs
+twitch_account_token = ""
+
+# YouTube video tags for archived streams
+# List of tags to add to YouTube videos
+# Example: "#ai #neurosama #vedal #Archive"
+# If no tags needed, set to ""
+tags_for_youtube = ""
+
+# Twitch subscription/turbo status for ad warnings
+# If True: shows "AD-FREE: SUB/TURBO" in descriptions
+# If False: shows ads warning in descriptions
+brought_twitch_sub_or_turbo = False
+
+# Public notification mode for unlisted streams
+# If True: starts stream as public for notifications, then switches to unlisted
+# If False: starts as unlisted and stays unlisted
+# Only relevant when unliststream = True
+public_notification = False
 
 ##########################################################################
 # YOUTUBE STUDIO RTMP CONFIGURATION
@@ -117,27 +151,16 @@ client_secret = ""
 # Primary FFmpeg executable filename
 # This should be the renamed ffmpeg.exe file in your directory
 # Used for main stream processing
-ffmpeg = "ffmpeg.exe"
+ffmpeg = ""
 
 # Secondary FFmpeg executable filename (backup)
 # Used for backup streams and ending screen playback
 # Should be a second copy of ffmpeg.exe with different name
-ffmpeg1 = "ffmpeg111.exe"
+ffmpeg1 = ""
 
 ##########################################################################
 # EXPERIMENTAL AND ADVANCED SETTINGS
 ##########################################################################
-
-# Custom streamer name override for titles
-# If set to "Null": uses the Twitch username in titles
-# If set to custom name: uses that name instead in titles
-StreamerName = "Null"
-
-# Enable local archive saving
-# If True: saves a copy of the stream to local_archive folder
-# If False: only streams to YouTube (no local copy)
-# WARNING: Requires significant disk space
-local_archive = False
 
 # Enable experimental testing mode
 # If True: adds "[TESTING WILL BE REMOVE AFTER]" to titles
@@ -157,36 +180,13 @@ ADSqa = False
 # Special streamer mode (Filian-specific)
 # If True: removes certain help text from descriptions
 # If False: includes standard help text
-Filian = True
+Filian = False
 
-# Twitch subscription/turbo status for ad warnings
-# If True: shows "AD-FREE: SUB/TURBO" in descriptions
-# If False: shows ads warning in descriptions
-brought_twitch_sub_or_turbo = False
+# Showing the current category in the stream description
+# Also refreshes the category during the stream
+category = False
 
-# Public notification mode for unlisted streams
-# If True: starts stream as public for notifications, then switches to unlisted
-# If False: starts as unlisted and stays unlisted
-# Only relevant when unliststream = True
-public_notification = False
-
-# Twitch account OAuth token for API access
-# If set to "Null": uses client ID/secret only
-# If set to actual token: uses that token for no ads if you're subscribed to turbo or subs
-twitch_account_token = "Null"
-
-# YouTube video tags for archived streams
-# List of tags to add to YouTube videos
-# Example: "#ai #neurosama #vedal #Archive"
-# If no tags needed, set to ""
-tags_for_youtube = ""
-
-##########################################################################
-# AGREEMENT SETTINGS - DO NOT MODIFY MANUALLY
-##########################################################################
-
-# User agreement acceptance status
-# This is automatically set when you accept the EULA
-# Do not modify this setting manually
-agreement_accepted = False
-
+# This is for when the category is "I'm Only Sleeping" 
+# the stream will be switch immediately, so it won't mix with other stuff
+# need category set to True for this to work
+subathon = False
