@@ -51,7 +51,7 @@ import config_tv as config # For configuration settings
 # HOPE IT WORKS PLEASE DON'T HAVE ANY PROBLEMS THANKS 19:29 17.12.2025
 
 # SCRIPT VERSION
-script_version = "0.7.1.2 Insider (V3)"
+script_version = "0.7.1.2"
 
 # Twitch API token URL
 token_url = f"https://id.twitch.tv/oauth2/token?client_id={config.client_id}&client_secret={config.client_secret}&grant_type=client_credentials" # Construct Twitch OAuth2 token URL with credentials
@@ -1872,3 +1872,4 @@ def check_chrome_version(target_version=(130, 0, 6723, 70)):
 if __name__ == "__main__": 
     initialize_and_monitor_stream()  
     exit()  
+
