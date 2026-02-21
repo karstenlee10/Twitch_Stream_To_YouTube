@@ -6,7 +6,6 @@ from tkinter import messagebox # For message boxes
 # NORMAL IMPORTS
 ########################################################################
 import os # For file and directory operations
-import re # For replacing text
 import sys # For checking command line arguments
 import time # For delays
 import json # For handling JSON data
@@ -27,13 +26,10 @@ from google.auth.transport.requests import Request # For making authenticated re
 ########################################################################
 # OTHER IMPORTS
 ########################################################################
-import emoji # For checking and replacing emojis in text
 import psutil # For checking running processes
 import base64 # For encoding and decoding base64 strings
 import winreg # For accessing Windows registry, checking chrome version
-import zipfile # For extracting zip files 
 import streamlink # For checking YouTube livestream status
-from io import BytesIO # For display bytes idk
 from ctypes import windll # For accessing Windows API functions and checking display dpi
 from PIL import Image, ImageDraw, ImageFont # For image processing and drawing text on images
 ########################################################################
@@ -42,10 +38,9 @@ from PIL import Image, ImageDraw, ImageFont # For image processing and drawing t
 from selenium import webdriver # For controlling web browsers
 from selenium.webdriver.common.by import By # For locating elements in the DOM
 from selenium.webdriver.chrome.options import Options # For configuring Chrome options
-from selenium.webdriver.chrome.service import Service # For managing ChromeDriver service
 from selenium.webdriver.support.ui import WebDriverWait # For waiting for elements in the DOM
 from selenium.webdriver.support import expected_conditions as EC # For waiting for conditions in the DOM
-from selenium.common.exceptions import (NoSuchElementException, SessionNotCreatedException, TimeoutException) # For handling Selenium exceptions
+from selenium.common.exceptions import (SessionNotCreatedException, TimeoutException) # For handling Selenium exceptions
 ########################################################################
 # LOCAL IMPORTS
 ########################################################################
@@ -53,8 +48,10 @@ from logger_config import check_tv_logger as logging # For logging messages
 import config_tv as config # For configuration settings
 ########################################################################
 
+# HOPE IT WORKS PLEASE DON'T HAVE ANY PROBLEMS THANKS 19:29 17.12.2025
+
 # SCRIPT VERSION
-script_version = "0.7.1"
+script_version = "0.7.1.2 Insider (V3)"
 
 # Twitch API token URL
 token_url = f"https://id.twitch.tv/oauth2/token?client_id={config.client_id}&client_secret={config.client_secret}&grant_type=client_credentials" # Construct Twitch OAuth2 token URL with credentials
@@ -106,17 +103,23 @@ FONT_MAP = { # Dictionary mapping script types to font files and download URLs
     }
 }
 
-stream_state = {
-    'stop_right_now': False # Flag to immediately stop streaming
+DEBUG = {
+    'change_something_cat': None,
+    'change_something_title': None
 }
 
-time_state = {
-    'start_time': None # Start time of the stream
+stream_state = {
+    'stop_right_now': False # Flag to immediately stop streaming
 }
 
 DESCRIPTION = {
     'description_first': None, # First part of the stream description
     'description_second': None, # Second part of the stream description
+}
+
+CATEGORY = {
+    'currentnumber': -1, # Current part number of the stream
+    'part0': None, # First part of the stream
 }
 
 TITLE = {
@@ -150,6 +153,13 @@ def restart_title_arg():
     'part0': None, # First part of the stream
     }
 
+def restart_category_arg():
+    global CATEGORY
+    CATEGORY = {
+    'currentnumber': -1, # Current part number of the stream
+    'part0': None, # First part of the stream
+    }
+
 def check_is_live(): 
     trytimes = 0 
     while True: 
@@ -158,35 +168,59 @@ def check_is_live():
             return True 
         except KeyError: 
             trytimes += 1 
-            time.sleep(5) 
-            if trytimes == 6: 
-                logging.info('The stream is finsh') 
+            time.sleep(3) 
+            if trytimes == 3: 
+                logging.info('150 - The stream is finsh') 
                 return False 
+        except Exception as e:
+            trytimes += 1 
+            time.sleep(3) 
+            if trytimes == 3: 
+                logging.error(f'150 - Error checking Twitch stream status: {e}, use api to check') 
+                if get_twitch_streams():
+                    return True
+                else:
+                    return False
 
 def start_restreaming(status, url_info):
+    TRY = 0
+    if status == "api_this": 
+        logprint = f'166 - script is started now {url_info}'
+        ffmpeg_process = config.ffmpeg1 
+        rtmp_key = config.rtmp_key_1 
+    elif status == "this": 
+        logprint = f'166 - script is started now api {url_info}'
+        ffmpeg_process = config.ffmpeg 
+        rtmp_key = config.rtmp_key 
+    if config.twitch_account_token != "Null":
+        token = f'"--twitch-api-header=Authorization=OAuth {config.twitch_account_token}" '
+    else:
+        token = ""
     while True: 
-        if status == "api_this": 
-            logging.info(f'script is started now {url_info}') 
-            ffmpeg_process = config.ffmpeg1 
-            rtmp_key = config.rtmp_key_1 
-        elif status == "this": 
-            logging.info(f'script is started now api {url_info}') 
-            ffmpeg_process = config.ffmpeg 
-            rtmp_key = config.rtmp_key 
-        if config.twitch_account_token != "Null":
-            token = f'"--twitch-api-header=Authorization=OAuth {config.twitch_account_token}" '
-        else:
-            token = ""
+        logging.info(logprint)
         command = f'''start /wait cmd /c "streamlink https://www.twitch.tv/{config.username} best {token}-o - | {ffmpeg_process} -re -i pipe:0 -c:v copy -c:a aac -ar 44100 -ab 128k -ac 2 -strict -2 -flags +global_header -bsf:a aac_adtstoasc -b:v 6300k -preset fast -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp_key}"''' 
+        logging.info(f"166 - Starting restreaming with command: {command}")
+        start_time = time.time()
         os.system(command) 
+        if (time.time() - start_time) <= 30:
+            if TRY == 3:
+                logging.info("166 - streamlink have a big error stopping stream")
+                while state['thread_in_use']: 
+                    time.sleep(1)  
+                state['thread_in_use'] = True 
+                handle_stream_offline(True) 
+                state['thread_in_use'] = False
+                break
+            logging.info("166 - streamlink having error try again")
+            TRY += 1
         if stream_state['stop_right_now']: 
-            logging.info(f'The stream is stopped now {url_info}') 
+            logging.info(f'166 - The stream is stopped now {url_info}') 
             stream_state["stop_right_now"] = False 
             break 
         if check_is_live(): 
-            logging.info(f'The stream is still live now {url_info}') 
+            logging.info(f'166 - The stream is still live now {url_info}') 
         else: 
-            logging.info(f'The stream is finsh now {url_info} start offline process') 
+            logging.info(f'166 - The stream is finsh now {url_info} start offline process') 
             while state['thread_in_use']: 
                 time.sleep(1)  
             state['thread_in_use'] = True 
@@ -212,10 +246,10 @@ def local_save(title):
         command = f'''start /wait cmd /c "streamlink https://www.twitch.tv/{config.username} best {token}-o {filename}"''' 
         os.system(command) 
         if check_is_live(): 
-            logging.info('The stream is still live now') 
+            logging.info('197 - The stream is still live now') 
             local_save(title) 
         else: 
-            logging.info('The stream is finsh now') 
+            logging.info('197 - The stream is finsh now') 
         exit() 
 
 def offline_check_functions( 
@@ -230,18 +264,20 @@ def offline_check_functions(
     state['titleforgmail'] = title  
     TITLE["currentnumber"] +=1
     TITLE[f"part0"] = state["latest_cleantitle"]
-    logging.info(f"Initializing offline detection monitoring service... With {state}")  
+    logging.info(f"221 - Initializing offline detection monitoring service... With {state}")  
     if config.unliststream and config.public_notification: 
-        logging.info("stream back to unlisted") 
+        logging.info("221 - stream back to unlisted") 
         share_settings_api(state['live_url'], "unlisted") 
     threading.Thread(target=hours_checker, daemon=False).start()
     threading.Thread(target=find_thrid_party_notification, daemon=False).start() 
     if config.refresh_stream_title: 
         threading.Thread(target=refresh_stream_title, daemon=False).start()
+    if config.category: 
+        threading.Thread(target=refresh_stream_category, daemon=False).start()
     threading.Thread(target=handle_user_input, daemon=True).start() 
     while not state.get('exit_flag', False): 
         time.sleep(1) 
-    logging.info("Stopping the entire script...") 
+    logging.info("221 - Stopping the entire script...") 
     psutil.Process(os.getpid()).terminate() 
 
 def start_browser(stream_url):  
@@ -268,21 +304,21 @@ def start_browser(stream_url):
                 try: 
                     error_element = driver.find_element(By.XPATH, '/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[3]/ytls-live-dashboard-error-renderer/div/yt-icon') 
                     if error_element: 
-                        logging.info("Error element found - YouTube Studio is in error state") 
+                        logging.info("247 - Error element found - YouTube Studio is in error state") 
                         driver.refresh() 
                         time.sleep(2) 
                         try_count += 1 
                         if try_count >= 3: 
-                            logging.error("3 consecutive errors detected - STOP PROCESS") 
+                            logging.error("247 - 3 consecutive errors detected - STOP PROCESS") 
                             subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  
                             return False 
                 except: 
-                    logging.info("Element not found after 30s, refreshing page...") 
+                    logging.info("247 - Element not found after 30s, refreshing page...") 
                     driver.refresh() 
                     time.sleep(2) 
                     try_count += 1 
                     if try_count >= 3: 
-                        logging.error("3 consecutive timeouts detected - STOP PROCESS") 
+                        logging.error("247 - 3 consecutive timeouts detected - STOP PROCESS") 
                         subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  
                         return False 
 
@@ -296,7 +332,7 @@ def setup_stream_settings(
             driver = start_browser(stream_url) 
             if not driver: 
                 return False 
-            logging.info("Configuring RTMP key and chat settings...") 
+            logging.info("289 - Configuring RTMP key and chat settings...") 
             driver.find_element(By.XPATH, "/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[1]/div[1]/ytls-live-control-room-renderer/div[1]/ytls-widget-section/ytls-stream-settings-widget-renderer/div[2]/div[1]/ytls-metadata-collection-renderer/div[2]/div/ytls-metadata-control-renderer[6]/div/ytls-latency-control-renderer/tp-yt-paper-radio-group/tp-yt-paper-radio-button[3]/div[1]").click() 
             time.sleep(5) 
             driver.find_element(By.XPATH, "/html/body/ytcp-app/ytls-live-streaming-section/ytls-core-app/div/div[2]/div/ytls-live-dashboard-page-renderer/div[1]/div[1]/ytls-live-control-room-renderer/div[1]/div/div/div[1]/div[1]/ytls-player-renderer/div[2]/div/div/div[1]/ytls-ingestion-dropdown-trigger-renderer/tp-yt-paper-input/tp-yt-paper-input-container/div[2]/span[2]/yt-icon/span").click() 
@@ -328,11 +364,11 @@ def setup_stream_settings(
                     WebDriverWait(driver, 30).until( 
                         EC.presence_of_element_located((By.XPATH, "/html/body/ytcp-app/ytcp-toast-manager/tp-yt-paper-toast")) 
                     )
-                    logging.info("Toast notification appeared") 
+                    logging.info("289 - Toast notification appeared") 
                     break 
                 except TimeoutException: 
-                    logging.info("Toast notification not found, continuing to wait...") 
-            logging.info("RTMP key configuration updated successfully...") 
+                    logging.info("289 - Toast notification not found, continuing to wait...") 
+            logging.info("289 - RTMP key configuration updated successfully...") 
             driver.quit() 
             subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"]) 
             if driver: 
@@ -341,23 +377,23 @@ def setup_stream_settings(
         except SessionNotCreatedException as e: 
             try_count += 1 
             if try_count >= 3: 
-                logging.error(f"Session not created: [{e}] Critical Error KILL ALL") 
+                logging.error(f"289 - Session not created: [{e}] Critical Error KILL ALL") 
                 os.system("start check_tv.py KILL") 
                 psutil.Process(os.getpid()).terminate() 
             if "DevToolsActivePort file doesn't exist" in str(e): 
-                logging.error(f"Chrome WebDriver failed to start: [{e}] DevToolsActivePort file doesn't exist. Terminating all Chrome processes and retry.") 
+                logging.error(f"289 - Chrome WebDriver failed to start: [{e}] DevToolsActivePort file doesn't exist. Terminating all Chrome processes and retry.") 
             else: 
-                logging.error(f"Session not created: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") 
+                logging.error(f"289 - Session not created: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") 
             subprocess.run(["taskkill", "/f", "/im", "chrome.exe"]) 
             subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  
             time.sleep(5) 
         except Exception as e: 
             try_count += 1 
             if try_count >= 3: 
-                logging.error(f"Session not created: [{e}] Critical Error KILL ALL") 
+                logging.error(f"289 - Session not created: [{e}] Critical Error KILL ALL") 
                 os.system("start check_tv.py KILL") 
                 exit(1) 
-            logging.error(f"Unexpected error: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") 
+            logging.error(f"289 - Unexpected error: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") 
             subprocess.run(["taskkill", "/f", "/im", "chrome.exe"]) 
             subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  
             time.sleep(5) 
@@ -369,11 +405,11 @@ def ending_stream(stream_url):
             driver = start_browser(stream_url) 
             if not driver: 
                 return False 
-            logging.info("Stop livestream manually...")  
+            logging.info("365 - Stop livestream manually...")  
             try: 
                 header_title = driver.find_element(By.XPATH, '//*[@id="header-title"]') 
                 if header_title: 
-                    logging.info("Found already ended, breaking loop...") 
+                    logging.info("365 - Found already ended, breaking loop...") 
                     subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  
                     if driver:  
                         driver.quit()  
@@ -384,7 +420,7 @@ def ending_stream(stream_url):
             time.sleep(3)  
             driver.find_element(By.XPATH, '/html/body/ytcp-confirmation-dialog/ytcp-dialog/tp-yt-paper-dialog/div[3]/div[2]/ytcp-button[2]/ytcp-button-shape/button').click()  
             time.sleep(10)  
-            logging.info("livestream ended successfully...")  
+            logging.info("365 - livestream ended successfully...")  
             driver.quit()  
             subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  
             if driver:  
@@ -393,25 +429,25 @@ def ending_stream(stream_url):
         except SessionNotCreatedException as e: 
             try_count += 1  
             if try_count >= 3:  
-                logging.error(f"Session not created: [{e}] Critical Error STOP PROCESS") 
+                logging.error(f"365 - Session not created: [{e}] Critical Error STOP PROCESS") 
                 subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  
                 subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  
                 return False 
             if "DevToolsActivePort file doesn't exist" in str(e): 
-                logging.error(f"Chrome WebDriver failed to start: [{e}] DevToolsActivePort file doesn't exist. Terminating all Chrome processes and retry.") 
+                logging.error(f"365 - Chrome WebDriver failed to start: [{e}] DevToolsActivePort file doesn't exist. Terminating all Chrome processes and retry.") 
             else: 
-                logging.error(f"Session not created: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") 
+                logging.error(f"365 - Session not created: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") 
             subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  
             subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  
             time.sleep(5) 
         except Exception as e: 
             try_count += 1  
             if try_count >= 3:  
-                logging.error(f"Session not created: [{e}] Critical Error STOP PROCESS") 
+                logging.error(f"365 - Session not created: [{e}] Critical Error STOP PROCESS") 
                 subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  
                 subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  
                 return False 
-            logging.error(f"Unexpected error: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") 
+            logging.error(f"365 - Unexpected error: [{e}] KILL ALL CHROME PROCESS AND TRY AGAIN") 
             subprocess.run(["taskkill", "/f", "/im", "chrome.exe"])  
             subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"])  
             time.sleep(5)     
@@ -421,7 +457,7 @@ def handle_stream_offline(
         ):  
     state['ending'] = True 
     if force_offline:  
-        logging.info(f"Force offline detected - initiating shutdown sequence... and play ending screen and stop starting new process")  
+        logging.info(f"419 - Force offline detected - initiating shutdown sequence... and play ending screen and stop starting new process")  
         stream_state["stop_right_now"] = True 
         if state['rtmp_server'] == "defrtmp": 
             ffmpeg = config.ffmpeg1      
@@ -429,35 +465,61 @@ def handle_stream_offline(
             ffmpeg = config.ffmpeg   
         subprocess.run(["taskkill", "/f", "/im", ffmpeg])
     if force_offline == "DEBUG" or force_offline == None:
-        logging.info("Stream offline status detected - initiating shutdown sequence... and play ending screen and start new process")  
+        logging.info("419 - Stream offline status detected - initiating shutdown sequence... and play ending screen and start new process")  
+        if state["spare_link"] is None:
+            logging.info("419 - Waiting for spare link to be NOT None this is sus...")
+            while state["spare_link"] is None:
+                time.sleep(1)
         base64_TITLE = base64.b64encode(json.dumps(TITLE, ensure_ascii=False).encode('utf-8')).decode('utf-8')
         base64_PART = base64.b64encode(json.dumps(PART, ensure_ascii=False).encode('utf-8')).decode('utf-8')
         base64_state = base64.b64encode(json.dumps(state, ensure_ascii=False).encode('utf-8')).decode('utf-8')
-        DATA_OMG = json.dumps({"TITLE": base64_TITLE,"PART": base64_PART,"state": base64_state})
+        base64_category = base64.b64encode(json.dumps(CATEGORY, ensure_ascii=False).encode('utf-8')).decode('utf-8')
+        DATA_OMG = json.dumps({"TITLE": base64_TITLE,"PART": base64_PART,"state": base64_state, "CATEGORY": base64_category})
         DATA_OMG_BASE64 = base64.b64encode(DATA_OMG.encode('utf-8')).decode('utf-8')
         subprocess.Popen(["start", "cmd" , "/c", "py", "check_tv.py", state["spare_link"], state["rtmp_server"], "Prev", DATA_OMG_BASE64], shell=True)
-    if PART["partnumber"] >= 0 and PART["part0"] is not None and TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and state['gmail_checking']:  
-        logging.info("Updating stream description to mark the end of the stream...BOTH")
+    if PART["partnumber"] >= 0 and PART["part0"] is not None and TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and state['gmail_checking'] and CATEGORY["currentnumber"] >= 1 and CATEGORY["part0"] is not None:  
+        logging.info("419 - Updating stream description to mark the end of the stream...ALL")
         threading.Thread(
             target=api_create_edit_schedule,
-            args=(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], None, "BOTH"),
+            args=(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], None, "ALL"),
             daemon=False
         ).start()
-    else:
-        if PART["partnumber"] >= 0 and PART["part0"] is not None:  
-            logging.info("Updating stream description to mark the end of the stream...PARTLIST")
-            threading.Thread(
-                target=api_create_edit_schedule,
-                args=(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], None, "PARTLIST"),
-                daemon=False
-            ).start()
-        if TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and state['gmail_checking']:  
-            logging.info("Updating stream description to mark the end of the stream...DESCRIPTION")
-            threading.Thread(
-                target=api_create_edit_schedule,
-                args=(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], None, "DESCRIPTION"),
-                daemon=False
-            ).start()
+    elif TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and state['gmail_checking'] and PART["partnumber"] >= 0 and PART["part0"] is not None:  
+        logging.info("419 - Updating stream description to mark the end of the stream...PARTANDDESC")
+        threading.Thread(
+            target=api_create_edit_schedule,
+            args=(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], None, "PARTANDDESC"),
+            daemon=False
+        ).start()
+    elif CATEGORY["currentnumber"] >= 1 and CATEGORY["part0"] is not None and PART["partnumber"] >= 0 and PART["part0"] is not None:  
+        logging.info("419 - Updating stream description to mark the end of the stream...PARTANDCAT")
+        threading.Thread(
+            target=api_create_edit_schedule,
+            args=(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], None, "PARTANDCAT"),
+            daemon=False
+        ).start()
+    elif CATEGORY["currentnumber"] >= 1 and CATEGORY["part0"] is not None and TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and state['gmail_checking']:  
+        logging.info("419 - Updating stream description to mark the end of the stream...DESCANDCAT")
+        threading.Thread(
+            target=api_create_edit_schedule,
+            args=(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], None, "DESCANDCAT"),
+            daemon=False
+        ).start()
+    elif PART["partnumber"] >= 0 and PART["part0"] is not None:  
+        logging.info("419 - Updating stream description to mark the end of the stream...PARTLIST")
+        threading.Thread(
+            target=api_create_edit_schedule,
+            args=(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], None, "PARTLIST"),
+            daemon=False
+        ).start()
+    elif TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and state['gmail_checking']:  
+        logging.info("419 - Updating stream description to mark the end of the stream...DESCRIPTION")
+        threading.Thread(
+            target=api_create_edit_schedule,
+            args=(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], None, "DESCRIPTION"),
+            daemon=False
+        ).start()
+
     if config.playvideo:  
         if state['rtmp_server'] == "defrtmp": 
             rtmp_key = config.rtmp_key_1  
@@ -467,9 +529,9 @@ def handle_stream_offline(
             ffmpeg = config.ffmpeg     
         os.system(f'{ffmpeg} -re -i ending.mp4 -c copy -f flv rtmp://a.rtmp.youtube.com/live2/{rtmp_key}')  
     if config.unliststream:  
-        logging.info("Setting stream visibility to public...")  
+        logging.info("419 - Setting stream visibility to public...")  
         share_settings_api(state['live_url'], "public")
-    logging.info("ending the stream...")  
+    logging.info("419 - ending the stream...")  
     ending_stream(state['live_url']) 
     state['exit_flag'] = True; return  
 
@@ -483,13 +545,40 @@ def switch_stream_config(
     else:
         reason = f"[Reason of switching is {state['reason']}(Part{PART["partnumber"]+1} is on https://youtube.com/watch?v={state['spare_link']})]" 
     api_create_edit_schedule(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], reason) 
-    if TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and state['gmail_checking']:  
-        logging.info("Updating stream description to mark the end of the stream...DESCRIPTION")
+    if TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and state['gmail_checking'] and CATEGORY["currentnumber"] >= 1 and CATEGORY["part0"] is not None:  
+        logging.info("476 - Updating stream description to mark the end of the stream...DESCANDCAT")
+        def DESCRIPTION_thread():
+            api_create_edit_schedule(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], None, "DESCANDCAT")
+            restart_title_arg()
+            restart_category_arg()
+            TITLE["currentnumber"] +=1
+            TITLE[f"part0"] = state["latest_cleantitle"]
+            stream = get_twitch_streams()
+            CATEGORY["currentnumber"] +=1
+            CATEGORY[f"part0"] = stream[0]['game_name']
+        threading.Thread(
+            target=DESCRIPTION_thread,
+            daemon=False
+        ).start()
+    elif TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and state['gmail_checking']:  
+        logging.info("476 - Updating stream description to mark the end of the stream...DESCRIPTION")
         def DESCRIPTION_thread():
             api_create_edit_schedule(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], None, "DESCRIPTION")
             restart_title_arg()
             TITLE["currentnumber"] +=1
             TITLE[f"part0"] = state["latest_cleantitle"]
+        threading.Thread(
+            target=DESCRIPTION_thread,
+            daemon=False
+        ).start()
+    elif CATEGORY["currentnumber"] >= 1 and CATEGORY["part0"] is not None:  
+        logging.info("476 - Updating stream description to mark the end of the stream...CATEGORY")
+        def DESCRIPTION_thread():
+            api_create_edit_schedule(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], None, "CATEGORY")
+            restart_category_arg()
+            stream = get_twitch_streams()
+            CATEGORY["currentnumber"] +=1
+            CATEGORY[f"part0"] = stream[0]['game_name']
         threading.Thread(
             target=DESCRIPTION_thread,
             daemon=False
@@ -505,9 +594,9 @@ def switch_stream_config(
     if Timer is None:  
         state["restart_timer"] = True  
     if config.unliststream and config.public_notification:
-        logging.info("new stream back to unlisted") 
+        logging.info("476 - new stream back to unlisted") 
         share_settings_api(state['spare_link'], "unlisted")
-    logging.info("ending the old stream...")  
+    logging.info("476 - ending the old stream...")  
     ending_stream(state['live_url'])
     state['titleforgmail'] = gotten_title 
     state['live_url'] = state['spare_link']  
@@ -532,13 +621,12 @@ def share_settings_api(live_id, share):
             return response['id']  
         except Exception as e:  
             if 'quotaExceeded' in str(e):  
-                logging.info(f"API quota exceeded, skipping execution to avoid further errors")  
+                logging.info(f"517 - API quota exceeded, skipping execution to avoid further errors")  
                 return False
             if hitryagain == 3:  
-                logging.info(f"Error and stoping because of error that can't fix")  
+                logging.info(f"517 - Error and stoping because of error that can't fix {e}")  
                 return False
             hitryagain += 1  
-            logging.info(f"Error: {e}")  
             time.sleep(5)  
 
 def is_youtube_livestream_live(video_id):  
@@ -552,21 +640,24 @@ def is_youtube_livestream_live(video_id):
             TRY += 1 
             time.sleep(5)
             if TRY == 3: 
-                logging.info(f"try 3 times is still offline")  
+                logging.info(f"544 - try 3 times is still offline")  
                 return False  
         except Exception as e:  
-            logging.error(f"Error checking YouTube livestream status: {e}")  
+            logging.error(f"544 - Error checking YouTube livestream status: {e}")  
             return "ERROR"  
 
 def refresh_stream_title():  
     while not state['ending']:
         try:
-            twitch_title = get_twitch_stream_title()  
+            twitch_title = get_twitch_stream_title(True)  
             newtitle = ' '.join(twitch_title.split()).replace("<", "").replace(">", "")  
+            if DEBUG["change_something_title"] is not None:
+                logging.info("561 - DEBUG mode active - changing title to debug value")
+                newtitle = DEBUG["change_something_title"]
             if newtitle and newtitle[0] == " ": 
                 newtitle = newtitle[1:] 
             if state["latest_cleantitle"] != newtitle:  
-                logging.info(f"Title discrepancy detected: {state["latest_cleantitle"]} does not match {newtitle}")  
+                logging.info(f"561 - Title discrepancy detected: {state["latest_cleantitle"]} does not match {newtitle}")  
                 while state['thread_in_use']: 
                     time.sleep(1)  
                 state['thread_in_use'] = True 
@@ -574,25 +665,73 @@ def refresh_stream_title():
                 state['thread_in_use'] = False 
                 TITLE["currentnumber"] += 1
                 TITLE[f"part{TITLE["currentnumber"]}"] = newtitle
-                logging.info('edit finished continue the stream')  
-                logging.info(f"Successfully retrieved stream title: {state['titleforgmail']} contiune offline check")  
+                logging.info("561 - edit finished continue the stream")  
                 if state["latest_cleantitle"] != newtitle: 
-                    logging.error(f"Title discrepancy still exists after edit: {newtitle} does not match {state["latest_cleantitle"]}") 
-                    logging.info("Stopping immediately due to persistent title discrepancy") 
+                    logging.error(f"561 - Title discrepancy still exists after edit: {newtitle} does not match {state["latest_cleantitle"]}") 
+                    logging.info("561 - Stopping immediately due to persistent title discrepancy") 
                     state['gmail_checking'] = False 
                     break 
-                time.sleep(300)  
+                time.sleep(180)  
             else: 
-                time.sleep(300) 
+                time.sleep(180) 
         except UnboundLocalError as e:  
-                logging.warning(f"Encountered UnboundLocalError when getting title: {str(e)} - disabling gmail checking and title checking continue at your own risk")  
+                logging.warning(f"561 - Encountered UnboundLocalError when getting title: {str(e)} - disabling gmail checking and title checking continue at your own risk")  
                 state['gmail_checking'] = False 
                 break 
         except Exception as e:  
-                logging.error(f"Error getting stream title: {str(e)} - disabling gmail checking and title checking continue at your own risk")  
+                logging.error(f"561 - Error getting stream title: {str(e)} - disabling gmail checking and title checking continue at your own risk")  
                 state['gmail_checking'] = False 
                 break 
-    logging.info("refresh stream title has stopped")  
+    logging.info("561 - refresh stream title has stopped")  
+
+def refresh_stream_category():
+    TRY = 0
+    sleeping = False
+    while not state['ending']:
+        try:
+            stream = get_twitch_streams()
+            twitch_category = stream[0]['game_name']
+            if DEBUG["change_something_cat"] is not None:
+                logging.info("579 - DEBUG mode active - changing category to debug value")
+                twitch_category = DEBUG["change_something_cat"]
+            if CATEGORY['currentnumber'] == -1 and CATEGORY["part0"] is None:
+                CATEGORY['currentnumber'] += 1
+                CATEGORY["part0"] = twitch_category
+            if CATEGORY[f"part{CATEGORY['currentnumber']}"] != twitch_category:
+                if twitch_category == "I'm Only Sleeping" and config.subathon == True and not sleeping:
+                    logging.info("579 - Detected 'I'm Only Sleeping' category with subathon enabled - switching streams immediately")
+                    while state['thread_in_use']:
+                        time.sleep(1)
+                    state['thread_in_use'] = True
+                    state['reason'] = "Detected catetgory switch to 'I'm Only Sleeping'" 
+                    switch_stream_config()
+                    state['thread_in_use'] = False
+                    sleeping = True
+                elif sleeping and config.subathon == True:
+                    logging.info("579 - Woke up from 'I'm Only Sleeping' category with subathon enabled - switching streams immediately")
+                    while state['thread_in_use']:
+                        time.sleep(1)
+                    state['thread_in_use'] = True
+                    state['reason'] = "Woke up from 'I'm Only Sleeping' category" 
+                    switch_stream_config()
+                    state['thread_in_use'] = False
+                    sleeping = False
+                else:
+                    logging.info(f"579 - Category discrepancy detected: {CATEGORY[f'part{CATEGORY['currentnumber']}']} does not match {twitch_category}")
+                    CATEGORY['currentnumber'] += 1
+                    CATEGORY[f"part{CATEGORY['currentnumber']}"] = twitch_category
+                    while state['thread_in_use']:
+                        time.sleep(1)
+                    state['thread_in_use'] = True
+                    api_create_edit_schedule(PART["partnumber"]+1, state['rtmp_server'], "EDIT", state['live_url'])
+                    state['thread_in_use'] = False
+                    logging.info("579 - Category edit finished, continuing the stream")
+            time.sleep(180)  
+        except Exception as e:  
+                state['thread_in_use'] = False
+                logging.error(f"579 - Error getting stream category: {str(e)}")  
+                time.sleep(300)
+    logging.info("579 - refresh stream category has stopped")
 
 def find_thrid_party_notification():  
     detect_times = 0 
@@ -611,16 +750,18 @@ def find_thrid_party_notification():
                     received_time = datetime.fromtimestamp(int(msg['internalDate']) / 1000)  
                     subject = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'subject'), '')  
                     sender = next((header['value'] for header in msg['payload']['headers'] if header['name'].lower() == 'from'), '')  
-                    if received_time >= minutes_ago and title in subject and ("no-reply@youtube.com" in sender or "neurosamaarchive@gmail.com" in sender):  
-                        logging.info(f"Found email from YouTube: {subject}")  
+                    if received_time >= minutes_ago and title in subject and ("no-reply@youtube.com" in sender):  
+                        logging.info(f"596 - Found email from YouTube: {subject}")  
                         while state['thread_in_use']: 
                             time.sleep(1)  
                         state['thread_in_use'] = True 
-                        logging.info("Third-party notification detected - switching to backup stream...")  
+                        logging.info("596 - Third-party notification detected - switching to backup stream...")  
                         if detect_times == 0: 
                             first_time = time.time() 
                         if detect_times >= 3 and (time.time() - first_time) <= 2100: 
-                            logging.info("Three notifications detected within 35 mins - stopping restreaming and stop running")  
+                            logging.info("596 - Three notifications detected within 35 mins - stopping restreaming and stop running")  
+                            reason = "Third-party notification detected 3 times in 35 minutes, the stream is stopped to avoid further issues."
+                            api_create_edit_schedule(PART["partnumber"], state['rtmp_server'], "EDIT", state['live_url'], reason) 
                             handle_stream_offline(True) 
                             state['thread_in_use'] = False 
                             break 
@@ -633,31 +774,31 @@ def find_thrid_party_notification():
                         detect_times += 1 
             time.sleep(40) 
         except Exception as e:  
-            logging.error(f"Error in find_gmail_title: {e}")  
+            logging.error(f"596 - Error in find_gmail_title: {e}")  
             state['thread_in_use'] = False 
             time.sleep(180)  
-    logging.info("find gmail title has stopped")  
+    logging.info("596 - find gmail title has stopped")  
 
 def hours_checker(): 
     while not state['ending']: 
         for _ in range(4122):
             if state['restart_timer']:  
                 state['restart_timer'] = False  
-                logging.info("Restart timer detected - resetting 12-hour timer...")  
+                logging.info("642 - Restart timer detected - resetting 12-hour timer...")  
                 hours_checker()
                 break  
             time.sleep(10)  
-        logging.info("Stream duration limit near 12h reached - initiating scheduled reload...")  
+        logging.info("642 - Stream duration limit near 12h reached - initiating scheduled reload...")  
         while state['thread_in_use']: 
             time.sleep(1)  
         state['thread_in_use'] = True 
         state['reason'] = "stream duration limit near 12h reached" 
         switch_stream_config(True)  
         state['thread_in_use'] = False 
-    logging.info("hours checker has stopped")  
+    logging.info("642 - hours checker has stopped")  
     
 def handle_user_input(): 
-    print("DEBUG MODE IS ENABLE YOU CAN ONLY EXIT OR FORCE OFFINE OR STATE OR FORCE SWITCH")
+    logging.info("660 - DEBUG MODE IS ENABLE YOU CAN ONLY EXIT OR FORCE OFFINE OR STATE OR FORCE SWITCH")
     print("> ", end='', flush=True)
     user_input = ""
     while not state['ending']:
@@ -669,7 +810,7 @@ def handle_user_input():
             if char == '\r':  
                 print()
                 if user_input.strip().upper() == "EXIT":
-                    logging.info("Terminating script...")
+                    logging.info("660 - Terminating script...")
                     state['exit_flag'] = True; return  
                 #elif user_input == "REFRESH":
                     #logging.info("REFRESH EXIT AND CREATE NEW CMD") 
@@ -682,7 +823,7 @@ def handle_user_input():
                 elif user_input == "STOP":
                     break
                 elif user_input == "FORCE OFFLINE":
-                    logging.info("FORCE OFFLINE COMMAND DETECTED")
+                    logging.info("660 - FORCE OFFLINE COMMAND DETECTED")
                     while state['thread_in_use']: 
                         time.sleep(1)  
                     state['thread_in_use'] = True 
@@ -690,21 +831,41 @@ def handle_user_input():
                     state['thread_in_use'] = False
                     break
                 elif user_input == "STATE":
-                    logging.info(f"Current STATE: {state}\n")
-                    logging.info(f"Current PART: {PART}\n")
-                    logging.info(f"Current TITLE: {TITLE}\n")
-                    logging.info(f"Current STREAM STATE: {stream_state}\n")
-                    logging.info(f"Current DESCRIPTION: {DESCRIPTION}\n")
+                    logging.info(f"660 - Current STATE: {state}\n")
+                    logging.info(f"660 - Current PART: {PART}\n")
+                    logging.info(f"660 - Current TITLE: {TITLE}\n")
+                    logging.info(f"660 - Current CATEGORY: {CATEGORY}\n")
+                    logging.info(f"660 - Current DEBUG: {DEBUG}\n")
+                    logging.info(f"660 - Current STREAM STATE: {stream_state}\n")
+                    logging.info(f"660 - Current DESCRIPTION: {DESCRIPTION}\n")
                     user_input = ""
                     print("> ", end='', flush=True)
                 elif user_input == "FORCE SWITCH":
-                    logging.info("FORCE SWITCH COMMAND DETECTED")
+                    logging.info("660 - FORCE SWITCH COMMAND DETECTED")
                     while state['thread_in_use']: 
                         time.sleep(1)  
                     state['thread_in_use'] = True 
                     state['reason'] = "force switch command detected" 
                     switch_stream_config()  
                     state['thread_in_use'] = False
+                    user_input = ""
+                    print("> ", end='', flush=True)
+                elif user_input.startswith("CHANGE CAT TO"):
+                    new_cat = user_input.replace("CHANGE CAT TO ", "").strip()
+                    logging.info(f"660 - CHANGE CAT TO COMMAND DETECTED - changing category to {new_cat}")
+                    if new_cat == "None":
+                        DEBUG["change_something_cat"] = None
+                    else:
+                        DEBUG["change_something_cat"] = new_cat
+                    user_input = ""
+                    print("> ", end='', flush=True)
+                elif user_input.startswith("CHANGE TITLE TO"):
+                    new_title = user_input.replace("CHANGE TITLE TO ", "").strip()
+                    logging.info(f"660 - CHANGE TITLE TO COMMAND DETECTED - changing title to {new_title}")
+                    if new_title == "None":
+                        DEBUG["change_something_title"] = None
+                    else:
+                        DEBUG["change_something_title"] = new_title
                     user_input = ""
                     print("> ", end='', flush=True)
                 else:
@@ -720,28 +881,28 @@ def handle_user_input():
         time.sleep(0.1)
     while msvcrt.kbhit():
         msvcrt.getwch()
-    logging.info("handle user input has stopped")
+    logging.info("660 - handle user input has stopped")
 
 def handle_input(status, live_url, rtmp_server):
-    print("DEBUG MODE [Valid commands: EXIT, REFRESH, STOP]:")
+    logging.info("726 - DEBUG MODE [Valid commands: EXIT, REFRESH, STOP]:")
     print("> ", end='', flush=True)
     user_input = ""
     while not status['status']:
         if status['status']:
-            print("\nStatus changed - stopping debug mode")
+            logging.info("726 - Status changed - stopping debug mode")
             break
         if msvcrt.kbhit():
             char = msvcrt.getwch()
             if char == '\r':  
                 print()
                 if user_input.strip().upper() == "EXIT":
-                    logging.info("Terminating script...")
+                    logging.info("726 - Terminating script...")
                     psutil.Process(os.getpid()).terminate()
                 elif user_input == "REFRESH":
-                    logging.info("Starting new process...")
+                    logging.info("726 - Starting new process...")
                     cmd = ["start", "cmd" , "/c", "py", "check_tv.py", live_url, rtmp_server]
                     subprocess.Popen(cmd, shell=True)
-                    logging.info("Terminating current process...")
+                    logging.info("726 - Terminating current process...")
                     psutil.Process(os.getpid()).terminate()
                 elif user_input == "STOP":
                     break
@@ -758,7 +919,7 @@ def handle_input(status, live_url, rtmp_server):
         time.sleep(0.1)
     while msvcrt.kbhit():
         msvcrt.getwch()
-    logging.info("handle user input has stopped")
+    logging.info("726 - handle user input has stopped")
 
 def get_twitch_streams():  
     ERROR = 0 
@@ -770,74 +931,89 @@ def get_twitch_streams():
                 token_data = token_response.json()  
                 access_token = token_data.get('access_token')  
                 if not access_token:  
-                    logging.info("Access token not found in response") 
+                    logging.info("764 - Access token not found in response") 
                     return "ERROR" 
             except requests.exceptions.ConnectionError as e: 
-                logging.error(f"No internet connection or connection error: {e}") 
-                return "ERROR" 
+                ERROR += 1 
+                if ERROR == 3: 
+                    logging.error(f"764 - No internet connection or connection error: {e}") 
+                    return "ERROR" 
             except requests.exceptions.Timeout as e: 
-                logging.error(f"Request timed out: {e}") 
-                return "ERROR" 
-            except requests.exceptions.RequestException as e: 
-                logging.error(f"Error obtaining Twitch access token: {e}")  
-                return "ERROR" 
+                ERROR += 1 
+                if ERROR == 3: 
+                    logging.error(f"764 - Request timed out: {e}") 
+                    return "ERROR" 
+            except requests.exceptions.RequestException as e:  
+                ERROR += 1 
+                if ERROR == 3: 
+                    logging.error(f"764 - Error obtaining Twitch access token: {e}") 
+                    return "ERROR" 
             except ValueError as ve: 
-                logging.error(f"Error in response data: {ve}")  
-                return "ERROR" 
+                ERROR += 1 
+                if ERROR == 3: 
+                    logging.error(f"764 - Error in response data: {ve}")  
+                    return "ERROR" 
             headers = {'Authorization': f'Bearer {access_token}', 'Client-ID': config.client_id}  
             streams_response = requests.get(f'https://api.twitch.tv/helix/streams?user_login={config.username}', headers=headers, timeout=10)  
             streams_data = streams_response.json()  
             if streams_response.status_code == 401 and streams_data.get('message') == 'Invalid OAuth token': 
-                logging.error("Invalid OAuth token: Unauthorized access to Twitch API (Normal Error Sometimes)") 
+                logging.error("764 - Invalid OAuth token: Unauthorized access to Twitch API (Normal Error Sometimes)") 
                 ERROR += 1 
                 if ERROR == 3: 
-                    logging.info("3 times Invalid OAuth token: NOT SO NORMAL") 
+                    logging.info("764 - 3 times Invalid OAuth token: NOT SO NORMAL") 
                     return "ERROR" 
             elif 'data' not in streams_data: 
-                logging.error("'data' key not found in Twitch API response")  
-                logging.error(f"Invalid Twitch API response: {streams_data}") 
+                logging.error("764 - 'data' key not found in Twitch API response")  
+                logging.error(f"764 - Invalid Twitch API response: {streams_data}") 
                 ERROR += 1 
                 if ERROR == 3: 
-                    logging.info("3 times Unknown Error: NOT NORMAL") 
+                    logging.info(f"764 - 3 times invalid Twitch API response: {streams_data}") 
                     return "ERROR" 
             else: 
                 return streams_data['data']  
         except Exception as e:  
-            logging.error(f"Error fetching Twitch stream data: {e}")  
+            logging.error(f"764 - Error fetching Twitch stream data: {e}")  
             ERROR += 1 
             if ERROR == 3: 
-                logging.info("3 times General Error: NOT NORMAL") 
+                logging.info("764 - 3 times General Error: NOT NORMAL") 
                 return "ERROR" 
     
 
-def get_twitch_stream_title():  
+def get_twitch_stream_title(refresh=False):  
     MAX_RETRIES = 3 
     RETRY_DELAY = 5 
     for attempt in range(MAX_RETRIES):  
         try: 
             streams = get_twitch_streams()  
             if not streams or streams == "ERROR":  
-                logging.error("Error API, returning fallback title")  
-                return f"Stream_{datetime.now().strftime('%Y-%m-%d')}" 
+                logging.error("826 - Error API, returning fallback title")  
+                logging.error(f"826 - Streams data: {streams}")
+                if refresh:
+                    return state["latest_cleantitle"]
+                else:
+                    return f"Stream_{datetime.now().strftime('%Y-%m-%d')}" 
             if streams:  
-                return streams[0]['title'] 
+                return streams[0]['title']
         except Exception as e: 
-            logging.error(f"Error getting Twitch stream info (attempt {attempt + 1}/{MAX_RETRIES}): {e}")  
+            logging.error(f"826 - Error getting Twitch stream info (attempt {attempt + 1}/{MAX_RETRIES}): {e}")  
             if attempt < MAX_RETRIES - 1:  
                 time.sleep(RETRY_DELAY) 
             else: 
-                logging.error("Max retries reached, returning fallback title")  
-                return f"Stream_{datetime.now().strftime('%Y-%m-%d')}" 
+                logging.error("826 - Max retries reached, returning fallback title")  
+                if refresh:
+                    return state["latest_cleantitle"]
+                else:
+                    return f"Stream_{datetime.now().strftime('%Y-%m-%d')}"   
 
 def check_process_running():  
     process_name = "countdriver.exe"  
-    logging.info("Checking for existing browser automation processes...")  
+    logging.info("852 - Checking for existing browser automation processes...")  
     while True:
         if any(process.info['name'] == process_name for process in psutil.process_iter(['pid', 'name'])):  
-                logging.info("Browser automation process already running - waiting for completion...")  
+                logging.info("852 - Browser automation process already running - waiting for completion...")  
                 time.sleep(15)  
         else:
-            logging.info("No conflicting processes found - proceeding...")  
+            logging.info("852 - No conflicting processes found - proceeding...")  
             break  
     return 
 
@@ -855,11 +1031,11 @@ def get_service():
                 creds.refresh(Request())  
             else: 
                 if not config.brandacc:  
-                    logging.info("Token not found or invalid. Starting authentication flow...")  
+                    logging.info("864 - Token not found or invalid. Starting authentication flow...")  
                     flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                     creds = flow.run_local_server(port=6971, brandacc="Nope")  
                 if config.brandacc:  
-                    logging.info("YouTube token not found or invalid. Starting authentication flow...")  
+                    logging.info("864 - YouTube token not found or invalid. Starting authentication flow...")  
                     flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                     creds = flow.run_local_server(port=6971, brandacc="havebrand")  
                 with open(USER_TOKEN_FILE, 'w') as token:  
@@ -868,18 +1044,18 @@ def get_service():
     except Exception as e:  
         if "invalid_grant" in str(e):  
             if not config.brandacc:  
-                logging.info("Token not found or invalid. Starting authentication flow...")  
+                logging.info("864 - Token not found or invalid. Starting authentication flow...")  
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                 creds = flow.run_local_server(port=6971, brandacc="Nope")  
             if config.brandacc:  
-                logging.info("YouTube token not found or invalid. Starting authentication flow...")  
+                logging.info("864 - YouTube token not found or invalid. Starting authentication flow...")  
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_BRAND, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                 creds = flow.run_local_server(port=6971, brandacc="havebrand")  
             with open(USER_TOKEN_FILE, 'w') as token:  
                 token.write(creds.to_json())  
             return build('youtube', 'v3', credentials=creds)  
         else: 
-            logging.error(f"Error in get_service: {e}")  
+            logging.error(f"864 - Error in get_service: {e}")  
             exit(1)  
 
 def get_gmail_service():  
@@ -897,13 +1073,13 @@ def get_gmail_service():
                 creds.refresh(Request())  
             else: 
                 if config.brandacc:  
-                    logging.info("Gmail token not found or invalid. Starting authentication flow...")  
+                    logging.info("905 - Gmail token not found or invalid. Starting authentication flow...")  
                     flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                     creds = flow.run_local_server(port=6971, brandacc="Nope")  
                     with open(GMAIL_TOKEN_FILE, 'w') as token:  
                         token.write(creds.to_json())  
                 if not config.brandacc:  
-                    logging.info("Token not found or invalid. Starting authentication flow...")  
+                    logging.info("905 - Token not found or invalid. Starting authentication flow...")  
                     flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                     creds = flow.run_local_server(port=6971, brandacc="Nope")  
                     with open(USER_TOKEN_FILE, 'w') as token:  
@@ -912,20 +1088,20 @@ def get_gmail_service():
     except Exception as e:  
         if "invalid_grant" in str(e):  
             if config.brandacc:  
-                logging.info("Gmail token not found or invalid. Starting authentication flow...")  
+                logging.info("905 - Gmail token not found or invalid. Starting authentication flow...")  
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES_GMAIL, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                 creds = flow.run_local_server(port=6971, brandacc="Nope")  
                 with open(GMAIL_TOKEN_FILE, 'w') as token:  
                     token.write(creds.to_json())  
             if not config.brandacc:  
-                logging.info("Token not found or invalid. Starting authentication flow...")  
+                logging.info("905 - Token not found or invalid. Starting authentication flow...")  
                 flow = InstalledAppFlow.from_client_secrets_file(APP_TOKEN_FILE, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')  
                 creds = flow.run_local_server(port=6971, brandacc="Nope")  
                 with open(USER_TOKEN_FILE, 'w') as token:  
                     token.write(creds.to_json())  
             return build('gmail', 'v1', credentials=creds)  
         else: 
-            logging.error(f"Error in get_gmail_service: {e}")  
+            logging.error(f"905 - Error in get_gmail_service: {e}")  
             exit(1)  
 
 def detect_script( 
@@ -950,7 +1126,7 @@ def ensure_font_for_text(
     font_info = FONT_MAP.get(script, FONT_MAP['default']) 
     font_path = font_info['file'] 
     if not os.path.exists(font_path): 
-        logging.info(f"Downloading font for script: {script}") 
+        logging.info(f"966 - Downloading font for script: {script}") 
         urllib.request.urlretrieve(font_info['url'], font_path) 
     return font_path 
 
@@ -1029,7 +1205,7 @@ def create_thumbnail(
             logo = logo.resize(logo_size, Image.Resampling.LANCZOS) 
             image.paste(logo, (50, 50), logo if logo.mode == 'RGBA' else None) 
         except: 
-            logging.info("No channel logo found, continuing without it") 
+            logging.info("977 - No channel logo found, continuing without it") 
         date_str = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}(GMT+8)" 
         try: 
             date_font = ImageFont.truetype(font_path, 40) 
@@ -1044,7 +1220,7 @@ def create_thumbnail(
         image.save(thumbnail_path, "JPEG", quality=95) 
         return thumbnail_path 
     except Exception as e: 
-        logging.error(f"Error creating thumbnail: {e}") 
+        logging.error(f"977 - Error creating thumbnail: {e}") 
         return None 
 
 def edit_live_stream( 
@@ -1077,11 +1253,11 @@ def edit_live_stream(
                            videoId=video_id, 
                            media_body=thumbnail_path 
                            ).execute() 
-                        logging.info("Successfully set custom thumbnail") 
+                        logging.info("1070 - Successfully set custom thumbnail") 
                         os.remove(thumbnail_path) 
-                        logging.info("Thumbnail file removed after upload") 
+                        logging.info("1070 - Thumbnail file removed after upload") 
                     except Exception as e: 
-                        logging.error(f"Failed to set thumbnail: {e}") 
+                        logging.error(f"1070 - Failed to set thumbnail: {e}") 
                         if os.path.exists(thumbnail_path): 
                             os.remove(thumbnail_path) 
             else: 
@@ -1089,16 +1265,16 @@ def edit_live_stream(
             return response['id'] 
         except Exception as e: 
             if hitryagain >= 3: 
-                logging.info(f"Error and stoping because of error that can't fix") 
+                logging.info(f"1070 - Error and stoping because of error that can't fix") 
                 return False 
             if 'The request metadata specifies an invalid or empty video title.' in str(e): 
-                logging.info(f"Use default title because of invalid title: {new_title}") 
+                logging.info(f"1070 - Use default title because of invalid title: {new_title}") 
                 new_title = datetime.now().strftime("Stream_%Y-%m-%d %H:%M:%S") 
             if 'quotaExceeded' in str(e): 
-                logging.info(f"Error and stoping because of api limited") 
+                logging.info(f"1070 - Error and stoping because of api limited") 
                 psutil.Process(os.getpid()).terminate() 
             hitryagain += 1 
-            logging.info(f"Error: {e}") 
+            logging.info(f"1070 - Error: {e}") 
             time.sleep(5) 
 
 def get_youtube_stream_title(
@@ -1118,13 +1294,13 @@ def get_youtube_stream_title(
             return "ERROR GETTING TITLE SORRY" 
         except Exception as e: 
             if 'quotaExceeded' in str(e): 
-                logging.info(f"Error and stoping because of api limited") 
+                logging.info(f"1124 - Error and stoping because of api limited") 
                 return False 
             if try_count == 3: 
-                logging.info(f"Error and stoping because of error that can't fix") 
+                logging.info(f"1124 - Error and stoping because of error that can't fix") 
                 return False 
             try_count += 1 
-            logging.info(f"Error: {e}") 
+            logging.info(f"1124 - Error: {e}") 
             time.sleep(5) 
 
 def create_live_stream( 
@@ -1174,7 +1350,7 @@ def create_live_stream(
                     )
                     playlist_request.execute() 
                 except Exception as playlist_error: 
-                    logging.error(f"Failed to add video to playlist: {playlist_error}") 
+                    logging.error(f"1150 - Failed to add video to playlist: {playlist_error}") 
             if not config.playlist_id0 == "Null" and not config.playlist_id1 == "Null": 
                 try: 
                     playlist_request = service.playlistItems().insert( 
@@ -1191,17 +1367,17 @@ def create_live_stream(
                     )
                     playlist_request.execute() 
                 except Exception as playlist_error: 
-                    logging.error(f"Failed to add video to playlist: {playlist_error}") 
+                    logging.error(f"1150 - Failed to add video to playlist: {playlist_error}") 
             return video_id 
         except Exception as e: 
             if 'quotaExceeded' in str(e): 
-                logging.info(f"Error and stoping because of api limited") 
+                logging.info(f"1070 - Error and stoping because of api limited") 
                 psutil.Process(os.getpid()).terminate() 
             if hitryagain == 3: 
-                logging.info(f"Error and stoping because of error that can't fix") 
+                logging.info(f"1070 - Error and stoping because of error that can't fix") 
                 psutil.Process(os.getpid()).terminate() 
             hitryagain += 1 
-            logging.info(f"Error: {e}") 
+            logging.info(f"1070 - Error: {e}") 
             time.sleep(5) 
 
 def api_load( 
@@ -1209,9 +1385,9 @@ def api_load(
     brandacc 
     ):  
     from logger_config import check_tv_logger as logging 
-    logging.info("create api keying ---edit_tv---") 
+    logging.info("1227 - create api keying ---edit_tv---") 
     home_dir = os.path.expanduser("~")  
-    logging.info("run with countdriver.exe and check") 
+    logging.info("1227 - run with countdriver.exe and check") 
     check_process_running() 
     subprocess.Popen(["start", "countdriver.exe"], shell=True) 
     options = Options() 
@@ -1247,14 +1423,14 @@ def api_load(
             time.sleep(1)
     driver.quit() 
     subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"]) 
-    logging.info("finish idk ---edit_tv---") 
+    logging.info("1227 - finish idk ---edit_tv---") 
 
 def check_is_live_api( 
     url, 
     ffmpeg, 
     rtmp_server 
     ):  
-    logging.info("Waiting for 40sec live on YouTube") 
+    logging.info("1272 - Waiting for 40sec live on YouTube") 
     time.sleep(40) 
     new_url = f"https://youtube.com/watch?v={url}" 
     count_error = 0 
@@ -1267,11 +1443,11 @@ def check_is_live_api(
         try: 
             streams = streamlink.streams(new_url) 
             hls_stream = streams["best"] 
-            logging.info('It is live now') 
+            logging.info('1272 - It is live now') 
             break 
         except KeyError as e: 
-            logging.error(f'Stream not available: {str(e)}') 
-            logging.info('The stream is messed up. Trying again...') 
+            logging.error(f'1272 - Stream not available: {str(e)}') 
+            logging.info('1272 - The stream is messed up. Trying again...') 
             time.sleep(2) 
             stream_state["stop_right_now"] = True 
             subprocess.run(["taskkill", "/f", "/im", ffmpeg]) 
@@ -1279,7 +1455,7 @@ def check_is_live_api(
             time.sleep(35) 
             count_error += 1 
         if count_error >= MAX_RETRIES: 
-            logging.info("Retry limit exceeded. Shutting down.") 
+            logging.info("1272 - Retry limit exceeded. Shutting down.") 
             os.system("start check_tv.py KILL")
             psutil.Process(os.getpid()).terminate() 
 
@@ -1298,9 +1474,12 @@ def api_create_edit_schedule(
     else: 
         username = config.StreamerName 
     TESTING = "[TESTING WILL BE REMOVE AFTER]" if config.exp_tesing else "" 
-    if not is_reload or is_reload == "EDIT" or is_reload == "PREVDECRIPTION": 
+    if not is_reload or is_reload == "EDIT" or is_reload == "PREVDECRIPTION" or is_reload == "PREVCATEGORY" or is_reload == "PREVDESCANDCAT": 
         if not finish_title:  
             if filename is None:
+                if config.category:
+                    stream = get_twitch_streams()
+                    category = stream[0]['game_name']
                 if clean_title is None:
                     stream_title = get_twitch_stream_title() 
                     clean_title = ' '.join(stream_title.split()).replace("<", "").replace(">", "")  
@@ -1330,22 +1509,24 @@ def api_create_edit_schedule(
             ITISUNLISTED = "[THIS RESTREAMING PROCESS IS DONE UNLISTED]" if config.unliststream else "" 
             reason_description = f"""
 {reason}""" if reason is not None else "" 
+            category_description = f"""
+[Current Category: {category}]""" if config.category else ""
             Twitch_sub_or_turbo = "[AD-FREE: SUB/TURBO]" if config.brought_twitch_sub_or_turbo else "[ADS INCLUDE WILL AFFECT THE VIEWING EXPERIENCE]" 
             description = f"""{TESTING}{ITISUNLISTED}{Twitch_sub_or_turbo}
 Original broadcast from https://twitch.tv/{config.username} {reason_description}
-[Stream Title: {clean_title}]
+[Stream Title: {clean_title}] {category_description}
 More info: https://linktr.ee/karstenlee
 Archived using open-source tools: https://is.gd/archivescript Service by Karsten Lee
 Twitch Stream to YouTube Script Version: {script_version}
 {config.tags_for_youtube}""" 
             DESCRIPTION["description_first"] = f"""{TESTING}{ITISUNLISTED}{Twitch_sub_or_turbo}
 Original broadcast from https://twitch.tv/{config.username} {reason_description}""" 
-            DESCRIPTION["description_second"] = f"""[Stream Title: {clean_title}]
+            DESCRIPTION["description_second"] = f"""[Stream Title: {clean_title}] {category_description}
 More info: https://linktr.ee/karstenlee
 Archived using open-source tools: https://is.gd/archivescript Service by Karsten Lee
 Twitch Stream to YouTube Script Version: {script_version}
 {config.tags_for_youtube}""" 
-        if finish_title == "PARTLIST" or finish_title == "BOTH": 
+        if finish_title == "PARTLIST" or finish_title == "PARTANDDESC" or finish_title == "PARTANDCAT" or finish_title == "ALL": 
             try:
                 part_links = []
                 current_part = PART["partnumber"] 
@@ -1355,17 +1536,14 @@ Twitch Stream to YouTube Script Version: {script_version}
                         part_links.append(f"PART{current_part}: https://youtube.com/watch?v={PART[part_key]}")
                     current_part -= 1
                 parts_section = "\n".join(part_links)
-                part_list_description = f"""=====
-PART LIST(THIS IS THE LAST PART OF THE STREAM):
-{parts_section}
-"""
+                part_list_description = f"PART LIST(THIS IS THE LAST PART OF THE STREAM):\n{parts_section}"
                 if finish_title == "PARTLIST":
-                    description = f"{DESCRIPTION['description_first']}\n{part_list_description}=====\n{DESCRIPTION['description_second']}"
+                    description = f"{DESCRIPTION['description_first']}\n=====\n{part_list_description}\n=====\n{DESCRIPTION['description_second']}"
             except Exception as e:
-                logging.error(f"Error building part list description: {str(e)}")
+                logging.error(f"1306 - Error building part list description: {str(e)}")
                 part_list_description = ""
             filename = state['titleforgmail']
-        if finish_title == "DESCRIPTION" or finish_title == "BOTH" or is_reload == "PREVDECRIPTION":
+        if finish_title == "DESCRIPTION" or finish_title == "DESCANDCAT" or finish_title == "PARTANDDESC" or finish_title == "ALL" or is_reload == "PREVDECRIPTION" or is_reload == "PREVDESCANDCAT":
             try:
                 part_links = []
                 current_part = TITLE["currentnumber"]
@@ -1375,19 +1553,47 @@ PART LIST(THIS IS THE LAST PART OF THE STREAM):
                         part_links.append(f"Ver.{current_part}: {TITLE[part_key]}")
                     current_part -= 1
                 parts_section = "\n".join(part_links)
-                DESCRIPTION_list_description = f"""
-TITLE CHANGE LIST:
-{parts_section}
-====="""
-                if finish_title == "DESCRIPTION" or is_reload == "PREVDECRIPTION":
-                    description = f"{DESCRIPTION['description_first']}\n====={DESCRIPTION_list_description}\n{DESCRIPTION['description_second']}"
+                DESCRIPTION_list_description = f"TITLE CHANGE LIST:\n{parts_section}"
+                if finish_title == "DESCRIPTION" or is_reload == "PREVDECRIPTION" or is_reload == "PREVDESCANDCAT":
+                    description = f"{DESCRIPTION['description_first']}\n=====\n{DESCRIPTION_list_description}\n=====\n{DESCRIPTION['description_second']}"
             except Exception as e:
-                logging.error(f"Error building title change list: {str(e)}")
+                logging.error(f"1306 - Error building title change list: {str(e)}")
                 DESCRIPTION_list_description = ""
-            if is_reload != "PREVDECRIPTION":
+            if is_reload == "PREVDECRIPTION" or is_reload == "PREVDESCANDCAT":
+                pass
+            else:
                 filename = state['titleforgmail']
-        if finish_title == "BOTH":
-            description = f"""{DESCRIPTION["description_first"]}\n{part_list_description}====={DESCRIPTION_list_description}\n{DESCRIPTION["description_second"]}"""
+        if finish_title == "CATEGORY" or finish_title == "PARTANDCAT" or finish_title == "DESCANDCAT" or finish_title == "ALL" or is_reload == "PREVDESCANDCAT" or is_reload == "PREVCATEGORY":
+            try:
+                part_links = []
+                current_part = CATEGORY["currentnumber"]
+                while current_part >= 0:
+                    part_key = f"part{current_part}"
+                    if part_key in CATEGORY:
+                        part_links.append(f"Ver.{current_part}: {CATEGORY[part_key]}")
+                    current_part -= 1
+                parts_section = "\n".join(part_links)
+                CATEGORY_list_description = f"CATEGORY CHANGE LIST:\n{parts_section}"
+                if finish_title == "CATEGORY" or is_reload == "PREVDESCANDCAT" or is_reload == "PREVCATEGORY":
+                    description = f"{DESCRIPTION['description_first']}\n=====\n{CATEGORY_list_description}\n=====\n{DESCRIPTION['description_second']}"
+            except Exception as e:
+                logging.error(f"1306 - Error building title change list: {str(e)}")
+                CATEGORY_list_description = ""
+            if is_reload == "PREVCATEGORY" or is_reload == "PREVDESCANDCAT":
+                pass
+            else:
+                filename = state['titleforgmail']
+        if finish_title == "PARTANDDESC":
+            description = f"""{DESCRIPTION["description_first"]}\n=====\n{part_list_description}\n=====\n{DESCRIPTION_list_description}\n=====\n{DESCRIPTION["description_second"]}"""
+            filename = state['titleforgmail']
+        if finish_title == "PARTANDCAT":
+            description = f"""{DESCRIPTION["description_first"]}\n=====\n{part_list_description}\n=====\n{CATEGORY_list_description}\n=====\n{DESCRIPTION["description_second"]}"""
+            filename = state['titleforgmail']
+        if finish_title == "DESCANDCAT" or is_reload == "PREVDESCANDCAT":
+            description = f"""{DESCRIPTION["description_first"]}\n=====\n{DESCRIPTION_list_description}\n=====\n{CATEGORY_list_description}\n=====\n{DESCRIPTION["description_second"]}"""
+            filename = state['titleforgmail']
+        if finish_title == "ALL":
+            description = f"""{DESCRIPTION["description_first"]}\n=====\n{part_list_description}\n=====\n{CATEGORY_list_description}\n=====\n{DESCRIPTION_list_description}\n=====\n{DESCRIPTION["description_second"]}"""
             filename = state['titleforgmail']
     try: 
         if is_reload is True: 
@@ -1398,33 +1604,33 @@ Archived using open-source tools: https://is.gd/archivescript Service by Karsten
 More info: https://linktr.ee/karstenlee
 Twitch Stream to YouTube Script Version: {script_version}""" 
         if stream_url == "Null": 
-            logging.info('Initiating API request for stream creation...') 
+            logging.info("1306 - Initiating API request for stream creation...") 
             privacy_status = "public" if not config.unliststream else "unlisted" 
             if config.unliststream and config.public_notification: 
                 privacy_status = "public" 
             stream_url = create_live_stream(filename, description, privacy_status) 
-            logging.info("==================================================") 
+            logging.info("1306 - ==================================================") 
             if not config.playlist_id0 == "Null": 
-                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url} AND ADD TO PLAYLIST: {config.playlist_id0}") 
+                logging.info(f"1306 - LIVE STREAM SCHEDULE CREATED: {stream_url} AND ADD TO PLAYLIST: {config.playlist_id0}") 
             elif not config.playlist_id0 == "Null" and not config.playlist_id1 == "Null": 
-                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url} AND ADD TO PLAYLIST: {config.playlist_id0} AND {config.playlist_id1}") 
+                logging.info(f"1306 - LIVE STREAM SCHEDULE CREATED: {stream_url} AND ADD TO PLAYLIST: {config.playlist_id0} AND {config.playlist_id1}") 
             else: 
-                logging.info(f"LIVE STREAM SCHEDULE CREATED: {stream_url}") 
-            logging.info("==================================================") 
+                logging.info(f"1306 - LIVE STREAM SCHEDULE CREATED: {stream_url}") 
+            logging.info("1306 - ==================================================") 
             setup_stream_settings(stream_url, rtmp_server)
-        if is_reload == "EDIT" or is_reload == "PREVDECRIPTION": 
-            logging.info(f"Editing existing live stream...")
+        if is_reload == "EDIT" or is_reload == "PREVDECRIPTION" or is_reload == "PREVCATEGORY" or is_reload == "PREVDESCANDCAT": 
+            logging.info(f"1306 - Editing existing live stream...")
             edit_live_stream(stream_url, filename, description) 
             return filename 
         if is_reload is True: 
             return stream_url 
         if not is_reload: 
-            logging.info(f"Start stream relay") 
+            logging.info(f"1306 - Start stream relay") 
             initialize_stream_relay(stream_url, rtmp_server, filename) 
             edit_live_stream(stream_url, filename, description) 
             return filename 
     except Exception as e: 
-        logging.error(f"Critical error encountered during api_create_edit_schedule: {e}") 
+        logging.error(f"1306 - Critical error encountered during api_create_edit_schedule: {e}") 
         psutil.Process(os.getpid()).terminate() 
 
 def initialize_stream_relay( 
@@ -1453,7 +1659,7 @@ def initialize_stream_relay(
 
 def initialize_and_monitor_stream(): 
     if not check_chrome_version(): 
-        logging.info("Error try fixing your chrome version guide on github") 
+        logging.info("1474 - Error try fixing your chrome version guide on github") 
         exit() 
     try: 
         yt_link = "Null" 
@@ -1464,32 +1670,32 @@ def initialize_and_monitor_stream():
         prev = False
         arguments = sys.argv 
         if len(arguments) < 2: 
-            logging.info("==================================================") 
-            logging.info(f"NO ARGUMENT AVAILABLE (Ver.{script_version}) (CONFIG VIEW IN CONFIG_TV.PY)") 
-            logging.info(f"ARCHIVE USER: {config.username}") 
-            logging.info("==================================================") 
+            logging.info("1474 - ==================================================") 
+            logging.info(f"1474 - NO ARGUMENT AVAILABLE (Ver.{script_version}) (CONFIG VIEW IN CONFIG_TV.PY)") 
+            logging.info(f"1474 - ARCHIVE USER: {config.username}") 
+            logging.info("1474 - ==================================================") 
         else: 
             yt_link = arguments[1] 
             if yt_link == "KILL": 
-                logging.info("close all exe") 
+                logging.info("1474 - close all exe") 
                 subprocess.run(["taskkill", "/f", "/im", config.ffmpeg]) 
                 subprocess.run(["taskkill", "/f", "/im", config.ffmpeg1]) 
                 subprocess.run(["taskkill", "/f", "/im", "countdriver.exe"]) 
                 exit(1) 
             rtmp_info = arguments[2] 
             if len(arguments) < 3: 
-                logging.error("Missing required RTMP argument") 
+                logging.error("1474 - Missing required RTMP argument") 
                 exit(1) 
             if len(yt_link) != 11: 
-                logging.error(f"Invalid argument for ARG1: {yt_link}. Must be 11 characters long YouTube Video ID") 
+                logging.error(f"1474 - Invalid argument for ARG1: {yt_link}. Must be 11 characters long YouTube Video ID") 
                 exit(1) 
             if rtmp_info not in ["defrtmp", "bkrtmp"]: 
-                logging.error(f"Invalid argument for ARG2: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'") 
+                logging.error(f"1474 - Invalid argument for ARG2: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'") 
                 exit(1) 
             if len(arguments) == 4: 
                 bk_yt_link = arguments[3]
                 if len(bk_yt_link) != 11: 
-                    logging.error(f"Invalid argument for ARG3: {bk_yt_link}. Must be 11 characters long YouTube Video ID") 
+                    logging.error(f"1474 - Invalid argument for ARG3: {bk_yt_link}. Must be 11 characters long YouTube Video ID") 
                     exit(1) 
                 else:
                     IFTHEREISMORE = f"ARG3: {bk_yt_link}(SKIP CREATING BK STREAM AND RESTORE MONITORING)" 
@@ -1503,42 +1709,43 @@ def initialize_and_monitor_stream():
                         prev_state_JSON = json.loads(base64.b64decode(prev_json["state"]).decode('utf-8'))
                         prev_PART_JSON = json.loads(base64.b64decode(prev_json["PART"]).decode('utf-8'))
                         prev_TITLE_JSON = json.loads(base64.b64decode(prev_json["TITLE"]).decode('utf-8'))
+                        prev_CATEGORY_JSON = json.loads(base64.b64decode(prev_json["CATEGORY"]).decode('utf-8'))
                         if len(prev_state_JSON["live_url"]) == 11:
                             IFTHEREISMORE = f"ARG3: recieved previous data for peaceful period"
                             prev = True
                     except Exception as e:
-                        logging.info(f"Error reading previous script data, pass")
-            logging.info("==================================================") 
-            logging.info(f"INPUT ARGUMENT AVAILABLE (Ver.{script_version}) (CONFIG VIEW IN CONFIG_TV.PY)") 
-            logging.info(f"ARG1: {yt_link} ARG2: {rtmp_info}")
+                        logging.info(f"1474 - Error reading previous script data, pass")
+            logging.info("1474 - ==================================================") 
+            logging.info(f"1474 - INPUT ARGUMENT AVAILABLE (Ver.{script_version}) (CONFIG VIEW IN CONFIG_TV.PY)") 
+            logging.info(f"1474 - ARG1: {yt_link} ARG2: {rtmp_info}")
             if IFTHEREISMORE != "":
-                logging.info(f"{IFTHEREISMORE}") 
-            logging.info(f"ARCHIVE USER: {config.username}") 
-            logging.info("==================================================")
+                logging.info(f"1474 - {IFTHEREISMORE}") 
+            logging.info(f"1474 - ARCHIVE USER: {config.username}") 
+            logging.info("1474 - ==================================================")
         if rtmp_info not in ["defrtmp", "bkrtmp", "Null"]: 
-            logging.error(f"Invalid RTMP server type: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'") 
+            logging.error(f"1474 - Invalid RTMP server type: {rtmp_info}. Must be 'defrtmp' or 'bkrtmp'") 
             exit(1) 
         live_url = None 
         rtmp_server = None 
         if yt_link == "Null": 
-            logging.info("Starting live API check to get initial stream URL") 
+            logging.info("1474 - Starting live API check to get initial stream URL") 
             rtmp_server = "defrtmp" 
             try: 
                 live_url = api_create_edit_schedule(0, rtmp_server, True, "Null") 
-                logging.info(f"Successfully created new stream with URL: {live_url}") 
+                logging.info(f"1474 - Successfully created new stream with URL: {live_url}") 
             except Exception as e: 
-                logging.error(f"Failed to create stream via API: {str(e)}") 
+                logging.error(f"1474 - Failed to create stream via API: {str(e)}") 
                 raise 
         else: 
             live_url = yt_link 
             rtmp_server = rtmp_info 
-            logging.info(f"Using provided YouTube link: {live_url} with RTMP server: {rtmp_server}")
+            logging.info(f"1474 - Using provided YouTube link: {live_url} with RTMP server: {rtmp_server}")
         if THEREISMORE == "Null":
             if prev:
                 first_time = time.time()
             else:
                 first_time = None
-            logging.info("Waiting for stream to go live...")
+            logging.info("1474 - Waiting for stream to go live...")
             status = {"status": False}             
             threading.Thread(target=handle_input, args=(status, live_url, rtmp_server), daemon=True).start()
             while True:  
@@ -1547,21 +1754,32 @@ def initialize_and_monitor_stream():
                     if streams:  
                         if not streams == "ERROR":
                             stream = streams[0]  
-                            logging.info(f"Stream is now live! Title From Twitch: {stream['title']}") 
+                            logging.info(f"1474 - Stream is now live! Title From Twitch: {stream['title']}") 
                             if prev and (time.time() - first_time) <= 600: 
-                                logging.info("Peaceful period detected - edit the previous stream description and apply previous session data")
-                                def apply_gobal_state(prev_PART_JSON, prev_TITLE_JSON):
+                                logging.info("1474 - Peaceful period detected - edit the previous stream description and apply previous session data")
+                                def apply_gobal_state(prev_PART_JSON, prev_TITLE_JSON, prev_CATEGORY_JSON):
                                     global PART
                                     global TITLE
+                                    global CATEGORY
+                                    CATEGORY = prev_CATEGORY_JSON
                                     PART = prev_PART_JSON
                                     TITLE = prev_TITLE_JSON
                                 def title_and_edit(prev_state_JSON, reason):
-                                    if TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and prev_state_JSON['gmail_checking']:
+                                    if TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and prev_state_JSON['gmail_checking'] and CATEGORY["currentnumber"] >= 1 and CATEGORY["part0"] is not None:
+                                        logging.info("1474 - Previous title and category changes detected - performing title and category edit")
+                                        api_create_edit_schedule(PART["partnumber"], None, "PREVDESCANDCAT", prev_state_JSON["live_url"], reason, False, None, TITLE[f"part{TITLE['currentnumber']}"])
+                                    elif CATEGORY["currentnumber"] >= 1 and CATEGORY["part0"] is not None:
+                                        logging.info("1474 - Previous category changes detected - performing category edit")
+                                        api_create_edit_schedule(PART["partnumber"], None, "PREVCATEGORY", prev_state_JSON["live_url"], reason, False, None, TITLE[f"part{TITLE['currentnumber']}"])
+                                    elif TITLE["currentnumber"] >= 1 and TITLE["part0"] is not None and prev_state_JSON['gmail_checking']:
+                                        logging.info("1474 - Previous title changes detected - performing title edit")
                                         api_create_edit_schedule(PART["partnumber"], None, "PREVDECRIPTION", prev_state_JSON["live_url"], reason, False, None, TITLE[f"part{TITLE['currentnumber']}"])
                                     else:
+                                        logging.info("1474 - No previous title or category changes detected - performing standard edit")
                                         api_create_edit_schedule(PART["partnumber"], None, "EDIT", prev_state_JSON["live_url"], reason, False, None, TITLE[f"part{TITLE['currentnumber']}"])
                                     restart_title_arg()
-                                apply_gobal_state(prev_PART_JSON, prev_TITLE_JSON)
+                                    restart_category_arg()
+                                apply_gobal_state(prev_PART_JSON, prev_TITLE_JSON, prev_CATEGORY_JSON)
                                 PART[f"part{PART['partnumber']+1}"] = prev_state_JSON["live_url"]
                                 PART['partnumber'] += 1
                                 reason = f"[Reason of switching is streamer got offline(Part{PART["partnumber"]+1} is on https://youtube.com/watch?v={live_url})]"
@@ -1569,36 +1787,36 @@ def initialize_and_monitor_stream():
                             status['status'] = True
                             break  
                         else:
-                            logging.error(f"Error checking stream status")  
+                            logging.error(f"1474 - Error checking stream status")  
                             time.sleep(30)  
                     else:
                         time.sleep(10)  
                 except Exception as e:  
-                    logging.error(f"Error checking stream status: {str(e)}")  
+                    logging.error(f"1474 - Error checking stream status: {str(e)}")  
                     time.sleep(30)  
             live_spare_url = None  
-            logging.info("Starting stream monitoring process...")  
+            logging.info("1474 - Starting stream monitoring process...")  
             if not live_url:  
-                logging.error("Missing live URL - cannot start monitoring")  
+                logging.error("1474 - Missing live URL - cannot start monitoring")  
                 exit(1)  
             if rtmp_server not in ["defrtmp", "bkrtmp"]:  
-                logging.error(f"Invalid RTMP server type: {rtmp_server}")  
+                logging.error(f"1474 - Invalid RTMP server type: {rtmp_server}")  
                 exit(1)
             try:
                 if rtmp_server == "bkrtmp":  
-                    logging.info("Starting with backup stream rtmp... and check")  
+                    logging.info("1474 - Starting with backup stream rtmp... and check")  
                     threading.Thread(target=start_restreaming, args=("api_this", live_url), daemon=False).start()
                 elif rtmp_server == "defrtmp":  
-                    logging.info("Starting with default stream rtmp... and check")  
+                    logging.info("1474 - Starting with default stream rtmp... and check")  
                     threading.Thread(target=start_restreaming, args=("this", live_url), daemon=False).start()  
                 if config.local_archive:
-                    logging.info("Starting local archive process...")
+                    logging.info("1474 - Starting local archive process...")
                     filename = f"{datetime.now().strftime('%Y-%m-%d')}_{stream['title']}"
                     threading.Thread(target=local_save, args=(filename,), daemon=False).start()
             except Exception as e:  
-                logging.error(f"Failed to start relay process: {str(e)}")  
+                logging.error(f"1474 - Failed to start relay process: {str(e)}")  
                 psutil.Process(os.getpid()).terminate() 
-            logging.info("Stream relay process started successfully")  
+            logging.info("1474 - Stream relay process started successfully")  
         else:
             pass
         try:
@@ -1608,13 +1826,13 @@ def initialize_and_monitor_stream():
               titlegmail = get_youtube_stream_title(live_url)
             if prev:
                 titlegmail = api_create_edit_schedule(PART['partnumber']+1, rtmp_server, "EDIT", live_url)
-            logging.info('edit finished continue the stream')  
+            logging.info('1474 - edit finished continue the stream')  
         except UnboundLocalError:  
-            logging.warning("Encountered UnboundLocalError when getting title - continuing with default continue at your own risk")  
+            logging.warning("1474 - Encountered UnboundLocalError when getting title - continuing with default continue at your own risk")  
         except Exception as e:  
-            logging.error(f"Error getting stream title: {str(e)} - Error continue at your own risk")  
+            logging.error(f"1474 - Error getting stream title: {str(e)} - continuing at your own risk")  
         try:
-            logging.info("Loading backup stream configuration...")  
+            logging.info("1474 - Loading backup stream configuration...")  
             if rtmp_server == "bkrtmp":
                 rtmp_server = "defrtmp"
             elif rtmp_server == "defrtmp":
@@ -1623,16 +1841,15 @@ def initialize_and_monitor_stream():
                 live_spare_url = api_create_edit_schedule(0, rtmp_server, True, "Null")  
             else:
                 live_spare_url = bk_yt_link  
-            logging.info(f"Backup stream URL configured: {live_spare_url}")  
+            logging.info(f"1474 - Backup stream URL configured: {live_spare_url}")  
         except Exception as e:  
-            logging.error(f"Failed to create backup stream: {str(e)}")  
-        logging.info("Starting offline detection...")  
+            logging.error(f"1474 - Failed to create backup stream: {str(e)}")  
+        logging.info("1474 - Starting offline detection...")  
         offline_check_functions(live_url, live_spare_url, rtmp_server, titlegmail) 
     except Exception as e:
-        logging.error(f"Error in initialize_and_monitor_stream: {str(e)}", exc_info=True)  
-        logging.error("Critical error encountered - terminating script execution")  
+        logging.error(f"1474 - Error in initialize_and_monitor_stream: {str(e)}", exc_info=True)  
+        logging.error("1474 - Critical error encountered - terminating script execution")  
         psutil.Process(os.getpid()).terminate() 
-
 
 def check_chrome_version(target_version=(130, 0, 6723, 70)):
     """Check if installed Chrome version is <= target version (default: 130.0.6723.70)"""
@@ -1643,105 +1860,15 @@ def check_chrome_version(target_version=(130, 0, 6723, 70)):
         if version <= target_version:
             return True  
         else:
-            logging.info(f"Chrome version {version_str} is > {'.'.join(map(str, target_version))}")  
+            logging.info(f"1656 - Chrome version {version_str} is > {'.'.join(map(str, target_version))}")  
             return False
     except FileNotFoundError:  
-        logging.info("Chrome is not installed or version could not be detected.")
+        logging.info("1656 - Chrome is not installed or version could not be detected.")
         return False
     except (ValueError, Exception) as e:  
-        logging.info(f"Error checking Chrome version: {str(e)}")
+        logging.info(f"1656 - Error checking Chrome version: {str(e)}")
         return False
 
-def show_agreement_screen():
-    if hasattr(config, 'agreement_accepted') and config.agreement_accepted:
-        return True
-    root = tk.Tk()
-    root.title("End User License Agreement For Twitch Stream to YouTube")
-    root.geometry("600x400")
-    try:
-        windll.shcore.SetProcessDpiAwareness(1)
-    except:
-        pass  
-    root.minsize(width=600, height=450)  
-    root.resizable(True, True)
-    root.configure(bg="white")
-    main_canvas = tk.Canvas(root, bg="white")
-    main_scrollbar = tk.Scrollbar(root, orient="vertical", command=main_canvas.yview)
-    main_scrollbar.pack(side="right", fill="y")
-    main_canvas.pack(side="left", fill="both", expand=True)
-    main_canvas.configure(yscrollcommand=main_scrollbar.set)
-    content_frame = tk.Frame(main_canvas, bg="white")
-    main_canvas.create_window((0, 0), window=content_frame, anchor="nw")
-    root.update_idletasks()
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
-    width = max(600, int(screen_width * 0.5))
-    height = max(450, int(screen_height * 0.6))
-    x = (screen_width // 2) - (width // 2)
-    y = (screen_height // 2) - (height // 2)
-    root.geometry('{}x{}+{}+{}'.format(width, height, x, y))
-    def update_scrollbar(event):
-        main_canvas.configure(scrollregion=main_canvas.bbox("all"))
-    content_frame.bind("<Configure>", update_scrollbar)
-    title_label = tk.Label(content_frame, text="End User License Agreement For Twitch Stream to YouTube", 
-                          font=('Helvetica', 18, 'bold'), bg="white")
-    title_label.pack(pady=(30, 20), padx=30, anchor="w")
-    text_frame = tk.Frame(content_frame, bg="white")
-    text_frame.pack(fill=tk.BOTH, expand=True, padx=30)
-    scrollbar = tk.Scrollbar(text_frame)
-    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    agreement_text = tk.Text(text_frame, wrap=tk.WORD, yscrollcommand=scrollbar.set, 
-                           font=('Helvetica', 11), bg="white")
-    agreement_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
-    scrollbar.config(command=agreement_text.yview)
-    def download_agreement_content():
-        agreement_url = 'https://raw.githubusercontent.com/karstenlee10/Twitch_Stream_To_YouTube/refs/heads/main/END%20USER%20LICENSE%20AGREEMENT'
-        try:
-            response = requests.get(agreement_url, timeout=10)
-            response.raise_for_status()
-            return response.text
-        except requests.exceptions.RequestException as e:
-            logging.info(f"Error downloading agreement: {e}")
-            exit()
-    agreement_content = download_agreement_content()
-    agreement_text.insert(tk.END, agreement_content)
-    agreement_text.config(state=tk.DISABLED)
-    button_frame = tk.Frame(content_frame, bg="white", height=80)
-    button_frame.pack(fill=tk.X, pady=20, padx=30)
-    button_frame.pack_propagate(False)
-    spacer = tk.Frame(button_frame, bg="white")
-    spacer.pack(side=tk.LEFT, fill=tk.X, expand=True)
-    def accept_agreement():
-        config.agreement_accepted = True
-        try:
-            with open('config_tv.py', 'r') as f:
-                config_lines = f.readlines()
-            with open('config_tv.py', 'w') as f:
-                for line in config_lines:
-                    if line.startswith('agreement_accepted ='):
-                        f.write('agreement_accepted = True\n')
-                    else:
-                        f.write(line)
-            importlib.reload(config)
-        except Exception as e:
-            logging.info(f"Error saving agreement status: {e}")
-        root.destroy()
-    def decline_agreement():
-        messagebox.showerror("Agreement Declined", "You must accept the agreement to use this software.")
-        root.destroy()
-        exit()
-    accept_button = tk.Button(button_frame, text="I Accept", command=accept_agreement, 
-        bg="#4CAF50", fg="white", font=('Helvetica', 12, 'bold'), padx=20, pady=8, 
-        width=10)
-    accept_button.pack(side=tk.RIGHT, padx=5)
-
-    decline_button = tk.Button(button_frame, text="I Decline", command=decline_agreement, 
-        bg="#f44336", fg="white", font=('Helvetica', 12, 'bold'), padx=20, pady=8, 
-        width=10)
-    decline_button.pack(side=tk.RIGHT, padx=5)
-    root.mainloop()
-
-if __name__ == "__main__":  
-    show_agreement_screen()
+if __name__ == "__main__": 
     initialize_and_monitor_stream()  
     exit()  
